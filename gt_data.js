@@ -56,10 +56,9 @@ async function loadGTData() {
   // =========================================================
   // DROPBOX FILE LOCATION
   // =========================================================
-  // TODO: paste the GTStatsFINAL Dropbox "Anyone with the link" direct-download URL below.
-  // Use the dl.dropboxusercontent.com form (not www.dropbox.com/...?dl=0).
   const DROPBOX_URL =
-    "REPLACE_WITH_GTStatsFINAL_DROPBOX_DIRECT_LINK";
+    "https://dl.dropboxusercontent.com/scl/fi/twt9mo3vvvngnx2cgrht6/GTStatsFINAL.xlsm" +
+    "?rlkey=u2zj5dscvonfqvtgd0opaapvo";
 
   const PLAYER_TRACKING_SHEET = "Player Tracking";
   const WEEK_SETTINGS_SHEET   = "Week Settings";
