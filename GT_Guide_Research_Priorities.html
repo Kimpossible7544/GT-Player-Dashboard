@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT Training Guide: Research Priorities</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12161e;
+    --surface2: #1a1f2b;
+    --border: #2a3040;
+    --orange: #ff6b1a;
+    --orange-glow: rgba(255,107,26,0.15);
+    --purple: #9b59f5;
+    --purple-glow: rgba(155,89,245,0.15);
+    --blue: #3b9eff;
+    --blue-glow: rgba(59,158,255,0.15);
+    --gold: #f0c040;
+    --gold-glow: rgba(240,192,64,0.15);
+    --green: #4ecb71;
+    --green-glow: rgba(78,203,113,0.15);
+    --text: #e8eaf0;
+    --muted: #7a8299;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  .hero {
+    background: linear-gradient(160deg, #0d1520 0%, #0a0c10 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(155,89,245,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--purple); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .phoenix {
+    font-size: 64px;
+    margin-bottom: 16px;
+    display: block;
+    filter: drop-shadow(0 0 20px rgba(155,89,245,0.5));
+  }
+
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .priority-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-bottom: 16px;
+    position: relative;
+    overflow: hidden;
+  }
+  .priority-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 4px;
+  }
+  .priority-card.p1::before { background: var(--gold); }
+  .priority-card.p2::before { background: var(--blue); }
+  .priority-card.p3::before { background: var(--purple); }
+  .priority-card.p4::before { background: var(--green); }
+  .priority-card.p5::before { background: var(--orange); }
+  .priority-card .p-header {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    margin-bottom: 10px;
+  }
+  .priority-card .p-num {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    flex-shrink: 0;
+  }
+  .p1 .p-num { background: var(--gold-glow); color: var(--gold); border: 1px solid var(--gold); }
+  .p2 .p-num { background: var(--blue-glow); color: var(--blue); border: 1px solid var(--blue); }
+  .p3 .p-num { background: var(--purple-glow); color: var(--purple); border: 1px solid var(--purple); }
+  .p4 .p-num { background: var(--green-glow); color: var(--green); border: 1px solid var(--green); }
+  .p5 .p-num { background: var(--orange-glow); color: var(--orange); border: 1px solid var(--orange); }
+  .priority-card .p-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+  }
+  .priority-card .p-badge {
+    font-family: 'Oswald', sans-serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 2px 8px;
+    border-radius: 3px;
+    margin-left: auto;
+    flex-shrink: 0;
+  }
+  .badge-free { background: var(--green-glow); border: 1px solid var(--green); color: var(--green); }
+  .badge-badges { background: var(--purple-glow); border: 1px solid var(--purple); color: var(--purple); }
+  .priority-card .p-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.65;
+    padding-left: 50px;
+  }
+  .priority-card .p-unlock {
+    display: inline-block;
+    background: var(--orange-glow);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+    margin-left: 50px;
+  }
+
+  .level-callout {
+    background: var(--surface);
+    border: 1px solid var(--gold);
+    border-radius: 8px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .level-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--gold);
+    line-height: 1;
+    filter: drop-shadow(0 0 12px rgba(240,192,64,0.4));
+    flex-shrink: 0;
+  }
+  .level-text h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--gold);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .level-text p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  .back-link {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .back-link:hover { color: var(--orange); }
+
+
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .footer .gt-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--orange);
+    text-transform: uppercase;
+  }
+  .footer p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  @media(max-width:600px) {
+    .level-callout { flex-direction: column; text-align: center; }
+    .priority-card .p-desc { padding-left: 0; }
+    .priority-card .p-unlock { margin-left: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="gt_training.html" class="back-link">&larr; Back to Training</a>
+  <span class="phoenix">🔬</span>
+  <div class="hero-badge">GT Training Series</div>
+  <h1>Research <span>Priorities</span></h1>
+  <p>The optimal laboratory research order to maximize your growth without wasting badges or time.</p>
+</div>
+
+<div class="content">
+
+  <div class="level-callout">
+    <div class="level-num">2</div>
+    <div class="level-text">
+      <h3>Second Lab — Only If You Can Afford It</h3>
+      <p>Two research queues means double the speed — but the second lab costs real money or significant in-game currency. <strong>Only invest in a second lab if you can comfortably afford it.</strong> If you do get it: run badge-free trees in Lab 1 continuously, and badge-heavy trees in Lab 2 timed to Alliance Duel events.</p>
+    </div>
+  </div>
+
+  <div class="section-label">Research Order — Badge-Free First</div>
+
+  <div class="priority-card p1">
+    <div class="p-header">
+      <div class="p-num">1</div>
+      <div class="p-title">Shelter Building</div>
+      <span class="p-badge badge-free">No Badges</span>
+    </div>
+    <div class="p-desc">Max this first. No badges required. Provides construction speed and resource protection. This is where every player should start — fast, free, and immediately impactful.</div>
+    <div class="p-unlock">Unlock: Available Immediately</div>
+  </div>
+
+  <div class="priority-card p2">
+    <div class="p-header">
+      <div class="p-num">2</div>
+      <div class="p-title">HQ Management → Rapid Growth</div>
+      <span class="p-badge badge-free">No Badges</span>
+    </div>
+    <div class="p-desc">Max HQ Management, which unlocks Rapid Growth. Max that too. Still no badges needed. These give construction speed, resource production, and troop training buffs that compound over time.</div>
+    <div class="p-unlock">Unlock: After Shelter Building</div>
+  </div>
+
+  <div class="priority-card p3">
+    <div class="p-header">
+      <div class="p-num">3</div>
+      <div class="p-title">Elite Troops + Allied Troops</div>
+      <span class="p-badge badge-free">No Badges</span>
+    </div>
+    <div class="p-desc">Run these in parallel if you have two labs. They boost troop stats and training capacity. Still badge-free, so there's no reason not to push them early.</div>
+    <div class="p-unlock">Unlock: After Rapid Growth</div>
+  </div>
+
+  <div class="section-label">Badge Trees — Time to Events</div>
+
+  <div class="priority-card p4">
+    <div class="p-header">
+      <div class="p-num">4</div>
+      <div class="p-title">Alliance Recognition — Complete Early!</div>
+      <span class="p-badge badge-badges">Badges Required</span>
+    </div>
+    <div class="p-desc"><strong style="color:var(--gold);">This is your most important badge investment — complete it as early as possible.</strong> Alliance Recognition unlocks chests 4-9 in Alliance Duel, doubles badge rewards, and dramatically increases the value of every future Alliance Duel week. Every week you delay this research costs you thousands of badges in missed rewards. Complete high-cost nodes during <strong>Day 3 (Research Day)</strong> of Alliance Duel for double credit.</div>
+    <div class="p-unlock">Key Unlock: Premium Rewards (1,200 badges) → Super Rewards (4,100 badges)</div>
+  </div>
+
+  <div class="priority-card p5">
+    <div class="p-header">
+      <div class="p-num">5</div>
+      <div class="p-title">Hero Training → Military Strategies → Peace Shield</div>
+      <span class="p-badge badge-badges">Badges Required</span>
+    </div>
+    <div class="p-desc">After Alliance Recognition is solid: push Hero Training to Cockpit unlock, then Military Strategies for troop HP buffs, then Peace Shield for Urgent Rescue (-20% losses). These three form your combat research foundation.</div>
+    <div class="p-unlock">Key Unlock: Urgent Rescue = -20% Troop Losses</div>
+  </div>
+
+  <div class="section-label">Two-Lab Strategy</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">🔬</span>
+      <span><strong style="color:#3b9eff;">Lab 1 (Badge-Free):</strong> Cycle Shelter Building → HQ Management → Rapid Growth → Elite Troops → Allied Troops continuously. Never let this lab sit idle.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">🏅</span>
+      <span><strong style="color:#9b59f5;">Lab 2 (Badge Trees):</strong> Reserved for Alliance Recognition, Hero Training, Military Strategies, and later UST. Time completions to Alliance Duel Day 3 for maximum event credit.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">📅</span>
+      <span><strong style="color:#ff6b1a;">Event Timing:</strong> Start badge research mid-week so it completes during the Day 3 Research window. Finishing research during the ranking period earns both Duel points AND badge rewards simultaneously.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">⚡</span>
+      <span><strong style="color:#ff6b1a;">Speed-Up Rule:</strong> Save research speed-ups exclusively for Day 3 of Alliance Duel. Using them any other day wastes potential Duel points.</span>
+    </div>
+  </div>
+
+  <div class="section-label">Common Mistakes</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">❌</span>
+      <span>Rushing toward T10/UST early. The badge cost is 1.4 million+ — you need Alliance Recognition maxed first to earn badges fast enough.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">❌</span>
+      <span>Spending badges outside event windows. Every badge-cost research completion should happen during Alliance Duel Research Day.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">❌</span>
+      <span>Letting labs sit idle. Even a 5-minute research node is better than zero. Queue something always.</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="gt-logo">⚔️ GT ⚔️</div>
+    <p>GT Alliance Alliance — Training Series</p>
+    <p style="margin-top:12px; font-size:13px; color:var(--orange); font-family:'Oswald',sans-serif; letter-spacing:2px; text-transform:uppercase;">Created by Kimpossible7544</p>
+  </div>
+
+</div>
+</body>
+</html>

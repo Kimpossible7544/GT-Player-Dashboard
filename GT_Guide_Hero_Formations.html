@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT Training Guide: Hero Formations</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12161e;
+    --surface2: #1a1f2b;
+    --border: #2a3040;
+    --orange: #ff6b1a;
+    --orange-glow: rgba(255,107,26,0.15);
+    --purple: #9b59f5;
+    --purple-glow: rgba(155,89,245,0.15);
+    --blue: #3b9eff;
+    --blue-glow: rgba(59,158,255,0.15);
+    --gold: #f0c040;
+    --gold-glow: rgba(240,192,64,0.15);
+    --green: #4ecb71;
+    --green-glow: rgba(78,203,113,0.15);
+    --red: #ff4757;
+    --red-glow: rgba(255,71,87,0.15);
+    --text: #e8eaf0;
+    --muted: #7a8299;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  .hero {
+    background: linear-gradient(160deg, #0d1520 0%, #0a0c10 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(59,158,255,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--blue); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .phoenix {
+    font-size: 64px;
+    margin-bottom: 16px;
+    display: block;
+    filter: drop-shadow(0 0 20px rgba(59,158,255,0.5));
+  }
+
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .formation-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .formation-box h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .formation-box h3 .f-badge {
+    font-size: 10px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+  }
+  .f-front { background: var(--red-glow); border: 1px solid var(--red); color: var(--red); }
+  .f-back { background: var(--blue-glow); border: 1px solid var(--blue); color: var(--blue); }
+  .formation-row {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+  }
+  .formation-slot {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .formation-slot .slot-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 4px;
+  }
+  .formation-slot .slot-type {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  .faction-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .faction-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 14px;
+    text-align: center;
+  }
+  .faction-card .f-icon { font-size: 28px; margin-bottom: 8px; }
+  .faction-card .f-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .faction-card .f-troop {
+    font-size: 11px;
+    color: var(--muted);
+    margin-bottom: 6px;
+  }
+  .faction-card .f-counter {
+    font-size: 10px;
+    color: var(--green);
+    font-weight: 600;
+  }
+
+  .ref-grid {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+  .ref-grid h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #fff;
+    margin-bottom: 14px;
+  }
+  .ref-grid img {
+    width: 100%;
+    max-width: 600px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+  }
+
+  .bonus-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 32px;
+  }
+  .bonus-table th, .bonus-table td {
+    padding: 12px 16px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .bonus-table th {
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+  }
+  .bonus-table td { color: var(--text); }
+  .bonus-table .highlight-row { color: var(--gold); font-weight: 600; }
+
+  .level-callout {
+    background: var(--surface);
+    border: 1px solid var(--blue);
+    border-radius: 8px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .level-callout .level-icon {
+    font-size: 48px;
+    flex-shrink: 0;
+  }
+  .level-callout h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--blue);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .level-callout p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .step-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--orange);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--orange);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-body {
+    padding: 8px 0 32px;
+  }
+  .step-body h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .step-body p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .step-body .highlight {
+    display: inline-block;
+    background: var(--orange-glow);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  .back-link {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .back-link:hover { color: var(--orange); }
+
+
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .footer .gt-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--orange);
+    text-transform: uppercase;
+  }
+  .footer p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  @media(max-width:600px) {
+    .faction-grid { grid-template-columns: 1fr; }
+    .level-callout { flex-direction: column; text-align: center; }
+    .formation-row { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="gt_training.html" class="back-link">&larr; Back to Training</a>
+  <span class="phoenix">⚔️</span>
+  <div class="hero-badge">GT Training Series</div>
+  <h1>Hero <span>Formations</span></h1>
+  <p>How to build optimal formations using faction bonuses, row placement, and troop synergies.</p>
+</div>
+
+<div class="content">
+
+  <div class="level-callout">
+    <span class="level-icon">🎯</span>
+    <div>
+      <h3>One Faction = Maximum Power</h3>
+      <p>5 heroes from the same faction gives +25% combined ATK/DEF bonus and +10% troop capacity. This is not marginal — it's a structural advantage that makes mono-faction formations strictly better than mixed teams.</p>
+    </div>
+  </div>
+
+  <div class="section-label">Formation Layout</div>
+  <div class="formation-box">
+    <h3>Front Row <span class="f-badge f-front">Defense</span></h3>
+    <div class="formation-row">
+      <div class="formation-slot">
+        <div class="slot-label">Position 1</div>
+        <div class="slot-type">Tank / Defense</div>
+      </div>
+      <div class="formation-slot">
+        <div class="slot-label">Position 2</div>
+        <div class="slot-type">Tank / Defense</div>
+      </div>
+    </div>
+    <h3>Back Row <span class="f-badge f-back">Damage</span></h3>
+    <div class="formation-row">
+      <div class="formation-slot">
+        <div class="slot-label">Position 3</div>
+        <div class="slot-type">DPS / Attack</div>
+      </div>
+      <div class="formation-slot">
+        <div class="slot-label">Position 4</div>
+        <div class="slot-type">DPS / Attack</div>
+      </div>
+      <div class="formation-slot">
+        <div class="slot-label">Position 5</div>
+        <div class="slot-type">DPS / Support</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Faction → Troop Matching</div>
+  <div class="faction-grid">
+    <div class="faction-card">
+      <div class="f-icon">🌹</div>
+      <div class="f-name">Blood Rose</div>
+      <div class="f-troop">→ Assaulters</div>
+      <div class="f-counter">Beats: Guard of Order</div>
+    </div>
+    <div class="faction-card">
+      <div class="f-icon">🦅</div>
+      <div class="f-name">Wings of Dawn</div>
+      <div class="f-troop">→ Shooters</div>
+      <div class="f-counter">Beats: Blood Rose</div>
+    </div>
+    <div class="faction-card">
+      <div class="f-icon">⚖️</div>
+      <div class="f-name">Guard of Order</div>
+      <div class="f-troop">→ Riders</div>
+      <div class="f-counter">Beats: Wings of Dawn</div>
+    </div>
+  </div>
+
+  <div class="section-label">Hero Reference Grids</div>
+  <div class="ref-grid">
+    <h3>🌟 S-Tier Heroes (Gold)</h3>
+    <img src="images/heroes/faction_grid_gold.png" alt="S-Tier Gold faction hero reference grid">
+  </div>
+  <div class="ref-grid">
+    <h3>🟣 A-Tier (Purple) &amp; 🟦 B-Tier (Blue) Heroes</h3>
+    <img src="images/heroes/faction_grid_purple_blue.png" alt="A-Tier Purple and B-Tier Blue faction hero grids">
+  </div>
+
+  <div class="section-label">Faction Deployment Bonus</div>
+  <table class="bonus-table">
+    <thead>
+      <tr><th>Same-Faction Heroes</th><th>ATK Bonus</th><th>Faction Bonus</th><th>Troop Capacity</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>3 heroes</td><td>+107%</td><td>+5%</td><td>—</td></tr>
+      <tr><td>4 heroes</td><td>+110%</td><td>+7%</td><td>—</td></tr>
+      <tr class="highlight-row"><td>5 heroes</td><td>+115%</td><td>+10%</td><td>+10%</td></tr>
+    </tbody>
+  </table>
+
+  <div class="section-label">Building Your Formation</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Pick One Faction</h3>
+        <p>Choose <strong>Blood Rose</strong> or <strong>Wings of Dawn</strong> for F2P. These factions have the most accessible heroes. Stick to one — don't mix factions.</p>
+        <div class="highlight">F2P Recommendation: Blood Rose or Wings of Dawn</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Place Defense Heroes in Front Row</h3>
+        <p>Heroes tagged "strong defense" go in the front. They absorb damage and protect your back row. Never put an attack-type hero in front — it's the #1 formation mistake.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Place DPS Heroes in Back Row</h3>
+        <p>Attack and DPS heroes go in the back 3 slots. They deal the majority of your damage while being protected by your front line.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Match Troop Type to Faction</h3>
+        <p>Blood Rose = train Assaulters. Wings of Dawn = train Shooters. Guard of Order = train Riders. Their 3rd and 4th skills specifically boost these troop types.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Get All 5 to 4-Star</h3>
+        <p>4★ unlocks the 4th skill for each hero — this is the biggest power spike. Get all 5 formation heroes to 4★ before pushing anyone to 5★.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Pro Tips</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">🦅</span>
+      <span><strong style="color:#3b9eff;">Counter Strategy:</strong> Wings of Dawn beats Blood Rose. Since most F2P players run Blood Rose, a full WoD team naturally counters the majority of opponents you'll face.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">🚫</span>
+      <span><strong style="color:#ff4757;">Common Mistake:</strong> Never put attack-type heroes (Oliveira, Scarlett) in the front row. They'll die fast and your formation collapses. Defense heroes ONLY in front.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">💰</span>
+      <span><strong style="color:#ff6b1a;">Resource Focus:</strong> All EXP, skill books, power cores, and equipment go to your main 5 ONLY. Do not spread resources across 10+ heroes — concentrate everything.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">⚖️</span>
+      <span><strong style="color:#ff6b1a;">Guard of Order Warning:</strong> GoO heroes are powerful but hard to collect fragments for as F2P. Only build GoO if you're a spender or very patient.</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="gt-logo">⚔️ GT ⚔️</div>
+    <p>GT Alliance Alliance — Training Series</p>
+    <p style="margin-top:12px; font-size:13px; color:var(--orange); font-family:'Oswald',sans-serif; letter-spacing:2px; text-transform:uppercase;">Created by Kimpossible7544</p>
+  </div>
+
+</div>
+</body>
+</html>

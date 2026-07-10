@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT Training Guide: Gear Upgrades</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12161e;
+    --surface2: #1a1f2b;
+    --border: #2a3040;
+    --orange: #ff6b1a;
+    --orange-glow: rgba(255,107,26,0.15);
+    --purple: #9b59f5;
+    --purple-glow: rgba(155,89,245,0.15);
+    --blue: #3b9eff;
+    --blue-glow: rgba(59,158,255,0.15);
+    --gold: #f0c040;
+    --text: #e8eaf0;
+    --muted: #7a8299;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  .hero {
+    background: linear-gradient(160deg, #0d1520 0%, #0a0c10 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(255,107,26,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--orange); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* GEAR SLOTS */
+  .gear-slots {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .gear-slot {
+    border-radius: 8px;
+    padding: 20px 14px;
+    text-align: center;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    transition: border-color 0.3s;
+  }
+  .gear-slot:hover { border-color: var(--orange); }
+  .gear-slot .slot-icon {
+    font-size: 32px;
+    display: block;
+    margin-bottom: 8px;
+  }
+  .gear-slot .slot-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+  .gear-slot .slot-desc {
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.4;
+  }
+
+  /* QUALITY TIERS */
+  .tiers {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .tier {
+    border-radius: 8px;
+    padding: 18px 14px;
+    text-align: center;
+    border: 1px solid;
+  }
+  .tier .tier-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+  .tier p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .tier.green { border-color: #4caf50; background: rgba(76,175,80,0.08); }
+  .tier.green .tier-name { color: #4caf50; }
+  .tier.t-blue { border-color: var(--blue); background: var(--blue-glow); }
+  .tier.t-blue .tier-name { color: var(--blue); }
+  .tier.t-purple { border-color: var(--purple); background: var(--purple-glow); }
+  .tier.t-purple .tier-name { color: var(--purple); }
+  .tier.t-orange { border-color: var(--orange); background: var(--orange-glow); }
+  .tier.t-orange .tier-name { color: var(--orange); }
+  .tier.t-gold { border-color: var(--gold); background: rgba(240,192,64,0.08); }
+  .tier.t-gold .tier-name { color: var(--gold); }
+
+  /* CALLOUT */
+  .callout {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--orange);
+    border-radius: 8px;
+    padding: 20px 24px;
+    margin-bottom: 24px;
+  }
+  .callout h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--orange);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+  }
+  .callout p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  /* STEPS */
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .step-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--orange);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--orange);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-body {
+    padding: 8px 0 32px;
+  }
+  .step-body h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .step-body p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .step-body .highlight {
+    display: inline-block;
+    background: var(--orange-glow);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+
+  /* SET CARDS */
+  .set-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .set-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 18px 20px;
+    display: flex;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  .set-card .set-icon {
+    font-size: 28px;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .set-card .set-info {
+    flex: 1;
+  }
+  .set-card .set-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  .set-card .set-bonus {
+    font-size: 12px;
+    color: var(--orange);
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+  .set-card .set-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .set-card .set-tag {
+    font-family: 'Oswald', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    flex-shrink: 0;
+    align-self: center;
+  }
+  .tag-pvp { background: rgba(255,107,26,0.15); color: var(--orange); border: 1px solid var(--orange); }
+  .tag-pve { background: rgba(59,158,255,0.15); color: var(--blue); border: 1px solid var(--blue); }
+  .tag-balance { background: rgba(155,89,245,0.15); color: var(--purple); border: 1px solid var(--purple); }
+
+  /* TIPS */
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* FOOTER */
+  .back-link {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .back-link:hover { color: var(--orange); }
+
+
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .footer .gt-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--orange);
+    text-transform: uppercase;
+  }
+  .footer p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  @media(max-width:500px) {
+    .gear-slots { grid-template-columns: 1fr; }
+    .tiers { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="gt_training.html" class="back-link">&larr; Back to Training</a>
+  <div class="hero-badge">GT Training Series</div>
+  <h1>Gear <span>Upgrades</span></h1>
+  <p>Equip the right gear, upgrade efficiently, and unlock set bonuses to boost your heroes' combat power.</p>
+</div>
+
+<div class="content">
+
+  <div class="section-label">Gear Slot Overview</div>
+  <div class="gear-slots">
+    <div class="gear-slot">
+      <span class="slot-icon">🔫</span>
+      <div class="slot-name">Gun</div>
+      <div class="slot-desc">Attack & Damage stats</div>
+    </div>
+    <div class="gear-slot">
+      <span class="slot-icon">🪖</span>
+      <div class="slot-name">Helmet</div>
+      <div class="slot-desc">HP & Defense stats</div>
+    </div>
+    <div class="gear-slot">
+      <span class="slot-icon">🛡️</span>
+      <div class="slot-name">Vest</div>
+      <div class="slot-desc">Defense & HP stats</div>
+    </div>
+    <div class="gear-slot">
+      <span class="slot-icon">🥾</span>
+      <div class="slot-name">Boots</div>
+      <div class="slot-desc">March Speed & Defense</div>
+    </div>
+
+  </div>
+
+  <div class="section-label">Quality Tiers</div>
+  <div class="tiers">
+    <div class="tier green">
+      <div class="tier-name">Green</div>
+      <p>Common. Starter gear only.</p>
+    </div>
+    <div class="tier t-blue">
+      <div class="tier-name">Blue</div>
+      <p>Uncommon. Early upgrade base.</p>
+    </div>
+    <div class="tier t-purple">
+      <div class="tier-name">Purple</div>
+      <p>Rare. Solid mid-game gear.</p>
+    </div>
+    <div class="tier t-orange">
+      <div class="tier-name">Orange / Gold</div>
+      <p>Epic & Legendary. End-game target gear — best in slot.</p>
+    </div>
+  </div>
+
+  <div class="callout">
+    <h3>Focus on Orange Gear First</h3>
+    <p>Don't invest heavily in green or blue gear upgrades. Save your materials and fragments for purple and orange gear. Upgrading low-tier gear wastes resources you'll need later. Use whatever you find early on, but <strong>don't enhance anything below purple</strong>.</p>
+  </div>
+
+  <div class="section-label">Upgrade Priority Order</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Equip Full Orange Set on Main Heroes</h3>
+        <p>Before enhancing anything, make sure all 5 heroes in your main formation have a complete set of orange gear. An unenhanced orange piece outperforms an enhanced blue piece. Collect fragments from campaign, events, and the gear workshop.</p>
+        <div class="highlight">Full orange set > partially enhanced blue set</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Gun First</h3>
+        <p>Your DPS heroes benefit most from <strong>gun upgrades</strong>. These boost attack damage which directly increases your kill speed. Prioritize this slot on your strongest damage dealer.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Then Helmet</h3>
+        <p>Helmet upgrades provide critical <strong>HP and defense stats</strong> that keep your heroes alive longer. Enhance this next to improve survivability across your formation.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Then Vest</h3>
+        <p>The vest adds <strong>defense and HP</strong> to further protect your heroes. A solid vest upgrade helps your front-row tanks survive extended fights.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Boots Last</h3>
+        <p>March speed and mixed stats from boots are useful but not urgent. Fill this slot out after your core combat gear is enhanced.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">6</div>
+      <div class="step-body">
+        <h3>Refine to Gold When Ready</h3>
+        <p>Once you have enhanced orange gear, you can refine pieces to <strong>gold</strong> quality using refinement materials. This is a late-game investment — only refine gear you plan to use permanently. Never refine before you've committed to a set.</p>
+        <div class="highlight">Only refine gear you'll keep long-term</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Gear Sets to Target</div>
+  <div class="set-list">
+    <div class="set-card">
+      <span class="set-icon">🗡️</span>
+      <div class="set-info">
+        <div class="set-name">Assaulter Set</div>
+        <div class="set-bonus">Set Bonus: +Assaulter ATK, +Assaulter HP</div>
+        <div class="set-desc">Best for assaulter-heavy formations. Boosts your front-line troops' attack and durability. Pair with assaulter heroes like Laura or Katrina.</div>
+      </div>
+      <span class="set-tag tag-pvp">PvP</span>
+    </div>
+    <div class="set-card">
+      <span class="set-icon">🎯</span>
+      <div class="set-info">
+        <div class="set-name">Shooter Set</div>
+        <div class="set-bonus">Set Bonus: +Shooter ATK, +Shooter Crit</div>
+        <div class="set-desc">Ideal for shooter-focused formations. Maximizes ranged damage output. Great with heroes like Fiona or Isabella in the back row.</div>
+      </div>
+      <span class="set-tag tag-pvp">PvP</span>
+    </div>
+    <div class="set-card">
+      <span class="set-icon">🏍️</span>
+      <div class="set-info">
+        <div class="set-name">Rider Set</div>
+        <div class="set-bonus">Set Bonus: +Rider ATK, +March Speed</div>
+        <div class="set-desc">For rider-based formations. Adds march speed which is useful for rallies and quick strikes. Niche but powerful in the right comp.</div>
+      </div>
+      <span class="set-tag tag-pvp">PvP</span>
+    </div>
+    <div class="set-card">
+      <span class="set-icon">🛡️</span>
+      <div class="set-info">
+        <div class="set-name">Defense Set</div>
+        <div class="set-bonus">Set Bonus: +All Troop DEF, +HP</div>
+        <div class="set-desc">Great for base defense and garrison heroes. Makes your base harder to raid. Use on your wall defense formation leader.</div>
+      </div>
+      <span class="set-tag tag-pve">Defense</span>
+    </div>
+    <div class="set-card">
+      <span class="set-icon">⚖️</span>
+      <div class="set-info">
+        <div class="set-name">Balanced Set</div>
+        <div class="set-bonus">Set Bonus: +All Troop ATK, +All Troop DEF</div>
+        <div class="set-desc">Jack-of-all-trades set that works with any troop type. Good starter set if you haven't committed to a troop specialization yet.</div>
+      </div>
+      <span class="set-tag tag-balance">All-Around</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="gt-logo">⚔️ GT ⚔️</div>
+    <p>GT Alliance Alliance — Training Series</p>
+    <p style="margin-top:12px; font-size:13px; color:var(--orange); font-family:'Oswald',sans-serif; letter-spacing:2px; text-transform:uppercase;">Created by Kimpossible7544</p>
+  </div>
+
+</div>
+</body>
+</html>

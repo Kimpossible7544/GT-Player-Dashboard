@@ -1,0 +1,626 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT Training Guide: Hero Investment</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12161e;
+    --surface2: #1a1f2b;
+    --border: #2a3040;
+    --orange: #ff6b1a;
+    --orange-glow: rgba(255,107,26,0.15);
+    --purple: #9b59f5;
+    --purple-glow: rgba(155,89,245,0.15);
+    --blue: #3b9eff;
+    --blue-glow: rgba(59,158,255,0.15);
+    --gold: #f0c040;
+    --gold-glow: rgba(240,192,64,0.15);
+    --green: #4ecb71;
+    --green-glow: rgba(78,203,113,0.15);
+    --red: #ff4757;
+    --red-glow: rgba(255,71,87,0.15);
+    --text: #e8eaf0;
+    --muted: #7a8299;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  .hero {
+    background: linear-gradient(160deg, #0d1520 0%, #0a0c10 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(255,107,26,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--orange); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .phoenix {
+    font-size: 64px;
+    margin-bottom: 16px;
+    display: block;
+    filter: drop-shadow(0 0 20px rgba(255,107,26,0.5));
+  }
+
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .tiers {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+  .tier {
+    border-radius: 8px;
+    padding: 20px 16px;
+    text-align: center;
+    border: 1px solid;
+    position: relative;
+    overflow: hidden;
+  }
+  .tier.gold { border-color: var(--gold); background: var(--gold-glow); }
+  .tier.purple { border-color: var(--purple); background: var(--purple-glow); }
+  .tier.blue { border-color: var(--blue); background: var(--blue-glow); }
+  .tier-gem {
+    font-size: 36px;
+    display: block;
+    margin-bottom: 10px;
+  }
+  .tier-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .tier.gold .tier-name { color: var(--gold); }
+  .tier.purple .tier-name { color: var(--purple); }
+  .tier.blue .tier-name { color: var(--blue); }
+  .tier p {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .tier-best {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--gold);
+    color: #000;
+    font-family: 'Oswald', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+
+  .hero-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 32px;
+  }
+  .hero-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+  .hero-card .icon {
+    width: 44px;
+    height: 44px;
+    border-radius: 10px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    overflow: hidden;
+  }
+  .hero-card .icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+  .hero-card .info { flex: 1; }
+  .hero-card .name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    margin-bottom: 3px;
+  }
+  .hero-card .desc {
+    font-size: 12px;
+    color: var(--muted);
+    line-height: 1.5;
+  }
+  .hero-card .badge-tag {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    padding: 3px 8px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .badge-s { background: var(--gold-glow); border: 1px solid var(--gold); color: var(--gold); }
+  .badge-a { background: var(--purple-glow); border: 1px solid var(--purple); color: var(--purple); }
+  .badge-b { background: var(--blue-glow); border: 1px solid var(--blue); color: var(--blue); }
+
+  .level-callout {
+    background: var(--surface);
+    border: 1px solid var(--orange);
+    border-radius: 8px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .level-callout .level-icon {
+    font-size: 48px;
+    flex-shrink: 0;
+  }
+  .level-callout h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--orange);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .level-callout p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .step-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--orange);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--orange);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-body {
+    padding: 8px 0 32px;
+  }
+  .step-body h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .step-body p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .step-body .highlight {
+    display: inline-block;
+    background: var(--orange-glow);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  .back-link {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .back-link:hover { color: var(--orange); }
+
+
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .footer .gt-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--orange);
+    text-transform: uppercase;
+  }
+  .footer p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  @media(max-width:600px) {
+    .tiers { grid-template-columns: 1fr; }
+    .level-callout { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="gt_training.html" class="back-link">&larr; Back to Training</a>
+  <span class="phoenix">🦸</span>
+  <div class="hero-badge">GT Training Series</div>
+  <h1>Hero <span>Investment</span> Guide</h1>
+  <p>Know which heroes to upgrade, which to skip, and how to maximize your resources for the strongest formations.</p>
+</div>
+
+<div class="content">
+
+  <div class="section-label">Hero Ranks</div>
+  <div class="tiers">
+    <div class="tier gold">
+      <span class="tier-best">Best</span>
+      <span class="tier-gem">👑</span>
+      <div class="tier-name">S+ Rank</div>
+      <p>Strongest heroes. Invest everything here. Hard to obtain but game-changing.</p>
+    </div>
+    <div class="tier purple">
+      <span class="tier-gem">⭐</span>
+      <div class="tier-name">A+ Rank</div>
+      <p>Solid heroes. Great for F2P players. Worth full investment if no S+ Rank available.</p>
+    </div>
+    <div class="tier blue">
+      <span class="tier-gem">💀</span>
+      <div class="tier-name">B</div>
+      <p>Tutorial heroes only. Do NOT invest EXP, skill books, or cores into these.</p>
+    </div>
+  </div>
+
+  <div class="level-callout">
+    <span class="level-icon">🚫</span>
+    <div>
+      <h3>Never Invest in B Heroes</h3>
+      <p>Angelina and William are B tutorial heroes. They seem decent early on, but they fall off hard. Every resource you put into them is wasted. Save your EXP, skill books, and power cores for A+ Rank and S+ Rank heroes only.</p>
+    </div>
+  </div>
+
+  <div class="section-label">S+ Rank Heroes — Top Priority</div>
+  <div class="hero-list">
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/katrina.png" alt="Katrina"></div>
+      <div class="info">
+        <div class="name">Katrina — Sheriff</div>
+        <div class="desc">Blood Rose faction. Free at Stage 14. One of the best F2P heroes. Invest immediately.</div>
+      </div>
+      <span class="badge-tag badge-s">S+</span>
+    </div>
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/sophia.png" alt="Sophia"></div>
+      <div class="info">
+        <div class="name">Sophia — Princess</div>
+        <div class="desc">Blood Rose faction. Available for $1 at Stage 5. Exceptional damage + support combo.</div>
+      </div>
+      <span class="badge-tag badge-s">S+</span>
+    </div>
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/laura.png" alt="Laura"></div>
+      <div class="info">
+        <div class="name">Laura — Hunter</div>
+        <div class="desc">Wings of Dawn faction. Strong shooter synergy. Great for WoD formations.</div>
+      </div>
+      <span class="badge-tag badge-s">S+</span>
+    </div>
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/queenie.png" alt="Queenie"></div>
+      <div class="info">
+        <div class="name">Queenie — Season 4</div>
+        <div class="desc">Wings of Dawn. Season 4's most powerful hero. Massive damage scaling.</div>
+      </div>
+      <span class="badge-tag badge-s">S+</span>
+    </div>
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/yuchan.png" alt="Yu Chan"></div>
+      <div class="info">
+        <div class="name">Yu Chan</div>
+        <div class="desc">Guard of Order. Top PvP hero. +10% damage to shooters, -10% from assaulters.</div>
+      </div>
+      <span class="badge-tag badge-s">S+</span>
+    </div>
+  </div>
+
+  <div class="section-label">A+ Rank Heroes — Solid Choices</div>
+  <div class="hero-list">
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/ava.png" alt="Ava"></div>
+      <div class="info">
+        <div class="name">Ava — Scholar</div>
+        <div class="desc">Blood Rose. Reliable support with balanced playstyle. Great team glue.</div>
+      </div>
+      <span class="badge-tag badge-a">A+</span>
+    </div>
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/vivian.png" alt="Vivian"></div>
+      <div class="info">
+        <div class="name">Vivian — Lucky Dealer</div>
+        <div class="desc">Blood Rose. Good damage + utility. Pairs well with Katrina or Sophia.</div>
+      </div>
+      <span class="badge-tag badge-a">A+</span>
+    </div>
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/isabella.png" alt="Isabella"></div>
+      <div class="info">
+        <div class="name">Isabella — Black Widow</div>
+        <div class="desc">Wings of Dawn. Adds flexibility for shooter formations with survivability.</div>
+      </div>
+      <span class="badge-tag badge-a">A+</span>
+    </div>
+    <div class="hero-card">
+      <div class="icon"><img src="images/heroes/fiona.png" alt="Fiona"></div>
+      <div class="info">
+        <div class="name">Fiona — Firehawk</div>
+        <div class="desc">Wings of Dawn. Consistent offensive fighter for shooter-oriented gameplay.</div>
+      </div>
+      <span class="badge-tag badge-a">A+</span>
+    </div>
+  </div>
+
+  <div class="section-label">Upgrade Priority Order</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Get All Formation Heroes to 4-Star</h3>
+        <p>4-Star unlocks each hero's <strong>4th skill</strong> — this is a massive power spike. Get all 5 heroes in your main formation to 4★ before pushing any single hero to 5★.</p>
+        <div class="highlight">4★ = 4th Skill Unlock = Big Power Spike</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Max Your Main Formation First</h3>
+        <p>Pick 5 heroes from the <strong>same faction</strong> and pour all resources into them. EXP, skill books, power cores, and equipment — all go to your main 5 only.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Focus EXP on DPS Heroes First</h3>
+        <p>Your back-row damage dealers benefit most from early EXP investment. Level them first, then bring tanks/support up to match.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Save Club Tickets for Events</h3>
+        <p>Don't spend recruitment tickets one by one. Save them and use during <strong>Hero Day (Day 4)</strong> of Alliance Duel for double value.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Never Spread Resources Thin</h3>
+        <p>A single maxed team of 5 will always beat 15 half-leveled heroes. Resist the urge to upgrade everyone. Concentrate resources.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Pro Tips</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">🎯</span>
+      <span><strong style="color:#ff6b1a;">F2P Priority:</strong> Focus on Blood Rose (Katrina, Sophia) or Wings of Dawn (Laura, Fiona). These factions have the most accessible S+/A+ Rank heroes for free players.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">⚠️</span>
+      <span><strong style="color:#ff6b1a;">Avoid Guard of Order:</strong> Unless you're a heavy spender, GoO heroes are hard to collect fragments for. Their faction bonus is excellent but unrealistic for F2P.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">💡</span>
+      <span><strong style="color:#ff6b1a;">Stage 5 Sophia:</strong> The $1 Sophia offer at Stage 5 is the single best purchase in the game. If you spend any money at all, buy this.</span>
+    </div>
+
+  </div>
+
+  <div class="section-label">Best Purchases for Low-Spending Players</div>
+  <div class="callout" style="border-left:4px solid #f0c040; background:rgba(240,192,64,0.08);">
+    <h3 style="color:#f0c040;">💰 Spending Smart — Maximum Value for Minimum Cost</h3>
+    <p>If you're going to spend a little, these are the purchases that give you the biggest advantage. Listed in order of priority:</p>
+  </div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Stage 5 Sophia Offer — $1</h3>
+        <p>The single best purchase in the game. Unlocks Sophia early, who is an S+ Rank hero. This alone can carry your entire early game.</p>
+        <div class="highlight">Best value in the entire game — do not skip this</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Monthly Supply Card — ~$5</h3>
+        <p>Gives daily diamonds and speed-ups for 30 days. Over a month, this adds up to far more value than any single gem pack. Consistent daily income accelerates everything.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Growth Fund — ~$10</h3>
+        <p>One-time purchase that pays out diamonds as you reach HQ milestones. The total payout far exceeds the cost. Buy early so you collect rewards as you progress.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Second Builder Queue — Diamonds</h3>
+        <p>Not a direct purchase, but use your earned diamonds to unlock the second builder. Having two buildings upgrade simultaneously doubles your progression speed.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">5</div>
+      <div class="step-body">
+        <h3>Event-Only Bundles</h3>
+        <p>Wait for special event packs that include hero fragments, speed-ups, and resources. These rotate and offer 3-5x the value of standard store packs. Never buy standard diamond packs.</p>
+        <div class="highlight">Standard store packs are a trap — always wait for event bundles</div>
+      </div>
+    </div>
+  </div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">🚫</span>
+      <span><strong style="color:#ff6b1a;">Avoid:</strong> Random gem packs, gacha hero pulls (outside events), VIP point bundles, and any "limited time" pack that doesn't include hero fragments or speed-ups. These drain money with minimal return.</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="gt-logo">⚔️ GT ⚔️</div>
+    <p>GT Alliance Alliance — Training Series</p>
+    <p style="margin-top:12px; font-size:13px; color:var(--orange); font-family:'Oswald',sans-serif; letter-spacing:2px; text-transform:uppercase;">Created by Kimpossible7544</p>
+  </div>
+
+</div>
+</body>
+</html>

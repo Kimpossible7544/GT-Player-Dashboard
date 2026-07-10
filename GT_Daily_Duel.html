@@ -1,0 +1,657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Daily Duel Blurb</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12161e;
+    --surface2: #1a1f2b;
+    --border: #2a3040;
+    --orange: #ff6b1a;
+    --orange-glow: rgba(255,107,26,0.15);
+    --purple: #9b59f5;
+    --purple-glow: rgba(155,89,245,0.15);
+    --blue: #3b9eff;
+    --blue-glow: rgba(59,158,255,0.15);
+    --gold: #f0c040;
+    --green: #4caf50;
+    --text: #e8eaf0;
+    --muted: #7a8299;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  .hero {
+    background: linear-gradient(160deg, #0d1520 0%, #0a0c10 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(255,107,26,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--orange); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  /* TODAY HIGHLIGHT */
+  .today-card {
+    background: var(--surface);
+    border: 2px solid var(--orange);
+    border-radius: 12px;
+    padding: 32px 28px;
+    margin-top: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .today-card::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse at top left, rgba(255,107,26,0.08) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .today-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .today-label .pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--orange);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(255,107,26,0.6); }
+    50% { opacity: 0.7; box-shadow: 0 0 0 8px rgba(255,107,26,0); }
+  }
+  .today-day-num {
+    font-family: 'Oswald', sans-serif;
+    font-size: 64px;
+    font-weight: 700;
+    color: var(--orange);
+    line-height: 1;
+    filter: drop-shadow(0 0 16px rgba(255,107,26,0.4));
+    position: absolute;
+    top: 24px;
+    right: 28px;
+  }
+  .today-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(28px, 5vw, 40px);
+    font-weight: 700;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .today-section {
+    margin-bottom: 20px;
+    position: relative;
+  }
+  .today-section-title {
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 8px;
+  }
+  .checklist {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .checklist li {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.5;
+    padding-left: 24px;
+    position: relative;
+  }
+  .checklist li::before {
+    content: '▸';
+    position: absolute;
+    left: 4px;
+    color: var(--orange);
+    font-weight: 700;
+  }
+  .checklist li strong { color: var(--orange); }
+
+  .today-reminder {
+    background: rgba(240,192,64,0.08);
+    border: 1px solid rgba(240,192,64,0.3);
+    border-radius: 8px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--gold);
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    line-height: 1.5;
+    position: relative;
+  }
+  .today-reminder .r-icon { font-size: 18px; flex-shrink: 0; }
+
+  /* REST DAY */
+  .rest-card {
+    background: var(--surface);
+    border: 2px solid var(--green);
+    border-radius: 12px;
+    padding: 32px 28px;
+    margin-top: 24px;
+    text-align: center;
+  }
+  .rest-card .rest-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+  }
+  .rest-card h2 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    text-transform: uppercase;
+    color: var(--green);
+    margin-bottom: 8px;
+  }
+  .rest-card p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.6;
+    max-width: 460px;
+    margin: 0 auto;
+  }
+
+  /* SCHEDULE OVERVIEW */
+  .schedule {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sched-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    transition: all 0.3s;
+  }
+  .sched-row.active {
+    border-color: var(--orange);
+    background: rgba(255,107,26,0.06);
+    box-shadow: 0 0 20px rgba(255,107,26,0.08);
+  }
+  .sched-num {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .sched-row.active .sched-num {
+    border-color: var(--orange);
+    color: var(--orange);
+  }
+  .sched-icon { font-size: 20px; flex-shrink: 0; }
+  .sched-info { flex: 1; }
+  .sched-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text);
+  }
+  .sched-row.active .sched-name { color: var(--orange); }
+  .sched-brief {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 2px;
+  }
+  .sched-tag {
+    font-family: 'Oswald', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    padding: 3px 8px;
+    border-radius: 3px;
+    background: rgba(255,107,26,0.15);
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    flex-shrink: 0;
+    display: none;
+  }
+  .sched-row.active .sched-tag { display: block; }
+
+  /* CONFIG */
+  .config-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px;
+    margin-top: 24px;
+  }
+  .config-box h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text);
+    margin-bottom: 12px;
+  }
+  .config-box p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.5;
+    margin-bottom: 16px;
+  }
+  .config-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  .config-row label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 12px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    flex-shrink: 0;
+  }
+  .config-row select {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 8px 12px;
+    outline: none;
+    cursor: pointer;
+    min-width: 160px;
+  }
+  .config-row select:focus { border-color: var(--orange); }
+
+  /* TIPS */
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  /* FOOTER */
+  .back-link {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .back-link:hover { color: var(--orange); }
+
+
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .footer .gt-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--orange);
+    text-transform: uppercase;
+  }
+  .footer p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  @media(max-width:500px) {
+    .today-day-num { font-size: 48px; top: 16px; right: 16px; }
+    .today-card { padding: 24px 20px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="gt_training.html" class="back-link">&larr; Back to Training</a>
+  <div class="hero-badge">GT Daily Briefing</div>
+  <h1>Alliance Duel<br><span>Daily Blurb</span></h1>
+  <p>Auto-detects your current Duel day and shows exactly what to prioritize. Check this daily before you play.</p>
+</div>
+
+<div class="content">
+
+  <div class="section-label">Today's Priority</div>
+  <div id="today-container"></div>
+
+  <div class="section-label">Set Your Start Day</div>
+  <div class="config-box">
+    <h3>When Does Your Duel Cycle Start?</h3>
+    <p>Alliance Duel runs on a repeating 6-day cycle. Select the weekday your Day 1 (Vehicle Day) falls on, and this page will auto-detect which day it is for you right now.</p>
+    <div class="config-row">
+      <label>Day 1 starts on:</label>
+      <select id="start-day">
+        <option value="0">Sunday</option>
+        <option value="1" selected>Monday</option>
+        <option value="2">Tuesday</option>
+        <option value="3">Wednesday</option>
+        <option value="4">Thursday</option>
+        <option value="5">Friday</option>
+        <option value="6">Saturday</option>
+      </select>
+    </div>
+  </div>
+
+  <div class="section-label">Full 6-Day Schedule</div>
+  <div class="schedule" id="schedule-overview"></div>
+
+  <div class="section-label">Daily Tips</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">📅</span>
+      <span><strong style="color:#ff6b1a;">Top 30 in Your Alliance:</strong> Finishing in the top 30 within your alliance on any given day gives extra daily rewards. Push hard on days where you have the most saved resources.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">🚫</span>
+      <span><strong style="color:#ff6b1a;">Zero Outside Theme:</strong> Items used outside their matching theme day score ZERO Duel points. Don't waste speed-ups, wrenches, or badges on the wrong day.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">⚡</span>
+      <span><strong style="color:#ff6b1a;">Golden Hour:</strong> When Full Prep aligns with the Duel day (typically at 08:00 and 20:00 Apocalypse Time), deploy your biggest items for 2x points.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">💰</span>
+      <span><strong style="color:#ff6b1a;">Badge Math:</strong> Base earning is ~830 badges/day. With Alliance Recognition maxed: ~1,660/day. Plus win bonuses. Max this research ASAP for compounding returns.</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="gt-logo">⚔️ GT ⚔️</div>
+    <p>GT Alliance Alliance — Training Series</p>
+    <p style="margin-top:12px; font-size:13px; color:var(--orange); font-family:'Oswald',sans-serif; letter-spacing:2px; text-transform:uppercase;">Created by Kimpossible7544</p>
+  </div>
+
+</div>
+
+<script>
+const DAYS = [
+  {
+    num: 1,
+    name: 'Vehicle Day',
+    icon: '🔧',
+    use: [
+      'Use all saved <strong>golden wrenches</strong> for vehicle modifications',
+      'Open <strong>blueprint chests</strong> and <strong>chip chests</strong>',
+      'Complete any saved <strong>radar tasks</strong>',
+      'Check vehicle modification progress and plan next upgrades'
+    ],
+    save: 'Save all wrenches, blueprints, and vehicle items throughout the week for this day.',
+    brief: 'Use wrenches, blueprints, chip chests'
+  },
+  {
+    num: 2,
+    name: 'Building Day',
+    icon: '🏗️',
+    use: [
+      'Queue your <strong>biggest building upgrade</strong> (HQ, Lab, Troop Camps)',
+      'Use all saved <strong>construction speed-ups</strong>',
+      'Collect <strong>orange refugees</strong> for bonus points',
+      'If HQ is maxed, focus on resource buildings or defensive structures'
+    ],
+    save: 'Stockpile construction speed-ups and orange refugees all week.',
+    brief: 'Construction speed-ups, big upgrades'
+  },
+  {
+    num: 3,
+    name: 'Research Day',
+    icon: '🔬',
+    use: [
+      'Complete high-cost <strong>badge research nodes</strong>',
+      'Use all saved <strong>research speed-ups</strong>',
+      'Prioritize <strong>orange trade trucks</strong> for bonus points',
+      'Start expensive research mid-week so it finishes today'
+    ],
+    save: 'Save research speed-ups and badges. Time research to finish on this day.',
+    brief: 'Research speed-ups, badges, trade trucks'
+  },
+  {
+    num: 4,
+    name: 'Heroes Day',
+    icon: '🦸',
+    use: [
+      'Use <strong>hero fragments</strong> to star up heroes',
+      'Apply <strong>power cores</strong> and <strong>skill books</strong>',
+      'Spend saved <strong>Club recruitment tickets</strong>',
+      'Level up heroes with EXP items'
+    ],
+    save: 'Save all hero fragments, cores, skill books, and Club tickets for this day.',
+    brief: 'Hero fragments, cores, skill books'
+  },
+  {
+    num: 5,
+    name: 'Training Day',
+    icon: '🪖',
+    use: [
+      'Queue <strong>maximum troop training batches</strong>',
+      'Use all saved <strong>training speed-ups</strong>',
+      'Train your highest-tier troops available',
+      'Fill all training queues before using speed-ups'
+    ],
+    save: 'Save all training speed-ups. Have resources ready for mass troop production.',
+    brief: 'Mass troop training, training speed-ups'
+  },
+  {
+    num: 6,
+    name: 'Combat Day',
+    icon: '💥',
+    use: [
+      '<strong>Kill enemies</strong> on the map and in bounty missions',
+      'Complete saved <strong>bounty quests</strong>',
+      '<strong>Attack rival bases</strong> for PvP points',
+      'Coordinate with alliance for group attacks'
+    ],
+    save: 'Save bounty missions and attack opportunities. Scout targets in advance.',
+    brief: 'Kill enemies, bounties, PvP attacks'
+  }
+];
+
+function getDuelDay(startDayOfWeek) {
+  const now = new Date();
+  const todayDow = now.getDay();
+  let diff = todayDow - startDayOfWeek;
+  if (diff < 0) diff += 7;
+  const dayInCycle = (diff % 6) + 1;
+  return dayInCycle;
+}
+
+function renderToday(dayNum) {
+  const container = document.getElementById('today-container');
+
+  if (dayNum < 1 || dayNum > 6) {
+    container.innerHTML = `
+      <div class="rest-card">
+        <div class="rest-icon">😴</div>
+        <h2>Rest Day</h2>
+        <p>No Alliance Duel today. Use this time to gather resources, scout enemies, and prepare items for the next cycle. Don't use any speed-ups or items today!</p>
+      </div>`;
+    return;
+  }
+
+  const day = DAYS[dayNum - 1];
+  const checklistHTML = day.use.map(item => `<li>${item}</li>`).join('');
+
+  container.innerHTML = `
+    <div class="today-card">
+      <div class="today-label"><div class="pulse"></div> Active Now</div>
+      <div class="today-day-num">${day.num}</div>
+      <div class="today-name">${day.icon} ${day.name}</div>
+      <div class="today-section">
+        <div class="today-section-title">What To Do Today</div>
+        <ul class="checklist">${checklistHTML}</ul>
+      </div>
+      <div class="today-reminder">
+        <span class="r-icon">💡</span>
+        <span><strong>Remember:</strong> ${day.save}</span>
+      </div>
+    </div>`;
+}
+
+function renderSchedule(activeDay) {
+  const container = document.getElementById('schedule-overview');
+  container.innerHTML = DAYS.map(day => `
+    <div class="sched-row${day.num === activeDay ? ' active' : ''}">
+      <div class="sched-num">${day.num}</div>
+      <span class="sched-icon">${day.icon}</span>
+      <div class="sched-info">
+        <div class="sched-name">${day.name}</div>
+        <div class="sched-brief">${day.brief}</div>
+      </div>
+      <span class="sched-tag">Today</span>
+    </div>`).join('');
+}
+
+function update() {
+  const startDay = parseInt(document.getElementById('start-day').value);
+  localStorage.setItem('gt-duel-start-day', startDay);
+  const dayNum = getDuelDay(startDay);
+  renderToday(dayNum);
+  renderSchedule(dayNum);
+}
+
+document.getElementById('start-day').addEventListener('change', update);
+
+// Load saved preference
+const saved = localStorage.getItem('gt-duel-start-day');
+if (saved !== null) {
+  document.getElementById('start-day').value = saved;
+}
+
+update();
+</script>
+
+</body>
+</html>

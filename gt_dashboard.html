@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Player Dashboard</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,255,180,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,180,255,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+.container{position:relative;z-index:1;max-width:1100px;margin:0 auto;padding:20px;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.nav-brand{font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;}
+.nav-links a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:0.85rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:color 0.2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--accent);}
+.header{padding:32px 0 24px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.header h1{font-size:2rem;font-weight:900;color:var(--accent);letter-spacing:3px;text-transform:uppercase;}
+.player-select{background:var(--panel);border:1px solid var(--accent);color:var(--text);padding:10px 16px;border-radius:8px;font-size:1rem;font-weight:700;font-family:inherit;outline:none;cursor:pointer;min-width:220px;}
+.player-select option{background:var(--panel2);}
+.player-name-display{font-size:2.2rem;font-weight:900;color:var(--accent);letter-spacing:2px;margin:8px 0 4px;font-family:'Informal Roman',cursive,'Segoe UI',sans-serif;text-shadow:0 0 30px rgba(0,255,180,0.3);}
+.join-date-display{font-size:0.85rem;font-weight:600;letter-spacing:1.5px;color:var(--dim);margin-bottom:24px;font-style:italic;}
+.stats-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:12px;margin-bottom:28px;}
+@media(max-width:900px){.stats-grid{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:600px){.stats-grid{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--panel);border-radius:10px;padding:14px 12px;border-top:3px solid var(--accent);text-align:center;}
+.stat-card.c2{border-top-color:var(--accent2);}
+.stat-card.c3{border-top-color:var(--accent3);}
+.stat-card.c4{border-top-color:var(--gold);}
+.stat-card.c5{border-top-color:var(--red);}
+.stat-card.c6{border-top-color:var(--red);}
+.stat-card.c7{border-top-color:var(--accent);}
+.stat-label{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:8px;}
+.stat-value{font-size:1.3rem;font-weight:900;color:var(--text);font-family:'Courier New',monospace;}
+.stat-value.accent{color:var(--accent);}
+.stat-value.accent2{color:var(--accent2);}
+.stat-value.accent3{color:var(--accent3);}
+.stat-value.gold{color:var(--gold);}
+.stat-value.red{color:var(--red);}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:28px;}
+@media(max-width:768px){.charts-grid{grid-template-columns:1fr;}}
+.chart-card{background:var(--panel);border-radius:12px;padding:20px;border:1px solid var(--border);}
+.chart-card.full{grid-column:1/-1;}
+.chart-title{font-size:0.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:16px;}
+.chart-wrap{position:relative;height:220px;}
+.week-table{width:100%;border-collapse:collapse;margin-top:4px;}
+.week-table th{padding:8px 12px;text-align:left;font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border);}
+.week-table td{padding:10px 12px;border-bottom:1px solid var(--border);font-size:0.85rem;}
+.week-table tr:last-child td{border-bottom:none;}
+.goal-yes{color:var(--gold);font-weight:700;}
+.goal-no{color:var(--red);}
+.week-score{font-family:'Courier New',monospace;color:var(--accent2);}
+.rank-val{font-family:'Courier New',monospace;color:var(--accent3);}
+.updated{color:var(--dim);font-size:0.75rem;margin-top:4px;}
+.no-data{text-align:center;padding:60px;color:var(--dim);font-size:1.1rem;}
+.loading{text-align:center;padding:60px 20px;color:var(--dim);font-size:1rem;letter-spacing:1px;}
+.loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
+.day-btn{background:var(--panel2);border:1px solid var(--border);color:var(--dim);padding:6px 14px;border-radius:6px;font-size:0.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:all 0.2s;}
+.day-btn:hover{border-color:var(--accent);color:var(--accent);}
+.day-btn.active{background:var(--accent);color:var(--bg);border-color:var(--accent);}
+.in-progress-label{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);background:rgba(0,255,180,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+.server-help-label{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#00e5ff;background:rgba(0,229,255,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+/* Growth card */
+.growth-card{background:var(--panel);border-radius:12px;padding:20px;border:1px solid var(--border);margin-bottom:28px;}
+.growth-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:600px){.growth-grid{grid-template-columns:1fr;}}
+.growth-stat{background:var(--panel2);border-radius:10px;padding:14px 12px;border-left:3px solid var(--border);}
+.growth-stat.gs-level{border-left-color:var(--accent3);}
+.growth-stat.gs-hq{border-left-color:var(--accent2);}
+.growth-stat.gs-arena{border-left-color:var(--gold);}
+.gs-label{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
+.gs-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+.gs-sub{font-size:0.7rem;color:var(--dim);}
+.gs-val{font-family:'Courier New',monospace;font-size:1rem;font-weight:900;}
+.gs-val.purple{color:var(--accent3);}
+.gs-val.blue{color:var(--accent2);}
+.gs-val.gold{color:var(--gold);}
+.gs-arrow{font-size:0.75rem;color:var(--dim);text-align:center;padding:4px 0;}
+.gs-delta{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.gs-delta-label{font-size:0.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.gs-delta-val{font-family:'Courier New',monospace;font-size:0.95rem;font-weight:900;}
+.gs-pos{color:var(--accent);}
+.gs-neg{color:var(--red);}
+.gs-neu{color:var(--dim);}
+/* Login screen */
+.login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;}
+.login-logo{font-size:1.4rem;font-weight:900;color:var(--accent);letter-spacing:3px;margin-bottom:6px;}
+.login-sub{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:28px;}
+.login-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:12px 16px;border-radius:8px;font-size:1.1rem;font-family:'Courier New',monospace;outline:none;text-align:center;letter-spacing:3px;margin-bottom:12px;transition:border-color 0.2s;}
+.login-input:focus{border-color:var(--accent);}
+.login-btn{width:100%;background:var(--accent);color:var(--bg);border:none;padding:12px;border-radius:8px;font-size:0.9rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
+.login-btn:hover{opacity:0.85;}
+.login-error{color:var(--red);font-size:0.8rem;margin-top:10px;min-height:18px;}
+.logout-btn{background:none;border:1px solid var(--border);color:var(--dim);padding:6px 14px;border-radius:6px;font-size:0.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-left:16px;transition:all 0.2s;}
+.logout-btn:hover{border-color:var(--red);color:var(--red);}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">⚔ GT ALLIANCE</div>
+    <div class="login-sub">Player Dashboard</div>
+    <input class="login-input" id="loginInput" type="password" placeholder="Enter password" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="login-btn" onclick="doLogin()">Enter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<nav>
+<a class="nav-brand" href="index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+<img src="https://raw.githubusercontent.com/Kimpossible7544/WPX/main/icon.png" alt="GT" style="height:36px;width:36px;object-fit:contain;border-radius:6px;" onerror="this.style.display='none'"/>
+<span style="font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;">GT ALLIANCE</span>
+</a>
+<div class="nav-links" style="display:flex;align-items:center;">
+<a href="gt_standings.html">Standings</a>
+<a href="gt_dashboard.html" class="active">Dashboard</a>
+<a href="gt_projections.html">Projections</a>
+<button class="logout-btn" onclick="doLogout()">Logout</button>
+</div>
+</nav>
+<div class="container">
+<div class="header">
+<div><h1>Player Dashboard</h1><p class="updated" id="lastUpdated">Loading data...</p></div>
+<select class="player-select" id="playerSelect" onchange="loadPlayer(this.value)">
+<option value="">Loading...</option>
+</select>
+</div>
+<div id="loadingArea" class="loading"><div class="spinner"></div><br>Loading data from Dropbox...</div>
+<div id="contentArea" style="display:none;">
+<div id="playerNameDisplay" class="player-name-display"></div>
+<div id="joinDateDisplay" class="join-date-display"></div>
+<div id="statsGrid" class="stats-grid"></div>
+<!-- Growth Since Joining -->
+<div id="growthCard" class="growth-card" style="display:none;">
+  <div class="chart-title">Growth Since Joining</div>
+  <div class="growth-grid" id="growthGrid"></div>
+</div>
+<div class="charts-grid">
+<div class="chart-card"><div class="chart-title">Weekly Score Trend</div><div class="chart-wrap"><canvas id="scoreChart"></canvas></div></div>
+<div class="chart-card"><div class="chart-title">Weekly Rank</div><div class="chart-wrap"><canvas id="rankChart"></canvas></div></div>
+</div>
+<div class="chart-card full" style="margin-bottom:28px;">
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+<div class="chart-title" style="margin-bottom:0;">Daily Score — Week over Week</div>
+<div style="display:flex;gap:6px;">
+<button class="day-btn active" data-day="Monday" onclick="selectDay('Monday')">Mon</button>
+<button class="day-btn" data-day="Tuesday" onclick="selectDay('Tuesday')">Tue</button>
+<button class="day-btn" data-day="Wednesday" onclick="selectDay('Wednesday')">Wed</button>
+<button class="day-btn" data-day="Thursday" onclick="selectDay('Thursday')">Thu</button>
+<button class="day-btn" data-day="Friday" onclick="selectDay('Friday')">Fri</button>
+</div>
+</div>
+<div class="chart-wrap" style="height:260px;"><canvas id="dailyChart"></canvas></div>
+</div>
+<div class="chart-card" style="margin-bottom:28px;">
+<div class="chart-title">Weekly Breakdown</div>
+<table class="week-table"><thead><tr><th>Week</th><th>Score</th><th>Rank</th><th>20M Goal</th></tr></thead>
+<tbody id="weekTableBody"></tbody></table>
+</div>
+<div id="npFootnote" style="display:none;color:#ff7832;font-size:0.78rem;margin-top:8px;letter-spacing:0.5px;">* = Not pushing to win this week</div>
+<div id="shFootnote" style="display:none;color:#00e5ff;font-size:0.78rem;margin-top:4px;letter-spacing:0.5px;"><span style="color:#ff3264">&dagger;</span> = Voluntarily helped the server this week</div>
+</div>
+</div>
+<script>
+var MASTER_PASSWORD = 'GT2026';
+var players = {};
+var dailyData = null;
+var notPushingWeeks = new Set();
+var selectedDay = 'Monday';
+var scoreChart = null, rankChart = null, dailyChart = null;
+var NP_COLOR = '#ff7832';
+var NP_BG = 'rgba(255,120,50,0.15)';
+var DAILY_GOAL = 6000000;
+var SH_COLOR = '#00e5ff';
+var SH_BG = 'rgba(0,229,255,0.15)';
+var isMaster = false;
+var lockedPlayer = null;
+var idToPlayer = {}; // id -> player name
+var gtData = null;
+
+function fmt(n) { return n ? n.toLocaleString() : '-'; }
+
+function fmtPower(n) {
+  if (n === null || n === undefined) return '-';
+  return n.toFixed(1) + ' M';
+}
+
+function fmtDelta(n) {
+  if (n === null || n === undefined) return { text: '-', cls: 'gs-neu' };
+  var text = (n > 0 ? '+' : '') + n.toFixed(1) + ' M';
+  var cls = n > 0 ? 'gs-pos' : n < 0 ? 'gs-neg' : 'gs-neu';
+  return { text: text, cls: cls };
+}
+
+function doLogin() {
+  var val = document.getElementById('loginInput').value.trim();
+  document.getElementById('loginError').textContent = '';
+
+  if (!val) return;
+
+  // If data not loaded yet, wait and retry
+  if (!gtData) {
+    document.getElementById('loginError').textContent = 'Still loading data, please try again in a moment.';
+    return;
+  }
+
+  // Master password
+  if (val === MASTER_PASSWORD) {
+    isMaster = true;
+    lockedPlayer = null;
+    unlockDashboard();
+    return;
+  }
+
+  document.getElementById('loginError').textContent = 'Invalid password. Please try again.';
+  document.getElementById('loginInput').value = '';
+  document.getElementById('loginInput').focus();
+}
+
+function unlockDashboard() {
+  document.getElementById('loginWrap').style.display = 'none';
+  var sel = document.getElementById('playerSelect');
+
+  if (isMaster) {
+    // Show full dropdown
+    sel.style.display = '';
+    loadPlayer(sel.value);
+  } else {
+    // Hide dropdown, lock to player
+    sel.style.display = 'none';
+    loadPlayer(lockedPlayer);
+  }
+}
+
+function doLogout() {
+  isMaster = false;
+  lockedPlayer = null;
+  document.getElementById('loginInput').value = '';
+  document.getElementById('loginError').textContent = '';
+  document.getElementById('loginWrap').style.display = 'flex';
+  document.getElementById('contentArea').style.display = 'none';
+}
+
+function renderGrowthCard(p) {
+  var card = document.getElementById('growthCard');
+  var grid = document.getElementById('growthGrid');
+
+  if (!p.growth) { card.style.display = 'none'; return; }
+
+  var g = p.growth;
+  card.style.display = '';
+
+  var levelDelta = (g.currentLevel && g.firstLevel) ? g.currentLevel - g.firstLevel : null;
+  var levelDeltaFmt = levelDelta !== null
+    ? { text: (levelDelta > 0 ? '+' : '') + levelDelta, cls: levelDelta > 0 ? 'gs-pos' : levelDelta < 0 ? 'gs-neg' : 'gs-neu' }
+    : { text: '-', cls: 'gs-neu' };
+
+  var arenaDelta = fmtDelta(g.deltaArenaOverall);
+  var hqDelta    = fmtDelta(g.deltaHQOverall);
+
+  var dateBadge = g.baselineDate
+    ? ' <span style="font-size:0.6rem;font-weight:600;color:var(--dim);letter-spacing:0.5px;margin-left:6px;">' + g.baselineDate + '</span>'
+    : '';
+
+  grid.innerHTML =
+    '<div class="growth-stat gs-level">' +
+      '<div class="gs-label">Level' + dateBadge + '</div>' +
+      '<div class="gs-row"><span class="gs-sub">Then</span><span class="gs-val purple">' + (g.firstLevel || '-') + '</span></div>' +
+      '<div class="gs-arrow">\u2193</div>' +
+      '<div class="gs-row"><span class="gs-sub">Now</span><span class="gs-val purple">' + (g.currentLevel || '-') + '</span></div>' +
+      '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + levelDeltaFmt.cls + '">' + levelDeltaFmt.text + '</span></div>' +
+    '</div>' +
+    '<div class="growth-stat gs-arena">' +
+      '<div class="gs-label">Arena Power' + dateBadge + '</div>' +
+      '<div class="gs-row"><span class="gs-sub">Then</span><span class="gs-val gold">' + fmtPower(g.firstArena) + '</span></div>' +
+      '<div class="gs-arrow">\u2193</div>' +
+      '<div class="gs-row"><span class="gs-sub">Now</span><span class="gs-val gold">' + fmtPower(g.currentArena) + '</span></div>' +
+      '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + arenaDelta.cls + '">' + arenaDelta.text + '</span></div>' +
+    '</div>' +
+    '<div class="growth-stat gs-hq">' +
+      '<div class="gs-label">HQ Power' + dateBadge + '</div>' +
+      '<div class="gs-row"><span class="gs-sub">Then</span><span class="gs-val blue">' + fmtPower(g.firstHQ) + '</span></div>' +
+      '<div class="gs-arrow">\u2193</div>' +
+      '<div class="gs-row"><span class="gs-sub">Now</span><span class="gs-val blue">' + fmtPower(g.currentHQ) + '</span></div>' +
+      '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + hqDelta.cls + '">' + hqDelta.text + '</span></div>' +
+    '</div>';
+}
+
+function loadPlayer(name) {
+  var p = players[name];
+  if (!p) { document.getElementById('statsGrid').innerHTML = '<div class="no-data">No data found</div>'; return; }
+  document.getElementById('playerNameDisplay').textContent = name;
+  var joinEl = document.getElementById('joinDateDisplay');
+  joinEl.textContent = p.joinDate ? 'Proud Member of GT Since: ' + p.joinDate : '';
+  var sg = document.getElementById('statsGrid');
+  sg.innerHTML =
+    '<div class="stat-card"><div class="stat-label">Overall Rank</div><div class="stat-value accent">' + (p.overallRank || '-') + '</div></div>' +
+    '<div class="stat-card c2"><div class="stat-label">Total Score</div><div class="stat-value accent2">' + fmt(p.totalScore) + '</div></div>' +
+    '<div class="stat-card c3"><div class="stat-label">Weekly Avg</div><div class="stat-value accent3">' + fmt(Math.round(p.weeklyAvg)) + '</div></div>' +
+    '<div class="stat-card c4"><div class="stat-label">Weeks Played</div><div class="stat-value gold">' + p.weeks.filter(function (w) { return w.score > 0; }).length + '</div></div>' +
+    '<div class="stat-card c5"><div class="stat-label">Missed Daily</div><div class="stat-value red">' + p.missedDaily + '</div></div>' +
+    '<div class="stat-card c6"><div class="stat-label">Missed Weekly</div><div class="stat-value red">' + p.missedWeekly + '</div></div>' +
+    '<div class="stat-card c7"><div class="stat-label">20M Weeks</div><div class="stat-value accent">' + p.weeks.filter(function (w) { return w.score >= 20000000; }).length + '</div></div>';
+
+  renderGrowthCard(p);
+
+  var labels = p.weeks.map(function (w) { if (w.serverHelp) return w.label + ' \u2020'; return w.pushing === false ? w.label + ' *' : w.label; });
+  var scores = p.weeks.map(function (w) { return w.score; });
+  var ranks = p.weeks.map(function (w) { return w.rank; });
+  var goal = p.weeks.map(function () { return 20000000; });
+  var pointColors = p.weeks.map(function (w) { if (w.serverHelp) return SH_COLOR; return w.pushing === false ? NP_COLOR : '#00b4ff'; });
+  var rankPointColors = p.weeks.map(function (w) { if (w.serverHelp) return SH_COLOR; return w.pushing === false ? NP_COLOR : '#ffc800'; });
+
+  if (scoreChart) scoreChart.destroy();
+  if (rankChart) rankChart.destroy();
+
+  var chartDefaults = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#6b6b88', font: { size: 11 } } },
+      tooltip: { backgroundColor: '#1a1a24', titleColor: '#00ffb4', bodyColor: '#dcdce8', borderColor: '#2a2a3a', borderWidth: 1 }
+    },
+    scales: {
+      x: { ticks: { color: '#6b6b88', font: { size: 10 } }, grid: { color: '#1a1a24' } },
+      y: { ticks: { color: '#6b6b88', font: { size: 10 } }, grid: { color: '#1a1a24' } }
+    }
+  };
+
+  scoreChart = new Chart(document.getElementById('scoreChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: 'Score', data: scores, borderColor: '#00b4ff', backgroundColor: 'rgba(0,180,255,0.08)', borderWidth: 2.5, pointBackgroundColor: pointColors, pointRadius: 5, tension: 0.3, segment: { borderColor: function(ctx) { var i = ctx.p0DataIndex; if ((p.weeks[i] && p.weeks[i].serverHelp) || (p.weeks[i+1] && p.weeks[i+1].serverHelp)) return SH_COLOR; return (p.weeks[i] && p.weeks[i].pushing === false) || (p.weeks[i+1] && p.weeks[i+1].pushing === false) ? NP_COLOR : '#00b4ff'; } } },
+        { label: '20M Goal', data: goal, borderColor: '#ff3264', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0 }
+      ]
+    },
+    options: {
+      ...chartDefaults,
+      scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, ticks: { ...chartDefaults.scales.y.ticks, callback: function (v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v; } } } }
+    }
+  });
+
+  var validRanks = ranks.filter(function (r) { return r > 0; });
+  var maxRank = validRanks.length ? Math.max.apply(null, validRanks) + 2 : 10;
+  rankChart = new Chart(document.getElementById('rankChart'), {
+    type: 'line',
+    data: {
+      labels: labels,
+      datasets: [{ label: 'Rank', data: ranks.map(function (r) { return r || null; }), borderColor: '#ffc800', backgroundColor: 'rgba(255,200,0,0.08)', borderWidth: 2.5, pointBackgroundColor: rankPointColors, pointStyle: 'diamond', pointRadius: 6, tension: 0.3 }]
+    },
+    options: { ...chartDefaults, scales: { ...chartDefaults.scales, y: { ...chartDefaults.scales.y, reverse: true, min: 1, max: maxRank } } }
+  });
+
+  var tbody = document.getElementById('weekTableBody');
+  tbody.innerHTML = p.weeks.map(function (w) {
+    var sh = w.serverHelp === true;
+    var np = w.pushing === false;
+    var tag = sh ? ' \u2020' : (np ? ' *' : '');
+    var rowStyle = sh ? ' style="color:' + SH_COLOR + '"' : (np ? ' style="color:' + NP_COLOR + '"' : '');
+    var badges = '';
+    if (w.inProgress) badges += ' <span class="in-progress-label">live</span>';
+    if (sh) badges += ' <span class="server-help-label">server help</span>';
+    return '<tr><td' + rowStyle + '>' + w.label + tag + badges + '</td><td class="week-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="rank-val"' + rowStyle + '>' + (w.rank || '-') + '</td><td class="' + (w.score >= 20000000 ? 'goal-yes' : 'goal-no') + '">' + (w.score >= 20000000 ? '&#9733; YES' : '&#10007; NO') + '</td></tr>';
+  }).join('');
+
+  var hasNP = p.weeks.some(function (w) { return w.pushing === false; });
+  var hasSH = p.weeks.some(function (w) { return w.serverHelp === true; });
+  document.getElementById('npFootnote').style.display = hasNP ? '' : 'none';
+  document.getElementById('shFootnote').style.display = hasSH ? '' : 'none';
+
+  renderDailyChart(name, selectedDay);
+}
+
+function selectDay(day) {
+  selectedDay = day;
+  document.querySelectorAll('.day-btn').forEach(function (btn) {
+    btn.classList.toggle('active', btn.getAttribute('data-day') === day);
+  });
+  var sel = document.getElementById('playerSelect');
+  var name = isMaster ? sel.value : lockedPlayer;
+  if (name) renderDailyChart(name, day);
+}
+
+function renderDailyChart(playerName, day) {
+  if (!dailyData || !dailyData.players[playerName]) return;
+  var pd = dailyData.players[playerName];
+  var allScores = pd[day] || [];
+  var recentOrder = dailyData.weekOrder.slice(-6);
+  var scores = allScores.slice(-6);
+  var p = players[playerName];
+  var shWeeks = new Set();
+  if (p) p.weeks.forEach(function (w) { if (w.serverHelp) shWeeks.add(w.label); });
+  var dayOffsets = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4 };
+  var labels = recentOrder.map(function (w) {
+    var startPart = w.replace(/ - .+/, '').trim();
+    var dayDate = startPart;
+    var parsed = new Date(startPart + ', ' + new Date().getFullYear());
+    if (!isNaN(parsed.getTime())) {
+      var offset = dayOffsets[day] || 0;
+      var actualDate = new Date(parsed);
+      actualDate.setDate(actualDate.getDate() + offset);
+      var months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+      dayDate = months[actualDate.getMonth()] + ' ' + actualDate.getDate();
+    }
+    if (shWeeks.has(w)) return dayDate + ' \u2020';
+    return notPushingWeeks.has(w) ? dayDate + ' *' : dayDate;
+  });
+  var avg = scores.reduce(function (a, b) { return a + b; }, 0) / (scores.filter(function (s) { return s > 0; }).length || 1);
+  var avgLine = scores.map(function () { return avg; });
+
+  if (dailyChart) dailyChart.destroy();
+  dailyChart = new Chart(document.getElementById('dailyChart'), {
+    type: 'bar',
+    data: {
+      labels: labels,
+      datasets: [
+        { label: day + ' Score', data: scores, backgroundColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_BG; if (notPushingWeeks.has(wk)) return NP_BG; return s >= DAILY_GOAL ? 'rgba(0,255,180,0.6)' : s > 0 ? 'rgba(0,180,255,0.5)' : 'rgba(107,107,136,0.2)'; }), borderColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_COLOR; if (notPushingWeeks.has(wk)) return NP_COLOR; return s >= DAILY_GOAL ? '#00ffb4' : s > 0 ? '#00b4ff' : '#2a2a3a'; }), borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Average', data: avgLine, type: 'line', borderColor: '#ffc800', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: {
+        legend: { labels: { color: '#6b6b88', font: { size: 11 } } },
+        tooltip: { backgroundColor: '#1a1a24', titleColor: '#00ffb4', bodyColor: '#dcdce8', borderColor: '#2a2a3a', borderWidth: 1, callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + (ctx.parsed.y ? ctx.parsed.y.toLocaleString() : '0'); } } }
+      },
+      scales: {
+        x: { ticks: { color: '#6b6b88', font: { size: 10 } }, grid: { color: '#1a1a24' } },
+        y: { ticks: { color: '#6b6b88', font: { size: 10 }, callback: function (v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v; } }, grid: { color: '#1a1a24' } }
+      }
+    }
+  });
+}
+
+async function init() {
+  try {
+    var data = await loadGTData();
+    gtData = data;
+    players = data.players;
+    dailyData = data.dailyData;
+    notPushingWeeks = data.notPushingWeeks || new Set();
+    DAILY_GOAL = data.DAILY_GOAL || 6000000;
+    idToPlayer = data.idToPlayer || {};
+
+    var sel = document.getElementById('playerSelect');
+    sel.innerHTML = data.playerList.sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); }).map(function (name) {
+      return '<option value="' + name.replace(/"/g, '&quot;') + '">' + name + '</option>';
+    }).join('');
+
+    document.getElementById('loadingArea').style.display = 'none';
+    document.getElementById('contentArea').style.display = '';
+    document.getElementById('lastUpdated').textContent = 'Data loaded \u2014 ' + new Date().toLocaleString();
+
+    // Check for ?player= param (deep link)
+    var params = new URLSearchParams(window.location.search);
+    var requestedPlayer = params.get('player');
+    if (requestedPlayer && players[requestedPlayer]) sel.value = requestedPlayer;
+
+    // Focus login input
+    document.getElementById('loginInput').focus();
+
+  } catch (e) {
+    document.getElementById('loadingArea').innerHTML =
+      '<div class="error-msg">Failed to load data: ' + e.message + '</div>';
+    document.getElementById('lastUpdated').textContent = 'Error loading data';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body></html>

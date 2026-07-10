@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — GT Alliance</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--accent4:#ff4466;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(0,255,180,0.06) 0%,transparent 55%),radial-gradient(ellipse at 70% 80%,rgba(180,100,255,0.06) 0%,transparent 55%);pointer-events:none;z-index:0;}
+.landing{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 20px;}
+.logo{max-width:420px;width:90vw;height:auto;margin-bottom:48px;filter:drop-shadow(0 0 40px rgba(0,180,255,0.3)) drop-shadow(0 0 80px rgba(180,100,255,0.2));animation:float 4s ease-in-out infinite;}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
+.nav-buttons{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;}
+.nav-btn{display:inline-block;padding:14px 36px;border-radius:10px;font-size:0.95rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:all 0.3s;border:1px solid var(--border);}
+.nav-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.4);}
+.btn-standings{background:linear-gradient(135deg,rgba(0,255,180,0.15),rgba(0,255,180,0.05));color:var(--accent);border-color:rgba(0,255,180,0.4);}
+.btn-standings:hover{background:linear-gradient(135deg,rgba(0,255,180,0.25),rgba(0,255,180,0.1));border-color:var(--accent);box-shadow:0 8px 30px rgba(0,255,180,0.2);}
+.btn-dashboard{background:linear-gradient(135deg,rgba(0,180,255,0.15),rgba(0,180,255,0.05));color:var(--accent2);border-color:rgba(0,180,255,0.4);}
+.btn-dashboard:hover{background:linear-gradient(135deg,rgba(0,180,255,0.25),rgba(0,180,255,0.1));border-color:var(--accent2);box-shadow:0 8px 30px rgba(0,180,255,0.2);}
+.btn-projections{background:linear-gradient(135deg,rgba(180,100,255,0.15),rgba(180,100,255,0.05));color:var(--accent3);border-color:rgba(180,100,255,0.4);}
+.btn-projections:hover{background:linear-gradient(135deg,rgba(180,100,255,0.25),rgba(180,100,255,0.1));border-color:var(--accent3);box-shadow:0 8px 30px rgba(180,100,255,0.2);}
+.btn-training{background:linear-gradient(135deg,rgba(255,68,102,0.15),rgba(255,68,102,0.05));color:var(--accent4);border-color:rgba(255,68,102,0.4);}
+.btn-training:hover{background:linear-gradient(135deg,rgba(255,68,102,0.25),rgba(255,68,102,0.1));border-color:var(--accent4);box-shadow:0 8px 30px rgba(255,68,102,0.2);}
+@media(max-width:500px){.logo{max-width:300px;margin-bottom:36px;}.nav-btn{padding:12px 28px;font-size:0.85rem;}}
+</style>
+</head>
+<body>
+<div class="landing">
+<img src="blueGTlogo.png" alt="GT Alliance" class="logo"/>
+<div class="nav-buttons">
+<a href="gt_standings.html" class="nav-btn btn-standings">Standings</a>
+<a href="gt_dashboard.html" class="nav-btn btn-dashboard">Dashboard</a>
+<a href="gt_projections.html" class="nav-btn btn-projections">Projections</a>
+<a href="gt_training.html" class="nav-btn btn-training">Training</a>
+</div>
+</div>
+</body>
+</html>

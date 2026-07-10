@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT Training Guide: T10 Research Planning</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12161e;
+    --surface2: #1a1f2b;
+    --border: #2a3040;
+    --orange: #ff6b1a;
+    --orange-glow: rgba(255,107,26,0.15);
+    --purple: #9b59f5;
+    --purple-glow: rgba(155,89,245,0.15);
+    --blue: #3b9eff;
+    --blue-glow: rgba(59,158,255,0.15);
+    --gold: #f0c040;
+    --gold-glow: rgba(240,192,64,0.15);
+    --green: #4ecb71;
+    --green-glow: rgba(78,203,113,0.15);
+    --red: #ff4757;
+    --red-glow: rgba(255,71,87,0.15);
+    --text: #e8eaf0;
+    --muted: #7a8299;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  .hero {
+    background: linear-gradient(160deg, #0d1520 0%, #0a0c10 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(78,203,113,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--green); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .phoenix {
+    font-size: 64px;
+    margin-bottom: 16px;
+    display: block;
+    filter: drop-shadow(0 0 20px rgba(78,203,113,0.5));
+  }
+
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .stat-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 20px 14px;
+    text-align: center;
+  }
+  .stat-card .s-value {
+    font-family: 'Oswald', sans-serif;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--green);
+    margin-bottom: 4px;
+  }
+  .stat-card .s-label {
+    font-size: 11px;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+
+  .level-callout {
+    background: var(--surface);
+    border: 1px solid var(--red);
+    border-radius: 8px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .level-callout .level-icon {
+    font-size: 48px;
+    flex-shrink: 0;
+  }
+  .level-callout h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--red);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .level-callout p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .path-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 24px;
+    margin-bottom: 14px;
+    position: relative;
+    border-left: 4px solid var(--green);
+  }
+  .path-card .path-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 8px;
+  }
+  .path-card .path-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #fff;
+  }
+  .path-card .path-cost {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 3px;
+    letter-spacing: 1px;
+    background: var(--purple-glow);
+    border: 1px solid var(--purple);
+    color: var(--purple);
+    margin-left: auto;
+  }
+  .path-card .path-desc {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .step-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--orange);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--orange);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-body {
+    padding: 8px 0 32px;
+  }
+  .step-body h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .step-body p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .step-body .highlight {
+    display: inline-block;
+    background: var(--orange-glow);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  .back-link {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .back-link:hover { color: var(--orange); }
+
+
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .footer .gt-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--orange);
+    text-transform: uppercase;
+  }
+  .footer p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  @media(max-width:600px) {
+    .stat-grid { grid-template-columns: 1fr; }
+    .level-callout { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="gt_training.html" class="back-link">&larr; Back to Training</a>
+  <span class="phoenix">🚁</span>
+  <div class="hero-badge">GT Training Series</div>
+  <h1>T10 Research <span>Planning</span></h1>
+  <p>The long-term path to unlocking Tier 10 troops through Unit Special Training. Plan your badges wisely — this is the biggest investment in the game.</p>
+</div>
+
+<div class="content">
+
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="s-value">1.49M</div>
+      <div class="s-label">Total Badges</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-value">Lab 30</div>
+      <div class="s-label">Required Level</div>
+    </div>
+    <div class="stat-card">
+      <div class="s-value">220</div>
+      <div class="s-label">Total Levels</div>
+    </div>
+  </div>
+
+  <div class="level-callout">
+    <span class="level-icon">⚠️</span>
+    <div>
+      <h3>This is a Late-Game Goal</h3>
+      <p>Do NOT rush T10 early. The full Unit Special Training branch costs 1,488,100 badges. You need Alliance Recognition maxed first to earn badges fast enough. Without it, you'll stall for months. Complete your foundation research first (see Research Priorities guide).</p>
+    </div>
+  </div>
+
+  <div class="section-label">Prerequisites</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Laboratory Level 30</h3>
+        <p>UST branch doesn't appear until your Lab is level 30. This alone requires significant HQ progression and resources to reach.</p>
+        <div class="highlight">Lab 30 = Minimum Requirement</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Alliance Recognition Maxed</h3>
+        <p>This doubles your badge income from Alliance Duel. Without it, earning 1.49M badges takes twice as long. Always max this BEFORE starting UST.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Massive Badge Stockpile</h3>
+        <p>You need hundreds of thousands of badges before starting. Begin stockpiling once Alliance Recognition is complete. Target: 100k+ badges before you begin the first UST node.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">UST Research Path</div>
+
+  <div class="path-card">
+    <div class="path-header">
+      <span class="path-name">Early Nodes (6-7 nodes)</span>
+      <span class="path-cost">~90-150K Badges</span>
+    </div>
+    <div class="path-desc">Starts at 790-1,300 badges per level. These are affordable and provide initial troop stat buffs. Good early progress that builds momentum.</div>
+  </div>
+
+  <div class="path-card">
+    <div class="path-header">
+      <span class="path-name">Mid Tree Branches</span>
+      <span class="path-cost">~200-300K Badges</span>
+    </div>
+    <div class="path-desc">Melee Combat II, Weapon Upgrading II, Stronger Armor II, Shield Upgrade II, Camo Coating II — each costs 116,500 badges for 15 levels. This is where the real badge wall begins.</div>
+  </div>
+
+  <div class="path-card">
+    <div class="path-header">
+      <span class="path-name">Recharge Shield + Late Nodes</span>
+      <span class="path-cost">~219K Badges</span>
+    </div>
+    <div class="path-desc">Recharge Shield alone is 219,000 badges for 20 levels. This provides late PvP scaling but is extremely expensive. Only pursue if T10 is your definite goal.</div>
+  </div>
+
+  <div class="path-card">
+    <div class="path-header">
+      <span class="path-name">Final: Unit Special Training</span>
+      <span class="path-cost">54,900 Badges</span>
+    </div>
+    <div class="path-desc">The final unlock node. Only 54,900 badges, but you must complete everything before it. Plus 8-14 days of speed-ups and millions of resources to actually finish.</div>
+  </div>
+
+  <div class="section-label">Badge Earning Strategy</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">🏅</span>
+      <span><strong style="color:#4ecb71;">Weekly Badge Income:</strong> With maxed Alliance Recognition: ~8,300-10,000 badges/week from Alliance Duel alone. Without it: roughly half that. Max it first.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">📅</span>
+      <span><strong style="color:#4ecb71;">Timeline Estimate:</strong> At 10,000 badges/week, reaching 1.49M takes approximately 149 weeks (~2.8 years). This is a marathon, not a sprint. Plan accordingly.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">💎</span>
+      <span><strong style="color:#ff6b1a;">Badge Sources:</strong> Alliance Duel (primary), Alliance Win bonuses (1,500/week if winning), daily victory rewards, and special events. Maximize all sources.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">⚡</span>
+      <span><strong style="color:#ff6b1a;">Speed-Up Planning:</strong> Each deep UST node takes 1-8 days of raw research time. Stockpile research speed-ups and deploy them on Day 3 of Alliance Duel for double credit.</span>
+    </div>
+  </div>
+
+  <div class="section-label">Common Mistakes</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">❌</span>
+      <span>Starting UST before maxing Alliance Recognition. You'll earn badges at half speed and the path takes twice as long.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">❌</span>
+      <span>Neglecting foundation research (Hero Training, Military Strategies, Peace Shield) to "rush T10." Your combat effectiveness suffers massively.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">❌</span>
+      <span>Spending badges outside event windows. Every badge-cost completion should happen during Alliance Duel Day 3 for maximum credit.</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="gt-logo">⚔️ GT ⚔️</div>
+    <p>GT Alliance Alliance — Training Series</p>
+    <p style="margin-top:12px; font-size:13px; color:var(--orange); font-family:'Oswald',sans-serif; letter-spacing:2px; text-transform:uppercase;">Created by Kimpossible7544</p>
+  </div>
+
+</div>
+</body>
+</html>

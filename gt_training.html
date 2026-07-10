@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Training Guides</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--accent:#ff6b1a;--accent2:#9b59f5;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(255,107,26,0.06) 0%,transparent 55%),radial-gradient(ellipse at 70% 80%,rgba(155,89,245,0.06) 0%,transparent 55%);pointer-events:none;z-index:0;}
+.page{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 20px;max-width:900px;width:100%;}
+.back-link{font-size:0.75rem;font-weight:600;letter-spacing:2px;text-transform:uppercase;text-decoration:none;color:var(--dim);margin-bottom:32px;transition:color 0.3s;}
+.back-link:hover{color:var(--text);}
+h1{font-size:1.6rem;font-weight:700;letter-spacing:3px;text-transform:uppercase;margin-bottom:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.subtitle{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:40px;}
+.guides{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;width:100%;}
+.guide-card{display:block;padding:24px;border-radius:12px;border:1px solid var(--border);background:var(--panel);text-decoration:none;color:var(--text);transition:all 0.3s;text-align:left;}
+.guide-card:hover{transform:translateY(-2px);border-color:rgba(255,107,26,0.4);box-shadow:0 8px 30px rgba(255,107,26,0.1);}
+.guide-title{font-size:1.1rem;font-weight:700;margin-bottom:6px;color:var(--accent);}
+.guide-desc{font-size:0.85rem;color:var(--dim);line-height:1.5;}
+@media(max-width:768px){.guides{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:500px){h1{font-size:1.3rem;}.guides{grid-template-columns:1fr;}.guide-card{padding:18px;}}
+</style>
+</head>
+<body>
+<div class="page">
+<a href="index.html" class="back-link">&larr; Back to Home</a>
+<h1>Training Guides</h1>
+<p class="subtitle">Strategy resources for GT alliance members</p>
+<div class="guides">
+<a href="GT_Guide_Bounty_Hunting.html" class="guide-card">
+<div class="guide-title">Bounty Hunting</div>
+<div class="guide-desc">Tactics and strategies for maximizing bounty rewards across all tiers.</div>
+</a>
+<a href="GT_Guide_Item_Timing.html" class="guide-card">
+<div class="guide-title">Resource & Event Optimization</div>
+<div class="guide-desc">Item timing, event priority ranking, speed-up rules, and Golden Hour strategy in one guide.</div>
+</a>
+<a href="GT_Guide_Hero_Investment.html" class="guide-card">
+<div class="guide-title">Hero Investment</div>
+<div class="guide-desc">Which heroes to level, tier rankings, and upgrade priority for maximum combat power.</div>
+</a>
+<a href="GT_Guide_Research_Priorities.html" class="guide-card">
+<div class="guide-title">Research Priorities</div>
+<div class="guide-desc">Lab upgrade order, two-lab strategy, and badge investment timing for efficient progression.</div>
+</a>
+<a href="GT_Guide_Base_Defense.html" class="guide-card">
+<div class="guide-title">Base Defense & Raiding</div>
+<div class="guide-desc">Protect your resources from attackers and efficiently raid enemy bases for maximum loot.</div>
+</a>
+<a href="GT_Guide_Hero_Formations.html" class="guide-card">
+<div class="guide-title">Hero Formations</div>
+<div class="guide-desc">Optimal formation setup using faction bonuses, row placement, and troop synergies.</div>
+</a>
+<a href="GT_Guide_T10_Research.html" class="guide-card">
+<div class="guide-title">T10 Research Planning</div>
+<div class="guide-desc">Long-term badge investment strategy for unlocking Tier 10 troops through Unit Special Training.</div>
+</a>
+<a href="GT_Guide_Modified_Vehicles.html" class="guide-card">
+<div class="guide-title">Modified Vehicles</div>
+<div class="guide-desc">Vehicle modification progression, wrench costs, and milestone planning for each unlock tier.</div>
+</a>
+<a href="GT_Guide_Gear_Upgrades.html" class="guide-card">
+<div class="guide-title">Gear Upgrades</div>
+<div class="guide-desc">Equip the right gear, upgrade efficiently, and unlock set bonuses to boost your heroes' combat power.</div>
+</a>
+<a href="GT_Guide_Alliance_Duel.html" class="guide-card">
+<div class="guide-title">Alliance Duel Strategy</div>
+<div class="guide-desc">Master the 6-day weekly competition with daily schedules, badge economy, and coordination tactics.</div>
+</a>
+
+<a href="GT_Daily_Duel.html" class="guide-card" style="border-color:rgba(255,107,26,0.3);background:rgba(255,107,26,0.04);">
+<div class="guide-title" style="display:flex;align-items:center;gap:8px;">Daily Duel Blurb <span style="font-size:9px;background:rgba(255,107,26,0.15);color:#ff6b1a;padding:2px 6px;border-radius:3px;font-family:'Oswald',sans-serif;letter-spacing:1px;">LIVE</span></div>
+<div class="guide-desc">Auto-detects your current Alliance Duel day and shows exactly what to prioritize. Check daily!</div>
+</a>
+</div>
+</div>
+</body>
+</html>

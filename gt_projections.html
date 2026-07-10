@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>GT — Projections</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="hammer.min.js"></script>
+<script src="chartjs-plugin-zoom.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--red:#ff3264;--orange:#ff7832;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;--nav-h:60px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 10% 10%,rgba(0,255,180,0.05) 0%,transparent 55%),radial-gradient(ellipse at 90% 90%,rgba(180,100,255,0.05) 0%,transparent 55%);pointer-events:none;z-index:0;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:var(--nav-h);background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand img{height:36px;width:36px;object-fit:contain;border-radius:6px;}
+.nav-brand span{font-size:1.1rem;font-weight:800;color:var(--accent);letter-spacing:2px;}
+.nav-links a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:0.85rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:color 0.2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--accent);}
+.page-wrap{position:relative;z-index:1;padding:24px 20px 60px;max-width:1200px;margin:0 auto;}
+.header{margin-bottom:24px;}
+.header h1{font-size:1.8rem;font-weight:900;color:var(--accent3);letter-spacing:3px;text-transform:uppercase;}
+.header p{color:var(--dim);margin-top:4px;font-size:0.8rem;}
+.controls{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:24px;align-items:center;}
+.player-select{background:var(--panel);border:1px solid var(--accent3);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.95rem;font-weight:700;font-family:inherit;outline:none;cursor:pointer;min-width:200px;}
+.weeks-select{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:0.9rem;font-family:inherit;outline:none;cursor:pointer;}
+.trend-badge{display:inline-flex;align-items:center;gap:6px;padding:6px 14px;border-radius:20px;font-size:0.8rem;font-weight:700;letter-spacing:1px;}
+.trend-up{background:rgba(0,255,180,0.12);color:var(--accent);border:1px solid rgba(0,255,180,0.3);}
+.trend-down{background:rgba(255,50,100,0.12);color:var(--red);border:1px solid rgba(255,50,100,0.3);}
+.trend-stable{background:rgba(255,200,0,0.1);color:var(--gold);border:1px solid rgba(255,200,0,0.3);}
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:24px;}
+@media(max-width:800px){.stats-row{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:500px){.stats-row{grid-template-columns:repeat(2,1fr);}}
+.stat-card{background:var(--panel);border-radius:10px;padding:14px;text-align:center;border-top:3px solid var(--border);}
+.stat-card.c1{border-top-color:var(--accent3);}
+.stat-card.c2{border-top-color:var(--accent2);}
+.stat-card.c3{border-top-color:var(--accent);}
+.stat-card.c4{border-top-color:var(--gold);}
+.stat-card.c5{border-top-color:var(--orange);}
+.stat-label{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.stat-value{font-size:1.2rem;font-weight:900;font-family:'Courier New',monospace;}
+.v1{color:var(--accent3);} .v2{color:var(--accent2);} .v3{color:var(--accent);} .v4{color:var(--gold);} .v5{color:var(--orange);}
+.charts-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-bottom:24px;}
+@media(max-width:768px){.charts-grid{grid-template-columns:1fr;}}
+.chart-card{background:var(--panel);border-radius:12px;padding:20px;border:1px solid var(--border);}
+.chart-card.full{grid-column:1/-1;}
+.chart-title{font-size:0.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+.chart-hint{font-size:0.65rem;color:var(--dim);opacity:0.6;margin-bottom:12px;letter-spacing:0.5px;}
+.chart-wrap{position:relative;height:260px;}
+.proj-table{width:100%;border-collapse:collapse;font-size:0.85rem;}
+.proj-table th{padding:10px 14px;text-align:left;font-size:0.7rem;letter-spacing:1px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border);}
+.proj-table td{padding:10px 14px;border-bottom:1px solid var(--border);}
+.proj-table tr:last-child td{border-bottom:none;}
+.proj-row td{color:var(--accent3);font-style:italic;}
+.proj-row td:first-child::after{content:' (proj)';font-size:0.7rem;color:var(--dim);}
+.in-progress-label{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);background:rgba(0,255,180,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+.server-help-label{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:#00e5ff;background:rgba(0,229,255,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+.actual-score{font-family:'Courier New',monospace;color:var(--accent2);}
+.proj-score{font-family:'Courier New',monospace;color:var(--accent3);}
+.goal-yes{color:var(--gold);font-weight:700;}
+.goal-no{color:var(--red);}
+.goal-proj{color:var(--accent3);}
+.leaderboard{background:var(--panel);border-radius:12px;border:1px solid var(--border);overflow:hidden;margin-bottom:24px;}
+.lb-header{padding:16px 20px;border-bottom:1px solid var(--border);font-size:0.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);}
+.lb-row{display:flex;align-items:center;padding:12px 20px;border-bottom:1px solid var(--border);gap:16px;transition:background 0.15s;cursor:pointer;}
+.lb-row:last-child{border-bottom:none;}
+.lb-row:hover{background:rgba(180,100,255,0.06);}
+.lb-rank{font-size:0.9rem;font-weight:900;color:var(--dim);min-width:28px;}
+.lb-name{flex:1;font-weight:700;font-size:0.9rem;}
+.lb-score{font-family:'Courier New',monospace;font-size:0.85rem;color:var(--accent3);}
+.lb-trend{font-size:1rem;}
+.lb-bar-wrap{flex:1;background:var(--panel2);border-radius:4px;height:6px;overflow:hidden;}
+.lb-bar{height:100%;border-radius:4px;background:linear-gradient(90deg,var(--accent3),var(--accent2));transition:width 0.5s ease;}
+.section-title{font-size:0.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border);}
+.updated{color:var(--dim);font-size:0.75rem;}
+.loading{text-align:center;padding:60px 20px;color:var(--dim);font-size:1rem;letter-spacing:1px;}
+.loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
+</style></head><body>
+<nav>
+<a class="nav-brand" href="index.html">
+<img src="https://raw.githubusercontent.com/Kimpossible7544/WPX/main/icon.png" alt="GT" onerror="this.style.display='none'"/>
+<span>GT ALLIANCE</span></a>
+<div class="nav-links">
+<a href="gt_standings.html">Standings</a>
+<a href="gt_dashboard.html">Dashboard</a>
+<a href="gt_projections.html" class="active">Projections</a>
+</div></nav>
+<div class="page-wrap">
+<div class="header"><h1>Score Projections</h1>
+<p class="updated" id="lastUpdated">Loading data...</p></div>
+<div id="loadingArea" class="loading"><div class="spinner"></div><br>Loading data from Dropbox...</div>
+<div id="contentArea" style="display:none;">
+<div class="controls">
+<select class="player-select" id="playerSel" onchange="loadPlayer(this.value)">
+<option value="">Loading...</option>
+</select>
+<select class="weeks-select" id="projWeeks" onchange="loadPlayer(document.getElementById('playerSel').value)">
+<option value="2">Project 2 weeks</option>
+<option value="3" selected>Project 3 weeks</option>
+<option value="4">Project 4 weeks</option>
+</select>
+<div id="trendBadge"></div>
+</div>
+<div class="stats-row" id="statsRow"></div>
+<div class="charts-grid">
+<div class="chart-card full">
+  <div class="chart-title">Score History + Projection</div>
+  <div class="chart-hint">Click and drag to pan &middot; Double-click to reset</div>
+  <div class="chart-wrap"><canvas id="projChart"></canvas></div>
+</div>
+<div class="chart-card">
+  <div class="chart-title">Weekly Score Breakdown</div>
+  <div class="chart-hint">Click and drag to pan &middot; Double-click to reset</div>
+  <div class="chart-wrap"><canvas id="barChart"></canvas></div>
+</div>
+<div class="chart-card">
+  <div class="chart-title">Trend Analysis (3-Week Avg)</div>
+  <div class="chart-hint">Click and drag to pan &middot; Double-click to reset</div>
+  <div class="chart-wrap"><canvas id="trendChart"></canvas></div>
+</div>
+</div>
+<div class="chart-card" style="margin-bottom:24px;"><div class="chart-title">Week by Week Breakdown</div>
+<table class="proj-table"><thead><tr><th>Week</th><th>Score</th><th>20M Goal</th><th>vs Avg</th></tr></thead>
+<tbody id="weekTable"></tbody></table></div>
+<div class="section-title">Projected Team Leaderboard (Next Week)</div>
+<div class="leaderboard"><div class="lb-header">Player &middot; Projected Score &middot; Trend</div><div id="leaderboard"></div></div>
+</div>
+<div id="npFootnote" style="display:none;color:#ff7832;font-size:0.78rem;margin-top:10px;letter-spacing:0.5px;">* = Not pushing to win this week</div>
+<div id="shFootnote" style="display:none;color:#00e5ff;font-size:0.78rem;margin-top:4px;letter-spacing:0.5px;"><span style="color:#ff3264">&dagger;</span> = Voluntarily helped the server this week (scores may be lower than usual)</div>
+</div>
+<script>
+var players = {};
+var notPushingWeeks = new Set();
+var futureLabels = ["Week +1","Week +2","Week +3","Week +4"];
+var projChart = null, barChart = null, trendChart = null;
+var GOAL = 20000000;
+var NP_COLOR = '#ff7832';
+var NP_BG = 'rgba(255,120,50,0.15)';
+var SH_COLOR = '#00e5ff';
+var SH_BG = 'rgba(0,229,255,0.15)';
+
+function project(weeks, numWeeks) {
+  var actual = weeks.filter(function (w) { return w.score > 0; });
+  if (actual.length === 0) return [];
+  var weights = [1, 1.5, 2, 2.5, 3, 3.5];
+  var wSum = 0, wTotal = 0;
+  var useWeeks = actual.slice(-6);
+  useWeeks.forEach(function (w, i) { var wt = weights[i] || 1; wSum += w.score * wt; wTotal += wt; });
+  var wavg = wSum / wTotal;
+  var n = useWeeks.length, sumX = 0, sumY = 0, sumXY = 0, sumXX = 0;
+  useWeeks.forEach(function (w, i) { sumX += i; sumY += w.score; sumXY += i * w.score; sumXX += i * i; });
+  var slope = n > 1 ? (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX) : 0;
+  var result = [];
+  for (var i = 1; i <= numWeeks; i++) {
+    result.push(Math.max(0, Math.round(wavg + slope * i)));
+  }
+  return result;
+}
+
+function getTrend(weeks) {
+  var actual = weeks.filter(function (w) { return w.score > 0; });
+  if (actual.length < 2) return { dir: 'stable', pct: 0 };
+  var half = Math.floor(actual.length / 2);
+  var recent = actual.slice(-Math.max(half, 2));
+  var older = actual.slice(0, Math.max(half, 1));
+  var avgRecent = recent.reduce(function (a, w) { return a + w.score; }, 0) / recent.length;
+  var avgOlder = older.reduce(function (a, w) { return a + w.score; }, 0) / older.length;
+  var pct = avgOlder > 0 ? ((avgRecent - avgOlder) / avgOlder * 100) : 0;
+  if (pct > 5) return { dir: 'up', pct: pct };
+  if (pct < -5) return { dir: 'down', pct: pct };
+  return { dir: 'stable', pct: pct };
+}
+
+function fmt(n) { return n ? Math.round(n).toLocaleString() : '-'; }
+function fmtM(n) { return n ? (n / 1000000).toFixed(2) + 'M' : '-'; }
+
+var panPlugin = {
+  zoom: {
+    pan: {
+      enabled: true,
+      mode: 'x'
+    },
+    zoom: {
+      wheel: { enabled: false },
+      pinch: { enabled: false },
+      mode: 'x'
+    }
+  }
+};
+
+function loadPlayer(name) {
+  var p = players[name]; if (!p) return;
+  var numWeeks = parseInt(document.getElementById('projWeeks').value) || 3;
+  var sortedWeeks = p.weeks.slice();
+  var completedWeeks = sortedWeeks.filter(function (w) { return !w.inProgress; });
+  var projScores = project(completedWeeks, numWeeks);
+  var trend = getTrend(completedWeeks);
+  var actual = completedWeeks.filter(function (w) { return w.score > 0; });
+  var avgScore = actual.length ? actual.reduce(function (a, w) { return a + w.score; }, 0) / actual.length : 0;
+  var bestWeek = actual.length ? Math.max.apply(null, actual.map(function (w) { return w.score; })) : 0;
+  var worstWeek = actual.length ? Math.min.apply(null, actual.map(function (w) { return w.score; })) : 0;
+  var proj1 = projScores[0] || 0;
+  var proj1Total = p.totalScore + proj1;
+  var tb = document.getElementById('trendBadge');
+  if (trend.dir === 'up') tb.innerHTML = '<span class="trend-badge trend-up">&#8679; TRENDING UP +' + trend.pct.toFixed(1) + '%</span>';
+  else if (trend.dir === 'down') tb.innerHTML = '<span class="trend-badge trend-down">&#8681; TRENDING DOWN ' + trend.pct.toFixed(1) + '%</span>';
+  else tb.innerHTML = '<span class="trend-badge trend-stable">&#8680; STABLE ' + trend.pct.toFixed(1) + '%</span>';
+  document.getElementById('statsRow').innerHTML =
+    '<div class="stat-card c1"><div class="stat-label">Next Week Proj</div><div class="stat-value v1">' + fmtM(proj1) + '</div></div>' +
+    '<div class="stat-card c2"><div class="stat-label">Proj Total Score</div><div class="stat-value v2">' + fmt(proj1Total) + '</div></div>' +
+    '<div class="stat-card c3"><div class="stat-label">Weekly Avg</div><div class="stat-value v3">' + fmtM(avgScore) + '</div></div>' +
+    '<div class="stat-card c4"><div class="stat-label">Best Week</div><div class="stat-value v4">' + fmtM(bestWeek) + '</div></div>' +
+    '<div class="stat-card c5"><div class="stat-label">Worst Week</div><div class="stat-value v5">' + fmtM(worstWeek) + '</div></div>';
+
+  var allLabels = sortedWeeks.map(function (w) { if (w.serverHelp) return w.label + ' \u2020'; return w.pushing === false ? w.label + ' *' : w.label; }).concat(projScores.map(function (_, i) { return futureLabels[i] || 'Week +' + (i + 1); }));
+  var scorePointColors = sortedWeeks.map(function (w) { if (w.serverHelp) return SH_COLOR; return w.pushing === false ? NP_COLOR : '#00b4ff'; }).concat(projScores.map(function () { return '#b464ff'; }));
+  var actualData = sortedWeeks.map(function (w) { return w.score || null; });
+  var projData = sortedWeeks.map(function () { return null; }).concat(projScores);
+  if (actualData.length > 0) {
+    var lastActual = actualData.filter(function (v) { return v; });
+    if (lastActual.length) projData[actualData.length - 1] = lastActual[lastActual.length - 1];
+  }
+  var goalData = allLabels.map(function () { return GOAL; });
+  var MAX_VISIBLE = 6;
+
+  // Build per-chart min labels for initial 6-week view
+  var allLabelsMin = allLabels.length > MAX_VISIBLE ? allLabels[allLabels.length - MAX_VISIBLE] : undefined;
+  var allLabelsMax = allLabels[allLabels.length - 1];
+
+  var barLabels = sortedWeeks.map(function (w) { if (w.serverHelp) return w.label + ' \u2020'; return w.pushing === false ? w.label + ' *' : w.label; });
+  var barMin = barLabels.length > MAX_VISIBLE ? barLabels[barLabels.length - MAX_VISIBLE] : undefined;
+  var barMax = barLabels[barLabels.length - 1];
+
+  var cd = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { labels: { color: '#6b6b88', font: { size: 11 }, usePointStyle: true } },
+      tooltip: { backgroundColor: '#1a1a24', titleColor: '#b464ff', bodyColor: '#dcdce8', borderColor: '#2a2a3a', borderWidth: 1, callbacks: { label: function (ctx) { return ctx.dataset.label + ': ' + (ctx.raw ? (ctx.raw / 1000000).toFixed(2) + 'M' : '-'); } } },
+      zoom: {
+        pan: { enabled: true, mode: 'x' },
+        zoom: { wheel: { enabled: false }, pinch: { enabled: false }, mode: 'x' }
+      }
+    },
+    scales: {
+      x: { ticks: { color: '#6b6b88', font: { size: 10 } }, grid: { color: 'rgba(42,42,58,0.5)' }, min: allLabelsMin, max: allLabelsMax },
+      y: { ticks: { color: '#6b6b88', font: { size: 10 }, callback: function (v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v; } }, grid: { color: 'rgba(42,42,58,0.5)' } }
+    }
+  };
+
+  var cdBar = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: cd.plugins.tooltip,
+      zoom: cd.plugins.zoom
+    },
+    scales: {
+      x: { ticks: { color: '#6b6b88', font: { size: 10 } }, grid: { color: 'rgba(42,42,58,0.5)' }, min: barMin, max: barMax },
+      y: { ticks: { color: '#6b6b88', font: { size: 10 }, callback: function (v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v; } }, grid: { color: 'rgba(42,42,58,0.5)' } }
+    }
+  };
+
+  var cdTrend = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: {
+      legend: cd.plugins.legend,
+      tooltip: cd.plugins.tooltip,
+      zoom: cd.plugins.zoom
+    },
+    scales: {
+      x: { ticks: { color: '#6b6b88', font: { size: 10 } }, grid: { color: 'rgba(42,42,58,0.5)' }, min: barMin, max: barMax },
+      y: { ticks: { color: '#6b6b88', font: { size: 10 }, callback: function (v) { return v >= 1000000 ? (v / 1000000).toFixed(1) + 'M' : v; } }, grid: { color: 'rgba(42,42,58,0.5)' } }
+    }
+  };
+  if (projChart) projChart.destroy();
+  projChart = new Chart(document.getElementById('projChart'), {
+    type: 'line',
+    data: {
+      labels: allLabels,
+      datasets: [
+        { label: 'Actual Score', data: actualData, borderColor: '#00b4ff', backgroundColor: 'rgba(0,180,255,0.08)', borderWidth: 2.5, pointBackgroundColor: scorePointColors, pointRadius: 5, tension: 0.3, spanGaps: false },
+        { label: 'Projected', data: projData, borderColor: '#b464ff', backgroundColor: 'rgba(180,100,255,0.08)', borderWidth: 2.5, borderDash: [8, 4], pointBackgroundColor: '#b464ff', pointStyle: 'star', pointRadius: 7, tension: 0.3, spanGaps: false },
+        { label: '20M Goal', data: goalData, borderColor: '#ff3264', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 }
+      ]
+    },
+    options: cd
+  });
+  if (barChart) barChart.destroy();
+  barChart = new Chart(document.getElementById('barChart'), {
+    type: 'bar',
+    data: {
+      labels: sortedWeeks.map(function (w) { if (w.serverHelp) return w.label + ' \u2020'; return w.pushing === false ? w.label + ' *' : w.label; }),
+      datasets: [{
+        label: 'Weekly Score',
+        data: sortedWeeks.map(function (w) { return w.score || 0; }),
+        backgroundColor: sortedWeeks.map(function (w) { if (w.serverHelp) return SH_BG; if (w.pushing === false) return NP_BG; return w.score >= GOAL ? 'rgba(255,100,0,0.7)' : w.score > 0 ? 'rgba(0,180,255,0.7)' : 'rgba(42,42,58,0.5)'; }),
+        borderColor: sortedWeeks.map(function (w) { if (w.serverHelp) return SH_COLOR; if (w.pushing === false) return NP_COLOR; return w.score >= GOAL ? '#ff6400' : w.score > 0 ? '#00b4ff' : '#2a2a3a'; }),
+        borderWidth: 1, borderRadius: 4
+      }]
+    },
+    options: cdBar
+  });
+  var rolling = sortedWeeks.map(function (_, i, arr) {
+    var slice = arr.slice(Math.max(0, i - 2), i + 1).filter(function (w) { return w.score > 0; });
+    return slice.length ? slice.reduce(function (a, w) { return a + w.score; }, 0) / slice.length : null;
+  });
+  if (trendChart) trendChart.destroy();
+  trendChart = new Chart(document.getElementById('trendChart'), {
+    type: 'line',
+    data: {
+      labels: sortedWeeks.map(function (w) { if (w.serverHelp) return w.label + ' \u2020'; return w.pushing === false ? w.label + ' *' : w.label; }),
+      datasets: [
+        { label: '3-Week Rolling Avg', data: rolling, borderColor: '#00ffb4', backgroundColor: 'rgba(0,255,180,0.06)', borderWidth: 2.5, pointBackgroundColor: '#00ffb4', pointRadius: 4, tension: 0.4, spanGaps: false },
+        { label: 'Individual Weeks', data: sortedWeeks.map(function (w) { return w.score || null; }), borderColor: 'rgba(0,180,255,0.4)', backgroundColor: 'transparent', borderWidth: 1, borderDash: [3, 3], pointRadius: 3, tension: 0, spanGaps: false }
+      ]
+    },
+    options: cdTrend
+  });
+  var wt = document.getElementById('weekTable');
+  var rows = sortedWeeks.map(function (w) {
+    var vsAvg = avgScore > 0 ? ((w.score - avgScore) / avgScore * 100) : 0;
+    var vsStr = w.score > 0 ? (vsAvg >= 0 ? '<span style="color:var(--accent)">+' + vsAvg.toFixed(1) + '%</span>' : '<span style="color:var(--red)">' + vsAvg.toFixed(1) + '%</span>') : '-';
+    var sh = w.serverHelp === true;
+    var np = w.pushing === false;
+    var tag = sh ? ' \u2020' : (np ? ' *' : '');
+    var rowStyle = sh ? ' style="color:' + SH_COLOR + '"' : (np ? ' style="color:' + NP_COLOR + '"' : '');
+    var badges = '';
+    if (w.inProgress) badges += ' <span class="in-progress-label">live</span>';
+    if (sh) badges += ' <span class="server-help-label">server help</span>';
+    var labelHtml = w.label + tag + badges;
+    return '<tr><td' + rowStyle + '>' + labelHtml + '</td><td class="actual-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="' + (w.score >= GOAL ? 'goal-yes' : w.score > 0 ? 'goal-no' : '') + '">' + (w.score >= GOAL ? '&#9733; YES' : w.score > 0 ? '&#10007; NO' : '-') + '</td><td>' + vsStr + '</td></tr>';
+  }).join('');
+  var projRows = projScores.map(function (s, i) {
+    return '<tr class="proj-row"><td>' + (futureLabels[i] || 'Week +' + (i + 1)) + '</td><td class="proj-score">' + s.toLocaleString() + '</td><td class="goal-proj">' + (s >= GOAL ? '&#9733; LIKELY' : '? TBD') + '</td><td>-</td></tr>';
+  }).join('');
+  wt.innerHTML = rows + projRows;
+}
+
+function buildLeaderboard() {
+  var numWeeks = parseInt(document.getElementById('projWeeks').value) || 3;
+  var entries = Object.values(players).map(function (p) {
+    var completed = p.weeks.filter(function (w) { return !w.inProgress; });
+    var proj = project(completed, numWeeks);
+    var trend = getTrend(completed);
+    return { name: p.name, proj1: proj[0] || 0, trend: trend, totalScore: p.totalScore };
+  }).filter(function (e) { return e.proj1 > 0; }).sort(function (a, b) { return b.proj1 - a.proj1; });
+  var maxProj = entries[0] ? entries[0].proj1 : 1;
+  var lb = document.getElementById('leaderboard');
+  lb.innerHTML = entries.slice(0, 20).map(function (e, i) {
+    var tIcon = e.trend.dir === 'up' ? '&#8679;' : e.trend.dir === 'down' ? '&#8681;' : '&#8680;';
+    var pct = Math.round(e.proj1 / maxProj * 100);
+    return '<div class="lb-row" onclick="document.getElementById(\'playerSel\').value=\'' + e.name.replace(/'/g, "\\'") + '\';loadPlayer(\'' + e.name.replace(/'/g, "\\'") + '\')">' +
+      '<div class="lb-rank">' + (i + 1) + '</div>' +
+      '<div class="lb-name">' + e.name + '</div>' +
+      '<div class="lb-bar-wrap"><div class="lb-bar" style="width:' + pct + '%"></div></div>' +
+      '<div class="lb-score">' + fmtM(e.proj1) + '</div>' +
+      '<div class="lb-trend">' + tIcon + '</div>' +
+      '</div>';
+  }).join('');
+}
+
+async function init() {
+  try {
+    var data = await loadGTData();
+    players = data.players;
+    notPushingWeeks = data.notPushingWeeks || new Set();
+    var sel = document.getElementById('playerSel');
+    sel.innerHTML = data.playerList.sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); }).map(function (name) {
+      return '<option value="' + name.replace(/"/g, '&quot;') + '">' + name + '</option>';
+    }).join('');
+    document.getElementById('loadingArea').style.display = 'none';
+    document.getElementById('contentArea').style.display = '';
+    document.getElementById('lastUpdated').textContent = 'Data loaded \u2014 ' + new Date().toLocaleString();
+    loadPlayer(sel.value);
+    buildLeaderboard();
+    document.getElementById('npFootnote').style.display = notPushingWeeks.size > 0 ? '' : 'none';
+    document.getElementById('shFootnote').style.display = (data.serverHelpers && data.serverHelpers.size > 0) ? '' : 'none';
+    document.getElementById('projWeeks').addEventListener('change', buildLeaderboard);
+  } catch (e) {
+    document.getElementById('loadingArea').innerHTML =
+      '<div class="error-msg">Failed to load data: ' + e.message + '</div>';
+    document.getElementById('lastUpdated').textContent = 'Error loading data';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script></body></html>
+

@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT Training Guide: Modified Vehicles</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
+
+  :root {
+    --bg: #0a0c10;
+    --surface: #12161e;
+    --surface2: #1a1f2b;
+    --border: #2a3040;
+    --orange: #ff6b1a;
+    --orange-glow: rgba(255,107,26,0.15);
+    --purple: #9b59f5;
+    --purple-glow: rgba(155,89,245,0.15);
+    --blue: #3b9eff;
+    --blue-glow: rgba(59,158,255,0.15);
+    --gold: #f0c040;
+    --gold-glow: rgba(240,192,64,0.15);
+    --green: #4ecb71;
+    --green-glow: rgba(78,203,113,0.15);
+    --red: #ff4757;
+    --red-glow: rgba(255,71,87,0.15);
+    --text: #e8eaf0;
+    --muted: #7a8299;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', sans-serif;
+    min-height: 100vh;
+    padding: 0 0 60px 0;
+  }
+
+  .hero {
+    background: linear-gradient(160deg, #0d1520 0%, #0a0c10 60%);
+    border-bottom: 1px solid var(--border);
+    padding: 48px 24px 40px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -60px; left: 50%;
+    transform: translateX(-50%);
+    width: 500px; height: 300px;
+    background: radial-gradient(ellipse, rgba(255,107,26,0.12) 0%, transparent 70%);
+    pointer-events: none;
+  }
+  .hero-badge {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    border: 1px solid var(--orange);
+    padding: 4px 14px;
+    border-radius: 2px;
+    margin-bottom: 20px;
+  }
+  .hero h1 {
+    font-family: 'Oswald', sans-serif;
+    font-size: clamp(32px, 6vw, 56px);
+    font-weight: 700;
+    line-height: 1.05;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 12px;
+  }
+  .hero h1 span { color: var(--orange); }
+  .hero p {
+    color: var(--muted);
+    font-size: 15px;
+    max-width: 480px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+
+  .phoenix {
+    font-size: 64px;
+    margin-bottom: 16px;
+    display: block;
+    filter: drop-shadow(0 0 20px rgba(255,107,26,0.5));
+  }
+
+  .content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 0 20px;
+  }
+
+  .section-label {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--orange);
+    margin: 48px 0 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .section-label::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .vehicle-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+    margin-bottom: 32px;
+  }
+  .vehicle-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px;
+    text-align: center;
+    position: relative;
+  }
+  .vehicle-card .v-icon { font-size: 36px; margin-bottom: 10px; }
+  .vehicle-card .v-name {
+    font-family: 'Oswald', sans-serif;
+    font-size: 15px;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: #fff;
+    margin-bottom: 4px;
+  }
+  .vehicle-card .v-level {
+    font-size: 11px;
+    color: var(--gold);
+    font-family: 'Oswald', sans-serif;
+    letter-spacing: 1px;
+    margin-bottom: 6px;
+  }
+  .vehicle-card .v-wrenches {
+    font-size: 11px;
+    color: var(--muted);
+  }
+  .vehicle-card .v-free {
+    position: absolute;
+    top: 8px; right: 8px;
+    background: var(--green);
+    color: #000;
+    font-family: 'Oswald', sans-serif;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 2px 6px;
+    border-radius: 2px;
+    text-transform: uppercase;
+  }
+
+  .wrench-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 32px;
+    font-size: 13px;
+  }
+  .wrench-table th, .wrench-table td {
+    padding: 10px 14px;
+    text-align: left;
+    border-bottom: 1px solid var(--border);
+  }
+  .wrench-table th {
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    color: var(--muted);
+    background: var(--surface);
+  }
+  .wrench-table td { color: var(--text); }
+  .wrench-table .milestone { color: var(--gold); font-weight: 600; }
+
+  .level-callout {
+    background: var(--surface);
+    border: 1px solid var(--orange);
+    border-radius: 8px;
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    margin-bottom: 40px;
+  }
+  .level-callout .level-icon {
+    font-size: 48px;
+    flex-shrink: 0;
+  }
+  .level-callout h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--orange);
+    margin-bottom: 6px;
+    text-transform: uppercase;
+  }
+  .level-callout p {
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+  }
+
+  .steps {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+  }
+  .step {
+    display: flex;
+    gap: 20px;
+    position: relative;
+  }
+  .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    left: 19px;
+    top: 44px;
+    bottom: 0;
+    width: 2px;
+    background: var(--border);
+  }
+  .step-num {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 2px solid var(--orange);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Oswald', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--orange);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .step-body {
+    padding: 8px 0 32px;
+  }
+  .step-body h3 {
+    font-family: 'Oswald', sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #fff;
+    margin-bottom: 6px;
+  }
+  .step-body p {
+    font-size: 14px;
+    color: var(--muted);
+    line-height: 1.65;
+  }
+  .step-body .highlight {
+    display: inline-block;
+    background: var(--orange-glow);
+    border: 1px solid var(--orange);
+    color: var(--orange);
+    font-family: 'Oswald', sans-serif;
+    font-size: 13px;
+    padding: 2px 10px;
+    border-radius: 4px;
+    margin-top: 8px;
+  }
+
+  .tips {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 4px;
+  }
+  .tip {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--orange);
+    border-radius: 6px;
+    padding: 14px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    line-height: 1.6;
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+  }
+  .tip-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+
+  .back-link {
+    display: inline-block;
+    font-family: 'Oswald', sans-serif;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    text-decoration: none;
+    color: var(--muted);
+    margin-bottom: 16px;
+    transition: color 0.3s;
+  }
+  .back-link:hover { color: var(--orange); }
+
+
+  .footer {
+    text-align: center;
+    margin-top: 60px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+  }
+  .footer .gt-logo {
+    font-family: 'Oswald', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 3px;
+    color: var(--orange);
+    text-transform: uppercase;
+  }
+  .footer p {
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 6px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+
+  @media(max-width:600px) {
+    .vehicle-grid { grid-template-columns: 1fr; }
+    .level-callout { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero">
+  <a href="gt_training.html" class="back-link">&larr; Back to Training</a>
+  <span class="phoenix">🚗</span>
+  <div class="hero-badge">GT Training Series</div>
+  <h1>Modified <span>Vehicles</span></h1>
+  <p>How vehicle modification works, wrench costs, unlockable armaments, and strategies for efficient progression.</p>
+</div>
+
+<div class="content">
+
+  <div class="level-callout">
+    <span class="level-icon">🔧</span>
+    <div>
+      <h3>Save Wrenches for Vehicle Day</h3>
+      <p>Golden Wrenches are the primary resource for vehicle modification. Save ALL wrenches throughout the week and use them ONLY on Alliance Duel Day 1 (Vehicle Day) for maximum event credit. Using wrenches any other day wastes Duel points.</p>
+    </div>
+  </div>
+
+  <div class="section-label">Unlockable Vehicles</div>
+  <div class="vehicle-grid">
+    <div class="vehicle-card">
+      <span class="v-free">Free</span>
+      <div class="v-icon">🏎️</div>
+      <div class="v-name">Conqueror</div>
+      <div class="v-level">Level 0</div>
+      <div class="v-wrenches">Free from tutorial</div>
+    </div>
+    <div class="vehicle-card">
+      <div class="v-icon">🐆</div>
+      <div class="v-name">Cheetah</div>
+      <div class="v-level">Early Unlock</div>
+      <div class="v-wrenches">~150 wrenches cumulative</div>
+    </div>
+    <div class="vehicle-card">
+      <div class="v-icon">💪</div>
+      <div class="v-name">Hercules</div>
+      <div class="v-level">Mid Unlock</div>
+      <div class="v-wrenches">~890 wrenches cumulative</div>
+    </div>
+    <div class="vehicle-card">
+      <div class="v-icon">💥</div>
+      <div class="v-name">Destroyer</div>
+      <div class="v-level">Level 145</div>
+      <div class="v-wrenches">~10,500 wrenches cumulative</div>
+    </div>
+    <div class="vehicle-card">
+      <div class="v-icon">☠️</div>
+      <div class="v-name">Destroyer-EX</div>
+      <div class="v-level">Level 195</div>
+      <div class="v-wrenches">~35,000+ wrenches cumulative</div>
+    </div>
+  </div>
+
+  <div class="section-label">Wrenches Needed Per Stage</div>
+  <table class="wrench-table">
+    <thead>
+      <tr><th>Stage</th><th>Level Range</th><th>Wrenches for Stage</th><th>Total to Complete</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Beginner</td><td>0 – 50</td><td>~190</td><td>~190</td></tr>
+      <tr><td>Intermediate</td><td>50 – 100</td><td>~1,960</td><td>~2,150</td></tr>
+      <tr class="milestone"><td>Expert</td><td>100 – 130</td><td>~5,550</td><td>~7,700</td></tr>
+      <tr class="milestone"><td>Master</td><td>130 – 160</td><td>~8,300</td><td>~16,000</td></tr>
+      <tr class="milestone"><td>Grandmaster</td><td>160 – 200</td><td>~22,000</td><td>~38,000</td></tr>
+      <tr class="milestone"><td>Overlord</td><td>200+</td><td>~4,000+ per level</td><td>~42,000+</td></tr>
+    </tbody>
+  </table>
+
+  <div class="section-label">Modifier Progression</div>
+  <div class="steps">
+    <div class="step">
+      <div class="step-num">1</div>
+      <div class="step-body">
+        <h3>Expert Modifier (Level 100-130)</h3>
+        <p>First major milestone. Unlocks at 4% and scales to 100%. Provides meaningful combat bonuses and signals mid-game progression.</p>
+        <div class="highlight">~2,150 - 7,700 Cumulative Wrenches</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">2</div>
+      <div class="step-body">
+        <h3>Master Modifier (Level 135-160)</h3>
+        <p>Significant stat bonuses. The Destroyer unlock at level 145 is a major power spike. This is where vehicle modification starts meaningfully impacting PvP.</p>
+        <div class="highlight">~8,500 - 16,000 Cumulative Wrenches</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">3</div>
+      <div class="step-body">
+        <h3>Grandmaster Modifier (Level 165-200)</h3>
+        <p>Late-game territory. Destroyer-EX unlock at 195. Wrench costs per sub-level jump to 240-300+. This is whale territory for most players.</p>
+        <div class="highlight">~18,500 - 38,000+ Cumulative Wrenches</div>
+      </div>
+    </div>
+    <div class="step">
+      <div class="step-num">4</div>
+      <div class="step-body">
+        <h3>Modding Overlord (Level 200+)</h3>
+        <p>Endgame. Costs jump to 360-420 wrenches per sub-level with 10 sub-levels each. Only the most dedicated or heavy-spending players reach this tier.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-label">Pro Tips</div>
+  <div class="tips">
+    <div class="tip">
+      <span class="tip-icon">📅</span>
+      <span><strong style="color:#ff6b1a;">Day 1 Only:</strong> Save ALL golden wrenches, blueprints, and chip chests throughout the week. Open and use everything exclusively on Alliance Duel Day 1 (Vehicle Day).</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">📊</span>
+      <span><strong style="color:#ff6b1a;">Track Progress:</strong> Use the wrench cost table to estimate how long until your next vehicle unlock. Set realistic expectations — Destroyer requires ~10,500 total wrenches.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">🎯</span>
+      <span><strong style="color:#ff6b1a;">Milestone Focus:</strong> The biggest power spikes come at vehicle unlock levels (Cheetah, Hercules, Destroyer). Plan your wrench spending around hitting these milestones.</span>
+    </div>
+    <div class="tip">
+      <span class="tip-icon">💎</span>
+      <span><strong style="color:#ff6b1a;">Blueprint Value:</strong> Modification Blueprints are rarer than wrenches. Save them for Vehicle Day as well — they provide significant upgrade progress and count for Duel points.</span>
+    </div>
+  </div>
+
+  <div class="footer">
+    <div class="gt-logo">⚔️ GT ⚔️</div>
+    <p>GT Alliance Alliance — Training Series</p>
+    <p style="margin-top:12px; font-size:13px; color:var(--orange); font-family:'Oswald',sans-serif; letter-spacing:2px; text-transform:uppercase;">Created by Kimpossible7544</p>
+  </div>
+
+</div>
+</body>
+</html>

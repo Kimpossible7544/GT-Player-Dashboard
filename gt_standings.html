@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Player Standings</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;--nav-h:60px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,255,180,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,180,255,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:var(--nav-h);background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand img{height:36px;width:36px;object-fit:contain;border-radius:6px;}
+.nav-brand span{font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;}
+.nav-links a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:0.85rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:color 0.2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--accent);}
+.page-wrap{position:relative;z-index:1;padding:24px 20px 40px;}
+.header{margin-bottom:20px;}
+.header h1{font-size:1.8rem;font-weight:900;color:var(--accent);letter-spacing:3px;text-transform:uppercase;}
+.header p{color:var(--dim);margin-top:4px;font-size:0.8rem;letter-spacing:1px;}
+.search-bar{margin-bottom:16px;}
+.search-bar input{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.9rem;width:280px;outline:none;font-family:inherit;transition:border-color 0.2s;}
+.search-bar input:focus{border-color:var(--accent);}
+.search-bar input::placeholder{color:var(--dim);}
+.table-wrap{overflow-x:scroll;border-radius:12px;border:1px solid var(--border);}
+.table-wrap::-webkit-scrollbar{height:10px;}
+.table-wrap::-webkit-scrollbar-track{background:var(--panel);border-radius:0 0 12px 12px;}
+.table-wrap::-webkit-scrollbar-thumb{background:var(--dim);border-radius:5px;}
+.table-wrap::-webkit-scrollbar-thumb:hover{background:var(--accent);}
+table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+thead tr{background:var(--panel);}
+th{padding:12px 14px;text-align:left;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+th:hover{color:var(--text);}
+th.sorted-asc::after{content:' \25B2 ';font-size:0.65rem;}
+th.sorted-desc::after{content:' \25BC ';font-size:0.65rem;}
+th.accent{color:var(--accent);border-bottom-color:var(--accent);}
+th.accent2{color:var(--accent2);border-bottom-color:var(--accent2);}
+th.accent3{color:var(--accent3);border-bottom-color:var(--accent3);}
+td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr{background:var(--panel2);transition:background 0.15s;}
+tbody tr:nth-child(even){background:var(--panel);}
+tbody tr:hover{background:rgba(0,255,180,0.06);cursor:pointer;}
+.rank-1{color:var(--gold);font-weight:900;font-size:1rem;}
+.rank-2{color:#c0c0c0;font-weight:800;}
+.rank-3{color:#cd7f32;font-weight:800;}
+.player-name{font-weight:700;color:var(--text);}
+.player-name a{color:inherit;text-decoration:none;transition:color 0.2s;}
+.player-name a:hover{color:var(--accent);}
+.score{font-family:'Courier New',monospace;color:var(--accent2);font-weight:600;}
+.week-score{font-family:'Courier New',monospace;color:var(--text);}
+.goal-met{color:var(--gold);font-weight:600;}
+.avg{color:var(--accent3);font-family:'Courier New',monospace;}
+.missed{color:var(--red);font-weight:700;}
+.empty{color:var(--border);}
+th.np-week{color:#ff7832 !important;border-bottom-color:#ff7832 !important;}
+.in-progress{font-style:italic;opacity:0.85;}
+.server-help{color:#00e5ff !important;font-family:'Courier New',monospace;position:relative;}
+.server-help .sh-icon{font-size:0.7rem;margin-left:3px;cursor:help;}
+th.sh-week{color:#00e5ff !important;border-bottom-color:#00e5ff !important;}
+th.in-progress-col{position:relative;}
+th.in-progress-col::before{content:'\25CF';color:var(--accent);margin-right:4px;font-size:0.6rem;vertical-align:middle;}
+.loading{text-align:center;padding:60px 20px;color:var(--dim);font-size:1rem;letter-spacing:1px;}
+.loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
+@media(max-width:768px){.header h1{font-size:1.3rem;}th,td{padding:8px 10px;}.search-bar input{width:100%;}}
+</style>
+</head>
+<body>
+<nav>
+<a class="nav-brand" href="index.html">
+<img src="https://raw.githubusercontent.com/Kimpossible7544/WPX/main/icon.png" alt="GT Logo" onerror="this.style.display='none'"/>
+<span>GT ALLIANCE</span>
+</a>
+<div class="nav-links">
+<a href="gt_standings.html" class="active">Standings</a>
+<a href="gt_dashboard.html">Dashboard</a>
+<a href="gt_projections.html">Projections</a>
+</div>
+</nav>
+<div class="page-wrap">
+<div class="header">
+<h1>Player Standings</h1>
+<p id="lastUpdated">Loading data...</p>
+</div>
+<div class="search-bar">
+<input type="text" id="search" placeholder="Search players..." onkeyup="filterTable()" />
+</div>
+<div class="table-wrap">
+<table id="standings">
+<thead><tr id="headerRow"></tr></thead>
+<tbody id="standingsBody">
+<tr><td colspan="12" class="loading"><div class="spinner"></div><br>Loading data from Dropbox...</td></tr>
+</tbody>
+</table>
+</div>
+<div id="npFootnote" style="display:none;color:#ff7832;font-size:0.78rem;margin-top:10px;letter-spacing:0.5px;">* = Not pushing to win this week</div>
+<div id="shFootnote" style="display:none;color:#00e5ff;font-size:0.78rem;margin-top:6px;letter-spacing:0.5px;"><span style="color:#ff3264">&dagger;</span> = Voluntarily helped the server this week (scores may be lower than usual)</div>
+</div>
+<script>
+var sortDir = {};
+var weekLabels = [];
+var notPushingWeeks = new Set();
+var serverHelpers = new Map();
+var GOAL = 20000000;
+var NP_COLOR = '#ff7832';
+var SH_COLOR = '#00e5ff';
+
+function fmt(n) {
+  return n ? Math.round(n).toLocaleString() : '\u2014';
+}
+
+function rankClass(r) {
+  if (r === 1) return 'rank-1';
+  if (r === 2) return 'rank-2';
+  if (r === 3) return 'rank-3';
+  return '';
+}
+
+function buildHeaders(weeks, currentWeekLabel) {
+  var hr = document.getElementById('headerRow');
+  var cols = [
+    { label: 'Rank', cls: 'accent' },
+    { label: 'Player', cls: '' },
+    { label: 'Total Score', cls: 'accent2' },
+    { label: 'Weekly Avg', cls: 'accent3' },
+    { label: 'Missed Daily', cls: '' },
+    { label: 'Missed Weekly', cls: '' }
+  ];
+  weeks.forEach(function (w) {
+    var cls = w === currentWeekLabel ? 'in-progress-col' : '';
+    var npCls = notPushingWeeks.has(w) ? ' np-week' : '';
+    var npTag = notPushingWeeks.has(w) ? ' *' : '';
+    cols.push({ label: w + npTag, cls: cls + npCls });
+  });
+  hr.innerHTML = cols.map(function (c, i) {
+    return '<th class="' + c.cls + '" onclick="sortTable(' + i + ')">' + c.label + '</th>';
+  }).join('');
+}
+
+function buildRows(players, weeks) {
+  var tbody = document.getElementById('standingsBody');
+  var names = Object.keys(players);
+  var html = '';
+  names.forEach(function (name) {
+    var p = players[name];
+    var enc = encodeURIComponent(name);
+    html += '<tr onclick="location.href=\'gt_dashboard.html?player=' + enc + '\'">';
+    html += '<td class="' + rankClass(p.overallRank) + '">' + (p.overallRank || '\u2014') + '</td>';
+    var hasSH = p.weeks.some(function (w) { return w.serverHelp === true; });
+    html += '<td class="player-name"><a href="gt_dashboard.html?player=' + enc + '">' + p.name + (hasSH ? '<span style="color:#ff3264;margin-left:2px;font-size:0.85em" title="Helped the server">&dagger;</span>' : '') + '</a></td>';
+    html += '<td class="score">' + fmt(p.totalScore) + '</td>';
+    html += '<td class="avg">' + fmt(p.weeklyAvg) + '</td>';
+    html += '<td' + (p.missedDaily > 0 ? ' class="missed"' : '') + '>' + p.missedDaily + '</td>';
+    html += '<td' + (p.missedWeekly > 0 ? ' class="missed"' : '') + '>' + p.missedWeekly + '</td>';
+    p.weeks.slice().reverse().forEach(function (w) {
+      var ipCls = w.inProgress ? ' in-progress' : '';
+      var np = w.pushing === false;
+      var sh = w.serverHelp === true;
+      if (!w.score) {
+        html += '<td class="empty' + ipCls + '">\u2014</td>';
+      } else if (sh) {
+        html += '<td class="server-help' + ipCls + '" title="Helped the server this week">' + w.score.toLocaleString() + '<span class="sh-icon" style="color:#ff3264">&dagger;</span></td>';
+      } else if (np) {
+        html += '<td class="' + ipCls + '" style="color:' + NP_COLOR + ';font-family:Courier New,monospace">' + w.score.toLocaleString() + '</td>';
+      } else if (w.score >= GOAL) {
+        html += '<td class="goal-met' + ipCls + '">' + w.score.toLocaleString() + '</td>';
+      } else {
+        html += '<td class="week-score' + ipCls + '">' + w.score.toLocaleString() + '</td>';
+      }
+    });
+    html += '</tr>';
+  });
+  tbody.innerHTML = html;
+}
+
+function getVal(cell) {
+  var t = cell.textContent.trim().replace(/,/g, '');
+  if (t === '\u2014' || t === '' || t === '-') return sortDir._col % 1 === 0 ? Infinity : '';
+  var n = parseFloat(t);
+  return isNaN(n) ? t.toLowerCase() : n;
+}
+
+function sortTable(col) {
+  var tbody = document.querySelector('#standings tbody');
+  var rows = Array.from(tbody.querySelectorAll('tr'));
+  var asc = sortDir[col] !== true;
+  sortDir[col] = asc;
+  sortDir._col = col;
+  rows.sort(function (a, b) {
+    var va = getVal(a.cells[col]), vb = getVal(b.cells[col]);
+    if (va === Infinity) return 1;
+    if (vb === Infinity) return -1;
+    if (va < vb) return asc ? -1 : 1;
+    if (va > vb) return asc ? 1 : -1;
+    return 0;
+  });
+  rows.forEach(function (r) { tbody.appendChild(r); });
+  document.querySelectorAll('#standings thead th').forEach(function (th, i) {
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    if (i === col) th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+  });
+}
+
+function filterTable() {
+  var input = document.getElementById('search').value.toLowerCase();
+  var rows = document.querySelectorAll('#standings tbody tr');
+  rows.forEach(function (row) {
+    var name = row.cells[1] ? row.cells[1].textContent.toLowerCase() : '';
+    row.style.display = name.includes(input) ? '' : 'none';
+  });
+}
+
+async function init() {
+  try {
+    var data = await loadGTData();
+    weekLabels = data.weekLabels;
+    notPushingWeeks = data.notPushingWeeks || new Set();
+    serverHelpers = data.serverHelpers || new Map();
+    var reversedWeeks = weekLabels.slice().reverse();
+    buildHeaders(reversedWeeks, data.currentWeekLabel);
+    buildRows(data.players, reversedWeeks);
+    document.getElementById('npFootnote').style.display = notPushingWeeks.size > 0 ? '' : 'none';
+    document.getElementById('shFootnote').style.display = serverHelpers.size > 0 ? '' : 'none';
+    document.getElementById('lastUpdated').textContent = 'Data loaded \u2014 ' + new Date().toLocaleString();
+    sortTable(0);
+  } catch (e) {
+    document.getElementById('standingsBody').innerHTML =
+      '<tr><td colspan="12" class="error-msg">Failed to load data: ' + e.message + '</td></tr>';
+    document.getElementById('lastUpdated').textContent = 'Error loading data';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</div></body></html>
