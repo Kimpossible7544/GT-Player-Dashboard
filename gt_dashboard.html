@@ -110,7 +110,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
   <div class="login-box">
     <div class="login-logo">⚔ GT ALLIANCE</div>
     <div class="login-sub">Player Dashboard</div>
-    <input class="login-input" id="loginInput" type="password" placeholder="Enter password" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <input class="login-input" id="loginInput" type="password" placeholder="Enter your ID" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()"/>
     <button class="login-btn" onclick="doLogin()">Enter</button>
     <div class="login-error" id="loginError"></div>
   </div>
@@ -222,7 +222,16 @@ function doLogin() {
     return;
   }
 
-  document.getElementById('loginError').textContent = 'Invalid password. Please try again.';
+  // Individual player login via roster ID
+  var playerName = idToPlayer[val] || (/^\d+$/.test(val) ? idToPlayer[Number(val)] : null);
+  if (playerName && players[playerName]) {
+    isMaster = false;
+    lockedPlayer = playerName;
+    unlockDashboard();
+    return;
+  }
+
+  document.getElementById('loginError').textContent = 'Invalid ID. Please try again.';
   document.getElementById('loginInput').value = '';
   document.getElementById('loginInput').focus();
 }
