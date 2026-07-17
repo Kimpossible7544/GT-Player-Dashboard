@@ -73,6 +73,70 @@ function parsePower(val) {
   return isNaN(num) ? null : num;
 }
 
+// Formats a date-or-string cell into an MM/DD/YYYY string.
+function fmtCellDate(v) {
+  if (v instanceof Date) {
+    return String(v.getMonth() + 1).padStart(2, "0") + "/" +
+           String(v.getDate()).padStart(2, "0") + "/" + v.getFullYear();
+  }
+  return String(v);
+}
+
+// Parses one Arena Power sheet row into a growth object.
+// Column layout (0-indexed):
+//   0=Name, 1=Date, 2=Level, 3=Arena Power, 4=HQ Power,
+//   5=Δ Arena session, 6=Δ HQ session, 7=Δ Arena overall, 8=Δ HQ overall,
+//   9=Level note
+//   History groups of 4 starting at col 10 (date,level,arena,HQ), oldest furthest right.
+function parseArenaRow(row) {
+  const currentArena = parsePower(row[3]);
+  const currentHQ    = parsePower(row[4]);
+  const currentLevel = row[2] || null;
+
+  let firstArena = null;
+  let firstHQ    = null;
+  let firstLevel = null;
+  let baselineDate = null;
+
+  for (let c = 12; c < row.length; c += 4) {
+    const v = parsePower(row[c]);
+    if (v !== null) firstArena = v;
+  }
+  for (let c = 13; c < row.length; c += 4) {
+    const v = parsePower(row[c]);
+    if (v !== null) firstHQ = v;
+  }
+  for (let c = 11; c < row.length; c += 4) {
+    const v = row[c];
+    if (v !== null && v !== "") firstLevel = v;
+  }
+  for (let c = 10; c < row.length; c += 4) {
+    const v = row[c];
+    if (v !== null && v !== "") baselineDate = fmtCellDate(v);
+  }
+
+  // If no history yet, first = current
+  if (firstArena === null) firstArena = currentArena;
+  if (firstHQ    === null) firstHQ    = currentHQ;
+  if (firstLevel === null) firstLevel = currentLevel;
+  if (baselineDate === null && row[1]) baselineDate = fmtCellDate(row[1]);
+
+  return {
+    currentLevel,
+    currentArena,
+    currentHQ,
+    firstLevel,
+    firstArena,
+    firstHQ,
+    baselineDate,
+    deltaArenaSession:  parsePower(row[5]),
+    deltaHQSession:     parsePower(row[6]),
+    deltaArenaOverall:  parsePower(row[7]),
+    deltaHQOverall:     parsePower(row[8]),
+    levelNote:          row[9] || null
+  };
+}
+
 async function loadGTData() {
 
   // =========================================================
@@ -81,6 +145,17 @@ async function loadGTData() {
   const DROPBOX_URL =
     "https://dl.dropboxusercontent.com/scl/fi/twt9mo3vvvngnx2cgrht6/GTStatsFINAL.xlsm" +
     "?rlkey=u2zj5dscvonfqvtgd0opaapvo";
+
+  // Previous team's workbook — used only to pull Arena/HQ power history for
+  // players who were on BOTH teams (matched by roster ID) so their growth
+  // spans both. See CROSS_TEAM_PLAYER_IDS below.
+  const WPX_DROPBOX_URL =
+    "https://dl.dropboxusercontent.com/scl/fi/dx7xgqmjshf8hciso3uya/WPXStatsFinal.xlsm" +
+    "?rlkey=oyw14lm3fod48uxygykdnixar";
+
+  // Roster IDs (stable across teams) whose WPX Arena/HQ power history should be
+  // merged into their GT growth card.
+  const CROSS_TEAM_PLAYER_IDS = [1030]; // Kimpossible7544
 
   const PLAYER_TRACKING_SHEET = "Player Tracking";
   const WEEK_SETTINGS_SHEET   = "Week Settings";
@@ -390,66 +465,7 @@ async function loadGTData() {
       const name = row[0];
       if (!name) continue;
 
-      const currentArena = parsePower(row[3]);
-      const currentHQ    = parsePower(row[4]);
-      const currentLevel = row[2] || null;
-
-      // Scan history for first recorded values
-      // History groups of 4: col 10=date,11=level,12=arena,13=HQ, then 14,15,16,17...
-      // Date cols:  10,14,18... Level: 11,15,19... Arena: 12,16,20... HQ: 13,17,21...
-      let firstArena = null;
-      let firstHQ    = null;
-      let firstLevel = null;
-      let baselineDate = null;
-
-      for (let c = 12; c < row.length; c += 4) {
-        const v = parsePower(row[c]);
-        if (v !== null) firstArena = v;
-      }
-      for (let c = 13; c < row.length; c += 4) {
-        const v = parsePower(row[c]);
-        if (v !== null) firstHQ = v;
-      }
-      for (let c = 11; c < row.length; c += 4) {
-        const v = row[c];
-        if (v !== null && v !== "") firstLevel = v;
-      }
-      for (let c = 10; c < row.length; c += 4) {
-        const v = row[c];
-        if (v !== null && v !== "") {
-          if (v instanceof Date) {
-            baselineDate = String(v.getMonth()+1).padStart(2,"0") + "/" +
-                           String(v.getDate()).padStart(2,"0") + "/" + v.getFullYear();
-          } else { baselineDate = String(v); }
-        }
-      }
-
-      // If no history yet, first = current
-      if (firstArena === null) firstArena = currentArena;
-      if (firstHQ    === null) firstHQ    = currentHQ;
-      if (firstLevel === null) firstLevel = currentLevel;
-      if (baselineDate === null && row[1]) {
-        const d = row[1];
-        if (d instanceof Date) {
-          baselineDate = String(d.getMonth()+1).padStart(2,"0") + "/" +
-                         String(d.getDate()).padStart(2,"0") + "/" + d.getFullYear();
-        } else { baselineDate = String(d); }
-      }
-
-      const growth = {
-        currentLevel,
-        currentArena,
-        currentHQ,
-        firstLevel,
-        firstArena,
-        firstHQ,
-        baselineDate,
-        deltaArenaSession:  parsePower(row[5]),
-        deltaHQSession:     parsePower(row[6]),
-        deltaArenaOverall:  parsePower(row[7]),
-        deltaHQOverall:     parsePower(row[8]),
-        levelNote:          row[9] || null
-      };
+      const growth = parseArenaRow(row);
 
       // Merge into player object if name matches
       if (players[name]) {
@@ -499,6 +515,85 @@ async function loadGTData() {
     console.log("[GT] Roster IDs loaded:", Object.keys(idToPlayer).length);
   } else {
     console.warn("[GT] Roster sheet not found — ID login unavailable.");
+  }
+
+  // =========================================================
+  // CROSS-TEAM ARENA/HQ POWER MERGE (WPX -> GT)
+  // For players who were on BOTH teams (matched by stable roster ID), pull
+  // their WPX Arena Power + HQ (personal) power history so their growth card
+  // spans both teams. GT's own Arena Power data (once present) stays "current"
+  // and the WPX baseline becomes the "starting" values; deltas are recomputed
+  // across the full span. Only affects CROSS_TEAM_PLAYER_IDS.
+  // =========================================================
+  if (CROSS_TEAM_PLAYER_IDS.length) {
+    try {
+      const wpxResp = await fetch(WPX_DROPBOX_URL + "&cb=" + Date.now(), { cache: "no-store" });
+      if (!wpxResp.ok) throw new Error(`WPX Dropbox returned ${wpxResp.status}`);
+      const wpxWorkbook = XLSX.read(await wpxResp.arrayBuffer(), { type: "array", cellDates: true });
+
+      // WPX roster: ID -> player name
+      const wpxIdToPlayer = {};
+      if (wpxWorkbook.SheetNames.includes(ROSTER_SHEET)) {
+        const wr = XLSX.utils.sheet_to_json(wpxWorkbook.Sheets[ROSTER_SHEET], { header: 1, defval: null });
+        const idCols = [0, 4, 8, 12];
+        const nameCols = [1, 5, 9, 13];
+        for (let r = 1; r < wr.length; r++) {
+          const row = wr[r];
+          for (let s = 0; s < idCols.length; s++) {
+            const id = row[idCols[s]];
+            const nm = row[nameCols[s]];
+            if (id && nm && !isNaN(Number(id))) wpxIdToPlayer[Number(id)] = String(nm).trim();
+          }
+        }
+      }
+
+      // WPX Arena Power: lowercased name -> row
+      const wpxArenaByName = {};
+      if (wpxWorkbook.SheetNames.includes(ARENA_POWER_SHEET)) {
+        const ar = XLSX.utils.sheet_to_json(wpxWorkbook.Sheets[ARENA_POWER_SHEET], { header: 1, defval: null });
+        for (let r = 1; r < ar.length; r++) {
+          const row = ar[r];
+          if (row[0]) wpxArenaByName[String(row[0]).trim().toLowerCase()] = row;
+        }
+      }
+
+      const diff = (a, b) => (a !== null && b !== null) ? Math.round((a - b) * 10) / 10 : null;
+
+      CROSS_TEAM_PLAYER_IDS.forEach(id => {
+        const gtName = idToPlayer[id];
+        const wpxName = wpxIdToPlayer[id];
+        if (!gtName || !wpxName || !players[gtName]) return;
+        const wpxRow = wpxArenaByName[wpxName.toLowerCase()];
+        if (!wpxRow) return;
+
+        const wpxG = parseArenaRow(wpxRow);
+        const gtG = players[gtName].growth || null;
+        const hasGtCurrent = !!(gtG && (gtG.currentArena !== null || gtG.currentHQ !== null));
+
+        const currentArena = hasGtCurrent ? gtG.currentArena : wpxG.currentArena;
+        const currentHQ    = hasGtCurrent ? gtG.currentHQ    : wpxG.currentHQ;
+        const currentLevel = hasGtCurrent ? gtG.currentLevel : wpxG.currentLevel;
+
+        players[gtName].growth = {
+          currentLevel,
+          currentArena,
+          currentHQ,
+          firstLevel:   wpxG.firstLevel,
+          firstArena:   wpxG.firstArena,
+          firstHQ:      wpxG.firstHQ,
+          baselineDate: wpxG.baselineDate,
+          deltaArenaSession: hasGtCurrent ? gtG.deltaArenaSession : wpxG.deltaArenaSession,
+          deltaHQSession:    hasGtCurrent ? gtG.deltaHQSession    : wpxG.deltaHQSession,
+          deltaArenaOverall: diff(currentArena, wpxG.firstArena),
+          deltaHQOverall:    diff(currentHQ, wpxG.firstHQ),
+          levelNote:         hasGtCurrent ? gtG.levelNote : wpxG.levelNote,
+          crossTeam:         true
+        };
+        console.log(`[GT] Merged WPX Arena/HQ power for cross-team player ${gtName} (ID ${id}).`);
+      });
+    } catch (err) {
+      console.warn("[GT] WPX cross-team power merge skipped:", err.message);
+    }
   }
 
   // =========================================================
