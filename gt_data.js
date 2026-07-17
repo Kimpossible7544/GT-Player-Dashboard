@@ -43,6 +43,28 @@ function isWeekComplete(weekLabel) {
   return now >= completionDate;
 }
 
+// Season start date — all charts and data begin here.
+const SEASON_START = new Date("July 13, 2026");
+
+// Returns true if the week begins on or after the season start date.
+function isOnOrAfterSeasonStart(weekLabel) {
+  const parts = weekLabel.split(" - ");
+  if (parts.length < 2) return true;
+
+  const startPart = parts[0].trim();
+  const now = new Date();
+  const year = now.getFullYear();
+
+  let startDate = new Date(`${startPart}, ${year}`);
+  if (isNaN(startDate.getTime())) return true;
+
+  if (startDate - now > 180 * 24 * 60 * 60 * 1000) {
+    startDate = new Date(`${startPart}, ${year - 1}`);
+  }
+
+  return startDate >= SEASON_START;
+}
+
 // Parses a power string like "182.6 M" or "182.6M" into a float.
 function parsePower(val) {
   if (!val && val !== 0) return null;
@@ -164,6 +186,10 @@ async function loadGTData() {
     const label = match[1];
     if (!hasWeekStarted(label)) {
       console.log(`[GT] Skipping future week: ${label}`);
+      continue;
+    }
+    if (!isOnOrAfterSeasonStart(label)) {
+      console.log(`[GT] Skipping pre-season week: ${label}`);
       continue;
     }
     weekLabels.push(label);
