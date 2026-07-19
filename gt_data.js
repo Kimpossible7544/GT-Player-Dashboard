@@ -65,12 +65,17 @@ function isOnOrAfterSeasonStart(weekLabel) {
   return startDate >= SEASON_START;
 }
 
-// Parses a power string like "182.6 M" or "182.6M" into a float.
+// Parses a power value into a float expressed in MILLIONS.
+// Values are normally entered in millions ("182.6 M", "182.6", 157.7), but a
+// few cells hold the full raw count (e.g. 161660000). Anything >= 100000 is
+// treated as a raw count and divided by 1,000,000 so every value is in millions.
 function parsePower(val) {
   if (!val && val !== 0) return null;
   const str = String(val).replace(/Mil/gi, "").replace(/M/gi, "").replace(/\s/g, "").trim();
-  const num = parseFloat(str);
-  return isNaN(num) ? null : num;
+  let num = parseFloat(str);
+  if (isNaN(num)) return null;
+  if (Math.abs(num) >= 100000) num = num / 1000000;
+  return num;
 }
 
 // Formats a date-or-string cell into an MM/DD/YYYY string.
