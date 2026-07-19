@@ -78,6 +78,8 @@ Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
                 ' --- Goal hit: gold star ---
                 cell.Value = StarChar()
                 cell.Font.Color = RGB(255, 200, 0)   ' gold
+                cell.Font.Bold = False
+                cell.Font.Italic = False
                 cell.HorizontalAlignment = xlCenter
                 Exit Sub
             End If
@@ -88,10 +90,14 @@ Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
     If HasRowData(ws, r) Then
         cell.Value = CROSS
         cell.Font.Color = RGB(192, 0, 0)         ' red
+        cell.Font.Bold = True                    ' bold italic red X
+        cell.Font.Italic = True
         cell.HorizontalAlignment = xlCenter
     Else
         cell.ClearContents
         cell.Font.ColorIndex = xlColorIndexAutomatic
+        cell.Font.Bold = False
+        cell.Font.Italic = False
         cell.HorizontalAlignment = xlGeneral
     End If
 
