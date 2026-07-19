@@ -33,7 +33,7 @@ Private Const DATA_FIRST  As Long = 3            ' column C
 Private Const DATA_LAST   As Long = 7            ' column G
 Private Const FIRST_ROW   As Long = 2            ' row 1 is the header
 
-Private Const STAR        As String = ChrW(9733) ' gold star glyph
+Private Const STAR        As String = "★"        ' gold star glyph
 Private Const CROSS       As String = "X"        ' red X
 
 ' --- Fill / refresh every data row on the ACTIVE sheet ---------
@@ -49,9 +49,12 @@ Public Sub UpdateGoalSymbols()
     If lastRow < FIRST_ROW Then Exit Sub
 
     Application.ScreenUpdating = False
+    On Error GoTo CleanUp
     For r = FIRST_ROW To lastRow
         UpdateGoalSymbolsRow ws, r
     Next r
+
+CleanUp:
     Application.ScreenUpdating = True
 
 End Sub
@@ -67,13 +70,15 @@ Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
     Dim totalVal As Variant
     totalVal = ws.Cells(r, TOTAL_COL).Value
 
-    If IsNumeric(totalVal) And totalVal <> "" Then
-        If CDbl(totalVal) >= GOAL Then
-            ' --- Goal hit: gold star ---
-            cell.Value = STAR
-            cell.Font.Color = RGB(255, 200, 0)   ' gold
-            cell.HorizontalAlignment = xlCenter
-            Exit Sub
+    If Not IsError(totalVal) Then
+        If IsNumeric(totalVal) Then
+            If CDbl(totalVal) >= GOAL Then
+                ' --- Goal hit: gold star ---
+                cell.Value = STAR
+                cell.Font.Color = RGB(255, 200, 0)   ' gold
+                cell.HorizontalAlignment = xlCenter
+                Exit Sub
+            End If
         End If
     End If
 
@@ -84,6 +89,8 @@ Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
         cell.HorizontalAlignment = xlCenter
     Else
         cell.ClearContents
+        cell.Font.ColorIndex = xlColorIndexAutomatic
+        cell.HorizontalAlignment = xlGeneral
     End If
 
 End Sub
@@ -91,8 +98,13 @@ End Sub
 ' --- True if any cell in C:G of the row is non-empty -----------
 Private Function HasRowData(ByVal ws As Worksheet, ByVal r As Long) As Boolean
     Dim c As Long
+    Dim v As Variant
     For c = DATA_FIRST To DATA_LAST
-        If Trim(CStr(ws.Cells(r, c).Value)) <> "" Then
+        v = ws.Cells(r, c).Value
+        If IsError(v) Then
+            HasRowData = True
+            Exit Function
+        ElseIf Trim(CStr(v)) <> "" Then
             HasRowData = True
             Exit Function
         End If
@@ -128,9 +140,11 @@ End Function
 '     If touched Is Nothing Then Exit Sub
 '
 '     Application.EnableEvents = False
+'     On Error GoTo CleanUp
 '     For Each cell In touched.Cells
 '         If cell.Row >= 2 Then GoalSymbols.UpdateGoalSymbolsRow Sh, cell.Row
 '     Next cell
+' CleanUp:
 '     Application.EnableEvents = True
 ' End Sub
 ' ============================================================
