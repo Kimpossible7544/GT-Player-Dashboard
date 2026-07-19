@@ -27,7 +27,7 @@ Attribute VB_Name = "GoalSymbols"
 Option Explicit
 
 Public Const GOAL         As Double = 20000000   ' 20 million weekly goal
-Private Const TOTAL_COL   As Long = 13           ' column M  weekly total
+Private Const TOTAL_COL   As Long = 12           ' column L  weekly total
 Private Const SYMBOL_COL  As Long = 14           ' column N  star / X
 Private Const DATA_FIRST  As Long = 3            ' column C
 Private Const DATA_LAST   As Long = 7            ' column G
@@ -112,7 +112,7 @@ Private Function HasRowData(ByVal ws As Worksheet, ByVal r As Long) As Boolean
     HasRowData = False
 End Function
 
-' --- Last used data row, based on the C:M block ----------------
+' --- Last used data row, based on the C:L block ----------------
 Private Function LastDataRow(ByVal ws As Worksheet) As Long
     Dim lr As Long, c As Long, thisLr As Long
     lr = 0
@@ -133,9 +133,9 @@ End Function
 '     Dim cell As Range
 '     Dim touched As Range
 '
-'     ' Only react to changes in the C:G data block or the M total
+'     ' Only react to changes in the C:G data block or the L total
 '     On Error Resume Next
-'     Set touched = Application.Intersect(Target, Sh.Range("C:G,M:M"))
+'     Set touched = Application.Intersect(Target, Sh.Range("C:G,L:L"))
 '     On Error GoTo 0
 '     If touched Is Nothing Then Exit Sub
 '
