@@ -1,0 +1,136 @@
+Attribute VB_Name = "GoalSymbols"
+' ============================================================
+' GoalSymbols  VBA Macro Module
+' Fills column N of the weekly sheets with a goal indicator
+' based on the weekly total in column M:
+'
+'   * Gold star   -> M >= 20,000,000  (weekly goal hit)
+'   * Red "X"     -> data exists in C:G AND M < 20,000,000
+'   * (blank)     -> no data in C:G
+'
+' USAGE  RUN NOW (fill/refresh the whole sheet):
+'   1. Import this .bas file into your workbook:
+'      Developer > Visual Basic > File > Import File
+'   2. Open the weekly sheet you want to update
+'   3. Run the macro "UpdateGoalSymbols" from the Macros dialog,
+'      or assign it to a button:
+'      Insert > Shapes > pick a shape > right-click >
+'      Assign Macro > select "UpdateGoalSymbols"
+'
+' USAGE  AUTOMATIC (update as soon as M changes):
+'   Paste the Workbook_SheetChange handler shown in the comment
+'   block at the bottom of this module into the "ThisWorkbook"
+'   object (VBA editor > double-click ThisWorkbook). It calls
+'   UpdateGoalSymbolsRow whenever a relevant cell changes.
+' ============================================================
+
+Option Explicit
+
+Public Const GOAL         As Double = 20000000   ' 20 million weekly goal
+Private Const TOTAL_COL   As Long = 13           ' column M  weekly total
+Private Const SYMBOL_COL  As Long = 14           ' column N  star / X
+Private Const DATA_FIRST  As Long = 3            ' column C
+Private Const DATA_LAST   As Long = 7            ' column G
+Private Const FIRST_ROW   As Long = 2            ' row 1 is the header
+
+Private Const STAR        As String = ChrW(9733) ' gold star glyph
+Private Const CROSS       As String = "X"        ' red X
+
+' --- Fill / refresh every data row on the ACTIVE sheet ---------
+Public Sub UpdateGoalSymbols()
+
+    Dim ws       As Worksheet
+    Dim lastRow  As Long
+    Dim r        As Long
+
+    Set ws = ActiveSheet
+    lastRow = LastDataRow(ws)
+
+    If lastRow < FIRST_ROW Then Exit Sub
+
+    Application.ScreenUpdating = False
+    For r = FIRST_ROW To lastRow
+        UpdateGoalSymbolsRow ws, r
+    Next r
+    Application.ScreenUpdating = True
+
+End Sub
+
+' --- Apply the rule to a single row ----------------------------
+Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
+
+    If r < FIRST_ROW Then Exit Sub
+
+    Dim cell As Range
+    Set cell = ws.Cells(r, SYMBOL_COL)
+
+    Dim totalVal As Variant
+    totalVal = ws.Cells(r, TOTAL_COL).Value
+
+    If IsNumeric(totalVal) And totalVal <> "" Then
+        If CDbl(totalVal) >= GOAL Then
+            ' --- Goal hit: gold star ---
+            cell.Value = STAR
+            cell.Font.Color = RGB(255, 200, 0)   ' gold
+            cell.HorizontalAlignment = xlCenter
+            Exit Sub
+        End If
+    End If
+
+    ' --- Under goal: red X only when the row has C:G data ---
+    If HasRowData(ws, r) Then
+        cell.Value = CROSS
+        cell.Font.Color = RGB(192, 0, 0)         ' red
+        cell.HorizontalAlignment = xlCenter
+    Else
+        cell.ClearContents
+    End If
+
+End Sub
+
+' --- True if any cell in C:G of the row is non-empty -----------
+Private Function HasRowData(ByVal ws As Worksheet, ByVal r As Long) As Boolean
+    Dim c As Long
+    For c = DATA_FIRST To DATA_LAST
+        If Trim(CStr(ws.Cells(r, c).Value)) <> "" Then
+            HasRowData = True
+            Exit Function
+        End If
+    Next c
+    HasRowData = False
+End Function
+
+' --- Last used data row, based on the C:M block ----------------
+Private Function LastDataRow(ByVal ws As Worksheet) As Long
+    Dim lr As Long, c As Long, thisLr As Long
+    lr = 0
+    For c = DATA_FIRST To TOTAL_COL
+        thisLr = ws.Cells(ws.Rows.Count, c).End(xlUp).Row
+        If thisLr > lr Then lr = thisLr
+    Next c
+    LastDataRow = lr
+End Function
+
+' ============================================================
+' OPTIONAL  AUTOMATIC UPDATING
+' Paste the following into the "ThisWorkbook" object so column N
+' refreshes the moment column C:G or M changes on any sheet.
+' (Remove the leading apostrophes when you paste it there.)
+' ------------------------------------------------------------
+' Private Sub Workbook_SheetChange(ByVal Sh As Object, ByVal Target As Range)
+'     Dim cell As Range
+'     Dim touched As Range
+'
+'     ' Only react to changes in the C:G data block or the M total
+'     On Error Resume Next
+'     Set touched = Application.Intersect(Target, Sh.Range("C:G,M:M"))
+'     On Error GoTo 0
+'     If touched Is Nothing Then Exit Sub
+'
+'     Application.EnableEvents = False
+'     For Each cell In touched.Cells
+'         If cell.Row >= 2 Then GoalSymbols.UpdateGoalSymbolsRow Sh, cell.Row
+'     Next cell
+'     Application.EnableEvents = True
+' End Sub
+' ============================================================
