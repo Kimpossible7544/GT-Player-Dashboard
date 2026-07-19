@@ -34,8 +34,13 @@ Private Const DATA_LAST   As Long = 7            ' column G
 Private Const FIRST_ROW   As Long = 2            ' row 1 is the header
 Private Const LAST_ROW    As Long = 105          ' last row to process (N2:N105)
 
-Private Const STAR        As String = "★"        ' gold star glyph
+' STAR is built at runtime via StarChar() (ChrW 9733) so the glyph
+' survives .bas import regardless of file encoding.
 Private Const CROSS       As String = "X"        ' red X
+
+Private Function StarChar() As String
+    StarChar = ChrW(9733)                        ' gold star glyph
+End Function
 
 ' --- Fill / refresh every data row on the ACTIVE sheet ---------
 Public Sub UpdateGoalSymbols()
@@ -71,8 +76,10 @@ Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
         If IsNumeric(totalVal) Then
             If CDbl(totalVal) >= GOAL Then
                 ' --- Goal hit: gold star ---
-                cell.Value = STAR
+                cell.Value = StarChar()
                 cell.Font.Color = RGB(255, 200, 0)   ' gold
+                cell.Font.Bold = False
+                cell.Font.Italic = False
                 cell.HorizontalAlignment = xlCenter
                 Exit Sub
             End If
@@ -83,10 +90,14 @@ Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
     If HasRowData(ws, r) Then
         cell.Value = CROSS
         cell.Font.Color = RGB(192, 0, 0)         ' red
+        cell.Font.Bold = True                    ' bold italic red X
+        cell.Font.Italic = True
         cell.HorizontalAlignment = xlCenter
     Else
         cell.ClearContents
         cell.Font.ColorIndex = xlColorIndexAutomatic
+        cell.Font.Bold = False
+        cell.Font.Italic = False
         cell.HorizontalAlignment = xlGeneral
     End If
 
