@@ -1,6 +1,6 @@
 Attribute VB_Name = "FormatArenaPower"
 ' ============================================================
-' FormatArenaPower — VBA Macro Module
+' FormatArenaPower - VBA Macro Module
 ' Rewrites the power numbers on the "Arena Power" sheet as text
 ' in the "161.66 M" format.
 '
