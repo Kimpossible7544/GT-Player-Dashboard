@@ -2,8 +2,12 @@ Attribute VB_Name = "ImportKimWPXArena"
 ' ============================================================
 ' ImportKimWPXArena - VBA Macro Module
 ' Writes a one-time snapshot of Kimpossible's WPX "Arena Power"
-' row (current + full history) onto the GT "Arena Power" sheet
-' as a labeled block, parked out of the way to the right.
+' row (current + full history) onto the GT "Arena Power" sheet,
+' parked out of the way to the right, ON Kimpossible7544's own row.
+'
+' The macro finds the row whose column A = PLAYER_NAME
+' (case-insensitive) and writes the data on that row; the column
+' headers go in the sheet's header row (row 1).
 '
 ' Placement: the block starts at column START_COL (default 220).
 ' The sheet's weekly history begins at column K (11) and each
@@ -22,8 +26,10 @@ Attribute VB_Name = "ImportKimWPXArena"
 
 Option Explicit
 
-Private Const SHEET_NAME As String = "Arena Power"
-Private Const START_COL  As Long = 220   ' first column of the block (past 52 weeks)
+Private Const SHEET_NAME  As String = "Arena Power"
+Private Const PLAYER_NAME As String = "Kimpossible7544"
+Private Const START_COL   As Long = 220   ' first column of the block (past 52 weeks)
+Private Const HDR_ROW     As Long = 1     ' the sheet's header row
 
 Public Sub ImportKimWPXArenaBlock()
 
@@ -38,16 +44,28 @@ Public Sub ImportKimWPXArenaBlock()
         Exit Sub
     End If
 
-    Dim titleRow As Long, hdrRow As Long, datRow As Long
-    titleRow = 1
-    hdrRow = 2
-    datRow = 3
+    ' --- Find Kimpossible's row by name match in column A ---
+    Dim hdrRow As Long, datRow As Long
+    Dim lastRow As Long, r As Long
+    hdrRow = HDR_ROW
+    datRow = 0
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
+    For r = 1 To lastRow
+        If StrComp(Trim(CStr(ws.Cells(r, 1).Value)), PLAYER_NAME, vbTextCompare) = 0 Then
+            datRow = r
+            Exit For
+        End If
+    Next r
+
+    If datRow = 0 Then
+        MsgBox "Player """ & PLAYER_NAME & """ not found in column A of the """ & _
+               SHEET_NAME & """ sheet.", vbExclamation, "Player Not Found"
+        Exit Sub
+    End If
 
     Application.ScreenUpdating = False
 
-    ws.Cells(titleRow, START_COL).Value = "Kimpossible - WPX Arena Power (imported snapshot)"
-
-    ' --- Header row ---
+    ' --- Header row (sheet header, row 1) ---
     ws.Cells(hdrRow, START_COL + 0).Value = "Player"
     ws.Cells(hdrRow, START_COL + 1).Value = "Date"
     ws.Cells(hdrRow, START_COL + 2).Value = "Level"
@@ -167,10 +185,9 @@ Public Sub ImportKimWPXArenaBlock()
     ws.Cells(datRow, START_COL + 59).Value = 29
     ws.Cells(datRow, START_COL + 60).Value = "96.00 M"
 
-    ws.Cells(titleRow, START_COL).Font.Bold = True
     Application.ScreenUpdating = True
 
-    MsgBox "Kimpossible's WPX Arena Power snapshot written starting at column " & _
-           START_COL & " (row " & titleRow & ").", vbInformation, "Done"
+    MsgBox PLAYER_NAME & "'s WPX Arena Power snapshot written on row " & _
+           datRow & " starting at column " & START_COL & ".", vbInformation, "Done"
 
 End Sub
