@@ -332,6 +332,7 @@ Sub UpdateChangeColumn()
     Dim firstArenaStr As String
     Dim firstHQStr As String
     Dim hoStr As String
+    Dim hpStr As String
 
     Set wsMain = ThisWorkbook.Sheets("Arena Power")
     lastRow = wsMain.Cells(wsMain.Rows.count, "A").End(xlUp).row
@@ -346,11 +347,14 @@ Sub UpdateChangeColumn()
             firstArenaStr = GetFirstArenaPower(wsMain, j)
             firstHQStr = GetFirstHQPower(wsMain, j)
 
-            ' Kimpossible: use the WPX arena power parked in column HO as the
-            ' overall baseline, so Overall Arena Chg (H) = D - HO.
+            ' Kimpossible: use the WPX power parked in columns HO/HP as the
+            ' overall baseline, so Overall Arena Chg (H) = D - HO and
+            ' Overall HQ Chg (I) = E - HP.
             If NormalizeArenaName(Trim(wsMain.Cells(j, "A").Value)) = NormalizeArenaName("Kimpossible7544") Then
                 hoStr = CleanPower(CStr(wsMain.Cells(j, "HO").Value))
                 If IsNumeric(hoStr) And hoStr <> "" Then firstArenaStr = hoStr
+                hpStr = CleanPower(CStr(wsMain.Cells(j, "HP").Value))
+                If IsNumeric(hpStr) And hpStr <> "" Then firstHQStr = hpStr
             End If
 
             If IsNumeric(newArenaStr) And IsNumeric(oldArenaStr) And newArenaStr <> "" And oldArenaStr <> "" Then
