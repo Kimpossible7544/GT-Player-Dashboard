@@ -32,6 +32,7 @@ Private Const SYMBOL_COL  As Long = 14           ' column N  star / X
 Private Const DATA_FIRST  As Long = 3            ' column C
 Private Const DATA_LAST   As Long = 7            ' column G
 Private Const FIRST_ROW   As Long = 2            ' row 1 is the header
+Private Const LAST_ROW    As Long = 105          ' last row to process (N2:N105)
 
 Private Const STAR        As String = "★"        ' gold star glyph
 Private Const CROSS       As String = "X"        ' red X
@@ -40,17 +41,13 @@ Private Const CROSS       As String = "X"        ' red X
 Public Sub UpdateGoalSymbols()
 
     Dim ws       As Worksheet
-    Dim lastRow  As Long
     Dim r        As Long
 
     Set ws = ActiveSheet
-    lastRow = LastDataRow(ws)
-
-    If lastRow < FIRST_ROW Then Exit Sub
 
     Application.ScreenUpdating = False
     On Error GoTo CleanUp
-    For r = FIRST_ROW To lastRow
+    For r = FIRST_ROW To LAST_ROW
         UpdateGoalSymbolsRow ws, r
     Next r
 
@@ -62,7 +59,7 @@ End Sub
 ' --- Apply the rule to a single row ----------------------------
 Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
 
-    If r < FIRST_ROW Then Exit Sub
+    If r < FIRST_ROW Or r > LAST_ROW Then Exit Sub
 
     Dim cell As Range
     Set cell = ws.Cells(r, SYMBOL_COL)
@@ -110,17 +107,6 @@ Private Function HasRowData(ByVal ws As Worksheet, ByVal r As Long) As Boolean
         End If
     Next c
     HasRowData = False
-End Function
-
-' --- Last used data row, based on the C:L block ----------------
-Private Function LastDataRow(ByVal ws As Worksheet) As Long
-    Dim lr As Long, c As Long, thisLr As Long
-    lr = 0
-    For c = DATA_FIRST To TOTAL_COL
-        thisLr = ws.Cells(ws.Rows.Count, c).End(xlUp).Row
-        If thisLr > lr Then lr = thisLr
-    Next c
-    LastDataRow = lr
 End Function
 
 ' ============================================================
