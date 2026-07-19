@@ -192,12 +192,12 @@ function fmt(n) { return n ? n.toLocaleString() : '-'; }
 
 function fmtPower(n) {
   if (n === null || n === undefined) return '-';
-  return n.toFixed(1) + ' M';
+  return n.toFixed(2) + ' M';
 }
 
 function fmtDelta(n) {
   if (n === null || n === undefined) return { text: '-', cls: 'gs-neu' };
-  var text = (n > 0 ? '+' : '') + n.toFixed(1) + ' M';
+  var text = (n > 0 ? '+' : '') + n.toFixed(2) + ' M';
   var cls = n > 0 ? 'gs-pos' : n < 0 ? 'gs-neg' : 'gs-neu';
   return { text: text, cls: cls };
 }
