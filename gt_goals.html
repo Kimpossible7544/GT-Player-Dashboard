@@ -77,9 +77,11 @@ td.pname a:hover{color:var(--accent);}
 .rank-shifts-wrap{margin:40px 0 24px;}
 .rank-shifts-wrap h2{font-size:1.3rem;font-weight:900;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;}
 .rank-shifts-wrap .sub{font-size:0.75rem;color:var(--dim);margin-bottom:12px;}
-.rank-table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
-.rank-table th,.rank-table td{padding:10px 8px;text-align:center;border-bottom:1px solid var(--border);font-size:0.8rem;}
-.rank-table th{color:var(--dim);font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;background:var(--panel2);}
+.rank-shifts-wrap{font-size:0.85rem;}
+.rank-sum-title{font-size:1rem;margin-bottom:8px;}
+.rank-table{width:auto;max-width:100%;margin:0 auto;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
+.rank-table th,.rank-table td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--border);font-size:0.75rem;}
+.rank-table th{color:var(--dim);font-size:0.6rem;letter-spacing:1px;text-transform:uppercase;background:var(--panel2);}
 .rank-table td.pname{text-align:left;font-weight:700;}
 .rank-current{color:var(--text);}
 .rank-up{color:var(--accent);font-weight:900;}
@@ -212,14 +214,14 @@ function rankIndex(rank){ return RANK_ORDER.indexOf(rank); }
 
 function suggestRank(currentRank, hitDays, passedDays){
   if (passedDays === 0) return { rank: currentRank || '\u2014', action: 'hold' };
+  // R4/R5 players are above the active promotion/demotion tiers and always hold.
+  if (currentRank === 'R4/R5') return { rank: 'R4/R5', action: 'hold' };
   var cIdx = rankIndex(currentRank);
   // At most one miss (with at least one day passed) keeps the player at R3.
   var metThreshold = passedDays > 1 ? passedDays - 1 : 1;
   var targetRank;
   if (hitDays >= metThreshold){
     targetRank = 'R3';
-    // R4/R5 players hold when already above the R3 target.
-    if (cIdx >= 0 && rankIndex(targetRank) < cIdx) return { rank: currentRank, action: 'hold' };
   } else {
     // Otherwise demote one tier (but not below R1).
     if (cIdx < 0) targetRank = 'R2';
@@ -323,6 +325,7 @@ function renderWeek(weekLabel){
     (np.has(weekLabel) ? ' <span style="color:var(--accent3)">(resting week — goals informational only)</span>' : '');
 
   document.getElementById('content').innerHTML =
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. 4/5 or 5/5 daily goals hit → R3; 3/5 or fewer → demote one rank. R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
     '<div class="summary-grid">' + sumCards + '</div>' +
     '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
     '<div class="legend">' +
@@ -332,8 +335,7 @@ function renderWeek(weekLabel){
     '<span><b class="cell-zero">\u2014</b> no score</span>' +
     '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
     '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
-    '</div>' +
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. 4/5 or 5/5 daily goals hit → R3; 3/5 or fewer → demote one rank. R4/R5 players hold when already above the R3 target.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
+    '</div>';
   renderRankShifts(weekLabel, rows);
 }
 
