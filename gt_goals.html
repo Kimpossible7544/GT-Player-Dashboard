@@ -206,23 +206,23 @@ function calcStreak(name){
 
 function weekIdxOf(label){ return gtData.dailyData.weekOrder.indexOf(label); }
 
-// R1 is highest rank; R4/R5 is lowest
-var RANK_ORDER = ['R1','R2','R3','R4/R5'];
+// Active rank order: R1 is the lowest, R3 is the highest.
+var RANK_ORDER = ['R1','R2','R3'];
 function rankIndex(rank){ return RANK_ORDER.indexOf(rank); }
 
 function suggestRank(currentRank, hitDays, passedDays){
   if (passedDays === 0 || rankIndex(currentRank) < 0) return { rank: currentRank, action: 'hold' };
   var missed = passedDays - hitDays;
-  var idx = rankIndex(currentRank);
+  var targetRank;
   if (hitDays === passedDays){
-    // Perfect week: promote one tier (cap at R1)
-    return { rank: RANK_ORDER[Math.max(0, idx - 1)], action: 'up' };
+    targetRank = 'R3';
+  } else if (missed === 1){
+    targetRank = 'R2';
+  } else {
+    targetRank = 'R1';
   }
-  if (missed >= 2){
-    // Missed 2+ days: demote one tier (cap at R4/R5)
-    return { rank: RANK_ORDER[Math.min(RANK_ORDER.length - 1, idx + 1)], action: 'down' };
-  }
-  return { rank: currentRank, action: 'hold' };
+  if (targetRank === currentRank) return { rank: currentRank, action: 'hold' };
+  return { rank: targetRank, action: rankIndex(targetRank) > rankIndex(currentRank) ? 'up' : 'down' };
 }
 
 function buildWeekRows(weekLabel){
@@ -326,7 +326,7 @@ function renderWeek(weekLabel){
     '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
     '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
     '</div>' +
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is highest, R4/R5 is lowest. A perfect week (all passed daily goals hit) suggests a promotion; 2+ missed days suggests a demotion.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest active rank, R3 is the highest. All passed daily goals hit → R3; one miss → R2; 2+ misses → R1.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
   renderRankShifts(weekLabel, rows);
 }
 
@@ -341,7 +341,8 @@ function renderRankShifts(weekLabel, rows){
   rows.forEach(function(r){
     if (r.total === 0) return;
     var currentRank = rosterRanks[r.name];
-    if (!currentRank) return;
+    // Only auto-suggest for the active R1–R3 ranks; skip R4/R5 and other designations.
+    if (!currentRank || RANK_ORDER.indexOf(currentRank) < 0) return;
     var passed = 0, hit = 0;
     DAYS.forEach(function(day){
       if (!dayHasPassed(weekLabel, day)) return;
