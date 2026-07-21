@@ -364,9 +364,13 @@ function renderRankShifts(weekLabel, rows){
       action: suggestion.action
     });
   });
+  function rankSortIndex(rank){
+    var idx = RANK_ORDER.indexOf(rank);
+    return idx < 0 ? 999 : idx;
+  }
   shifts.sort(function(a, b){
-    var ai = RANK_ORDER.indexOf(a.current);
-    var bi = RANK_ORDER.indexOf(b.current);
+    var ai = rankSortIndex(a.current);
+    var bi = rankSortIndex(b.current);
     if (ai !== bi) return ai - bi;
     return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
   });
@@ -376,7 +380,7 @@ function renderRankShifts(weekLabel, rows){
       if (s.action === 'hold') { cls = 'rank-hold'; actionText = 'Hold'; }
       else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
       else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
-      else { cls = 'rank-up'; actionText = 'Suggest'; }
+      else { cls = 'rank-up'; actionText = 'Set'; }
       return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
     }).join('') + '</tbody></table>';
   container.innerHTML = html;
