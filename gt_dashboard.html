@@ -165,7 +165,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 </div>
 <div class="chart-card" style="margin-bottom:28px;">
 <div class="chart-title">Weekly Breakdown</div>
-<table class="week-table"><thead><tr><th>Week</th><th>Score</th><th>Rank</th><th>20M Goal</th></tr></thead>
+<table class="week-table"><thead><tr><th>Week</th><th>Score</th><th>Rank</th><th>Daily Goals</th><th>20M Goal</th></tr></thead>
 <tbody id="weekTableBody"></tbody></table>
 </div>
 <div id="npFootnote" style="display:none;color:#ff7832;font-size:0.78rem;margin-top:8px;letter-spacing:0.5px;">* = Not pushing to win this week</div>
@@ -201,6 +201,20 @@ function fmtDelta(n) {
   var text = (n > 0 ? '+' : '') + n.toFixed(2) + ' M';
   var cls = n > 0 ? 'gs-pos' : n < 0 ? 'gs-neg' : 'gs-neu';
   return { text: text, cls: cls };
+}
+
+function daysHitText(p, w) {
+  if (w.inProgress) return '<span class="in-progress-label">In Progress</span>';
+  if (!dailyData || !dailyData.players[p.name]) return '-';
+  var idx = dailyData.weekOrder.indexOf(w.label);
+  if (idx < 0) return '-';
+  var hit = 0;
+  var days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  days.forEach(function(day) {
+    var s = (dailyData.players[p.name][day] || [])[idx] || 0;
+    if (s >= DAILY_GOALS[day]) hit++;
+  });
+  return hit + '/5';
 }
 
 function doLogin() {
@@ -382,7 +396,7 @@ function loadPlayer(name) {
     var badges = '';
     if (w.inProgress) badges += ' <span class="in-progress-label">live</span>';
     if (sh) badges += ' <span class="server-help-label">server help</span>';
-    return '<tr><td' + rowStyle + '>' + w.label + tag + badges + '</td><td class="week-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="rank-val"' + rowStyle + '>' + (w.rank || '-') + '</td><td class="' + (w.score >= 20000000 ? 'goal-yes' : 'goal-no') + '">' + (w.score >= 20000000 ? '&#9733; YES' : '&#10007; NO') + '</td></tr>';
+    return '<tr><td' + rowStyle + '>' + w.label + tag + badges + '</td><td class="week-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="rank-val"' + rowStyle + '>' + (w.rank || '-') + '</td><td class="days-hit">' + daysHitText(p, w) + '</td><td class="' + (w.score >= 20000000 ? 'goal-yes' : 'goal-no') + '">' + (w.score >= 20000000 ? '&#9733; YES' : '&#10007; NO') + '</td></tr>';
   }).join('');
 
   var hasNP = p.weeks.some(function (w) { return w.pushing === false; });
