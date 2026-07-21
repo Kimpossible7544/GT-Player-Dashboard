@@ -78,6 +78,9 @@ td.pname a:hover{color:var(--accent);}
 .rank-shifts-wrap h2{font-size:1.3rem;font-weight:900;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;}
 .rank-shifts-wrap .sub{font-size:0.75rem;color:var(--dim);margin-bottom:12px;}
 .rank-shifts-wrap{font-size:0.85rem;}
+.rank-shifts-summaries{display:flex;flex-wrap:wrap;gap:16px;}
+.rank-summary-col{flex:1;min-width:280px;max-width:100%;overflow-x:auto;}
+.rank-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;}
 .rank-sum-title{font-size:1rem;margin-bottom:8px;}
 .rank-table{width:auto;max-width:100%;margin:0 auto;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
 .rank-table th,.rank-table td{padding:8px 6px;text-align:center;border-bottom:1px solid var(--border);font-size:0.75rem;}
@@ -88,6 +91,28 @@ td.pname a:hover{color:var(--accent);}
 .rank-down{color:var(--red);font-weight:900;}
 .rank-hold{color:var(--dim);}
 .rank-empty{padding:20px;text-align:center;color:var(--dim);font-size:0.85rem;}
+th:first-child{left:0;z-index:20;}
+td.pname{position:sticky;left:0;z-index:10;background:var(--panel);}
+@media(max-width:640px){
+.page-wrap{padding:12px;}
+.header{flex-direction:column;align-items:stretch;gap:12px;}
+.header h1{font-size:1.4rem;}
+.week-select{width:100%;}
+nav{padding:12px 16px;gap:8px;}
+.nav-links a{margin-left:10px;font-size:0.7rem;}
+.summary-grid{grid-template-columns:repeat(2,1fr);gap:8px;}
+.sum-card{padding:10px 8px;}
+.sum-value{font-size:1.1rem;}
+table{min-width:680px;font-size:0.75rem;}
+th,td{padding:7px 6px;}
+.rank-shifts-summaries{flex-direction:column;gap:12px;}
+.rank-summary-col{min-width:0;}
+.rank-shifts-wrap h2{font-size:1.1rem;}
+.rank-shifts-wrap .sub{font-size:0.7rem;}
+.rank-table th,.rank-table td{padding:6px 4px;font-size:0.7rem;}
+.legend{font-size:0.62rem;gap:10px;}
+.login-box{padding:32px 24px;margin:20px;}
+}
 </style>
 </head>
 <body>
@@ -407,7 +432,7 @@ function renderRankShifts(weekLabel, rows){
   }
 
   function summaryTable(title, items, color){
-    var html = '<div style="flex:1;min-width:280px;">';
+    var html = '<div class="rank-summary-col">';
     html += '<h3 class="rank-sum-title" style="color:' + color + ';margin-top:16px;">' + title + '</h3>';
     if (!items.length){
       html += '<div class="rank-empty">None</div>';
@@ -421,10 +446,10 @@ function renderRankShifts(weekLabel, rows){
 
   var promotions = shifts.filter(function(s){ return s.action === 'up' || (s.action === 'assign' && rankIndex(s.suggested) >= 2); });
   var demotions  = shifts.filter(function(s){ return s.action === 'down' || (s.action === 'assign' && rankIndex(s.suggested) < 2); });
-  var fullTable = '<h3 class="rank-sum-title" style="color:var(--gold);margin-top:24px;">All Players</h3><table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
-    shifts.map(rowHtml).join('') + '</tbody></table>';
+  var fullTable = '<h3 class="rank-sum-title" style="color:var(--gold);margin-top:24px;">All Players</h3><div class="rank-table-wrap"><table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
+    shifts.map(rowHtml).join('') + '</tbody></table></div>';
 
-  container.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:16px;">' + summaryTable('Promote', promotions, 'var(--accent)') + summaryTable('Demote', demotions, 'var(--red)') + '</div>' + fullTable;
+  container.innerHTML = '<div class="rank-shifts-summaries">' + summaryTable('Promote', promotions, 'var(--accent)') + summaryTable('Demote', demotions, 'var(--red)') + '</div>' + fullTable;
 }
 
 function sortBy(col){
