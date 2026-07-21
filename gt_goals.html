@@ -376,16 +376,29 @@ function renderRankShifts(weekLabel, rows){
     if (ai !== bi) return ai - bi;
     return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
   });
-  var html = '<table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
-    shifts.map(function(s){
-      var cls, actionText;
-      if (s.action === 'hold') { cls = 'rank-hold'; actionText = 'Hold'; }
-      else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
-      else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
-      else { cls = 'rank-up'; actionText = 'Set'; }
-      return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
-    }).join('') + '</tbody></table>';
-  container.innerHTML = html;
+
+  function rowHtml(s){
+    var cls, actionText;
+    if (s.action === 'hold') { cls = 'rank-hold'; actionText = 'Hold'; }
+    else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
+    else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
+    else { cls = 'rank-up'; actionText = 'Set'; }
+    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
+  }
+
+  function summaryTable(title, items, cls){
+    if (!items.length) return '<h3 class="rank-sum-title" style="color:var(--dim);margin-top:16px;">' + title + '</h3><div class="rank-empty">None</div>';
+    return '<h3 class="rank-sum-title" style="color:' + (cls === 'rank-up' ? 'var(--accent)' : 'var(--red)') + ';margin-top:16px;">' + title + '</h3>' +
+      '<table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
+      items.map(rowHtml).join('') + '</tbody></table>';
+  }
+
+  var promotions = shifts.filter(function(s){ return s.action === 'up' || (s.action === 'assign' && rankIndex(s.suggested) >= 2); });
+  var demotions  = shifts.filter(function(s){ return s.action === 'down' || (s.action === 'assign' && rankIndex(s.suggested) < 2); });
+  var fullTable = '<h3 class="rank-sum-title" style="color:var(--gold);margin-top:24px;">All Players</h3><table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
+    shifts.map(rowHtml).join('') + '</tbody></table>';
+
+  container.innerHTML = summaryTable('Promote', promotions, 'rank-up') + summaryTable('Demote', demotions, 'rank-down') + fullTable;
 }
 
 function sortBy(col){
