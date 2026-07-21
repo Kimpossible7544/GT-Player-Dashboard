@@ -82,10 +82,9 @@ td.pname a:hover{color:var(--accent);}
 .rank-summary-col{flex:1;min-width:0;max-width:100%;overflow:visible;}
 .rank-summary-col .rank-table{width:100%;table-layout:fixed;}
 .rank-summary-col .rank-table td{white-space:normal;word-break:break-word;}
-.rank-summary-col .rank-table th:first-child,.rank-summary-col .rank-table td:first-child{width:45%;}
-.rank-summary-col .rank-table th:nth-child(2),.rank-summary-col .rank-table td:nth-child(2){width:15%;}
-.rank-summary-col .rank-table th:nth-child(3),.rank-summary-col .rank-table td:nth-child(3){width:20%;}
-.rank-summary-col .rank-table th:nth-child(4),.rank-summary-col .rank-table td:nth-child(4){width:20%;}
+.rank-summary-col .rank-table th:first-child,.rank-summary-col .rank-table td:first-child{width:55%;}
+.rank-summary-col .rank-table th:nth-child(2),.rank-summary-col .rank-table td:nth-child(2){width:20%;}
+.rank-summary-col .rank-table th:nth-child(3),.rank-summary-col .rank-table td:nth-child(3){width:25%;}
 .rank-status-check{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;}
 .rank-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;}
 .rank-sum-title{font-size:1rem;margin-bottom:8px;}
@@ -179,6 +178,19 @@ function doGoalsLogin(){
   if (val === GOALS_PASSWORD){
     sessionStorage.setItem('gtGoalsAuth', '1');
     unlockGoals();
+    return;
+  }
+  if (gtData && gtData.idToPlayer){
+    var playerName = gtData.idToPlayer[val] || gtData.idToPlayer[Number(val)];
+    if (playerName){
+      sessionStorage.setItem('gtGoalsAuth', '1');
+      sessionStorage.setItem('gtGoalsPlayer', playerName);
+      unlockGoals();
+      return;
+    }
+  }
+  if (!gtData) {
+    document.getElementById('loginError').textContent = 'Data is still loading. Please wait and try again.';
     return;
   }
   document.getElementById('loginError').textContent = 'Invalid code. Please try again.';
@@ -472,9 +484,7 @@ function renderRankShifts(weekLabel, rows){
   }
 
   function summaryRowHtml(s){
-    var actionText = summaryActionText(s);
-    var cls = actionText === 'Promote' ? 'rank-up' : 'rank-down';
-    return '<tr><td class="pname">' + s.name + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
+    return '<tr><td class="pname">' + s.name + '</td><td>' + s.hit + '/' + s.passed + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
   }
 
   function summaryTable(title, items, color){
@@ -483,7 +493,7 @@ function renderRankShifts(weekLabel, rows){
     if (!items.length){
       html += '<div class="rank-empty">None</div>';
     } else {
-      html += '<table class="rank-table"><thead><tr><th>Player</th><th>Goal Days</th><th>Action</th><th>Done</th></tr></thead><tbody>' +
+      html += '<table class="rank-table"><thead><tr><th>Player</th><th>Goal Days</th><th>Done</th></tr></thead><tbody>' +
         items.map(summaryRowHtml).join('') + '</tbody></table>';
     }
     html += '</div>';
