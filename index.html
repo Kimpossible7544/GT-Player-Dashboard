@@ -27,8 +27,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-goals{background:linear-gradient(135deg,rgba(255,200,0,0.15),rgba(255,200,0,0.05));color:#ffc800;border-color:rgba(255,200,0,0.4);}
 .btn-goals:hover{background:linear-gradient(135deg,rgba(255,200,0,0.25),rgba(255,200,0,0.1));border-color:#ffc800;box-shadow:0 8px 30px rgba(255,200,0,0.2);}
 .btn-training:hover{background:linear-gradient(135deg,rgba(255,68,102,0.25),rgba(255,68,102,0.1));border-color:var(--accent4);box-shadow:0 8px 30px rgba(255,68,102,0.2);}
-.btn-duel{background:linear-gradient(135deg,rgba(255,107,26,0.15),rgba(255,107,26,0.05));color:var(--accent5);border-color:rgba(255,107,26,0.4);}
-.btn-duel:hover{background:linear-gradient(135deg,rgba(255,107,26,0.25),rgba(255,107,26,0.1));border-color:var(--accent5);box-shadow:0 8px 30px rgba(255,107,26,0.2);}
 .key-unlock{margin-top:28px;background:none;border:none;color:#2a2a3a;font-size:1.1rem;cursor:pointer;transition:color 0.3s;padding:8px;}
 .key-unlock:hover{color:var(--dim);}
 .code-row{display:none;margin-top:12px;gap:8px;justify-content:center;}
@@ -50,7 +48,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <a href="gt_projections.html" class="nav-btn btn-projections">Projections</a>
 <a href="gt_goals.html" class="nav-btn btn-goals" id="goalsBtn" style="display:none;">Goals</a>
 <a href="gt_training.html" class="nav-btn btn-training">Training</a>
-<a href="GT_Daily_Duel.html" class="nav-btn btn-duel" id="duelBtn" style="display:none;">Daily Duel</a>
+
 </div>
 <button class="key-unlock" id="keyBtn" onclick="toggleCode()" title="Member access">🔑</button>
 <div class="code-row" id="codeRow">
@@ -61,7 +59,6 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <script>
 function showProtected(){
   document.getElementById('goalsBtn').style.display = '';
-  document.getElementById('duelBtn').style.display = '';
   document.getElementById('keyBtn').style.display = 'none';
   document.getElementById('codeRow').classList.remove('open');
 }
