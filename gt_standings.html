@@ -81,6 +81,7 @@ th.in-progress-col::before{content:'\25CF';color:var(--accent);margin-right:4px;
 <a href="gt_standings.html" class="active">Standings</a>
 <a href="gt_dashboard.html">Dashboard</a>
 <a href="gt_projections.html">Projections</a>
+<a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
 </div>
 </nav>
 <div class="page-wrap">
@@ -107,7 +108,7 @@ var sortDir = {};
 var weekLabels = [];
 var notPushingWeeks = new Set();
 var serverHelpers = new Map();
-var GOAL = 20000000;
+var GOAL = 22000000;
 var NP_COLOR = '#ff7832';
 var SH_COLOR = '#00e5ff';
 
@@ -238,4 +239,10 @@ async function init() {
 
 window.addEventListener('DOMContentLoaded', init);
 </script>
-</div></body></html>
+</div><script>
+if (sessionStorage.getItem('gtGoalsAuth') === '1'){
+  var gl = document.getElementById('goalsNavLink');
+  if (gl) gl.style.display = '';
+}
+</script>
+</body></html>

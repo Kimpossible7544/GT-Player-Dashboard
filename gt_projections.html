@@ -90,6 +90,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px
 <a href="gt_standings.html">Standings</a>
 <a href="gt_dashboard.html">Dashboard</a>
 <a href="gt_projections.html" class="active">Projections</a>
+<a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
 </div></nav>
 <div class="page-wrap">
 <div class="header"><h1>Score Projections</h1>
@@ -139,7 +140,7 @@ var players = {};
 var notPushingWeeks = new Set();
 var futureLabels = ["Week +1","Week +2","Week +3","Week +4"];
 var projChart = null, barChart = null, trendChart = null;
-var GOAL = 20000000;
+var GOAL = 22000000;
 var NP_COLOR = '#ff7832';
 var NP_BG = 'rgba(255,120,50,0.15)';
 var SH_COLOR = '#00e5ff';
@@ -390,5 +391,11 @@ async function init() {
 }
 
 window.addEventListener('DOMContentLoaded', init);
-</script></body></html>
+</script><script>
+if (sessionStorage.getItem('gtGoalsAuth') === '1'){
+  var gl = document.getElementById('goalsNavLink');
+  if (gl) gl.style.display = '';
+}
+</script>
+</body></html>
 
