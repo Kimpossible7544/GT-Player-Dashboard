@@ -212,21 +212,23 @@ function rankIndex(rank){ return RANK_ORDER.indexOf(rank); }
 
 function suggestRank(currentRank, hitDays, passedDays){
   if (passedDays === 0) return { rank: currentRank || '\u2014', action: 'hold' };
-  var missed = passedDays - hitDays;
+  var cIdx = rankIndex(currentRank);
+  // At most one miss (with at least one day passed) keeps the player at R3.
+  var metThreshold = passedDays > 1 ? passedDays - 1 : 1;
   var targetRank;
-  if (hitDays === passedDays){
+  if (hitDays >= metThreshold){
     targetRank = 'R3';
-  } else if (missed === 1){
-    targetRank = 'R2';
+    // R4/R5 players hold when already above the R3 target.
+    if (cIdx >= 0 && rankIndex(targetRank) < cIdx) return { rank: currentRank, action: 'hold' };
   } else {
-    targetRank = 'R1';
+    // Otherwise demote one tier (but not below R1).
+    if (cIdx < 0) targetRank = 'R2';
+    else if (cIdx === 0) targetRank = 'R1';
+    else targetRank = RANK_ORDER[cIdx - 1];
   }
   if (targetRank === currentRank) return { rank: targetRank, action: 'hold' };
-  var cIdx = rankIndex(currentRank);
   var tIdx = rankIndex(targetRank);
   if (cIdx < 0) return { rank: targetRank, action: 'assign' };
-  // R4/R5 players hold when the performance target is below their current rank.
-  if (currentRank === 'R4/R5' && tIdx < cIdx) return { rank: currentRank, action: 'hold' };
   return { rank: targetRank, action: tIdx > cIdx ? 'up' : 'down' };
 }
 
@@ -331,7 +333,7 @@ function renderWeek(weekLabel){
     '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
     '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
     '</div>' +
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Current rank comes from a weekly sheet\'s Rank column if present, otherwise the Roster. All passed daily goals hit → R3; one miss → R2; 2+ misses → R1. R4/R5 players hold when already above the target.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. 4/5 or 5/5 daily goals hit → R3; 3/5 or fewer → demote one rank. R4/R5 players hold when already above the R3 target.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
   renderRankShifts(weekLabel, rows);
 }
 
@@ -364,9 +366,13 @@ function renderRankShifts(weekLabel, rows){
       action: suggestion.action
     });
   });
+  function rankSortIndex(rank){
+    var idx = RANK_ORDER.indexOf(rank);
+    return idx < 0 ? 999 : idx;
+  }
   shifts.sort(function(a, b){
-    var ai = RANK_ORDER.indexOf(a.current);
-    var bi = RANK_ORDER.indexOf(b.current);
+    var ai = rankSortIndex(a.current);
+    var bi = rankSortIndex(b.current);
     if (ai !== bi) return ai - bi;
     return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
   });
@@ -376,7 +382,7 @@ function renderRankShifts(weekLabel, rows){
       if (s.action === 'hold') { cls = 'rank-hold'; actionText = 'Hold'; }
       else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
       else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
-      else { cls = 'rank-up'; actionText = 'Suggest'; }
+      else { cls = 'rank-up'; actionText = 'Set'; }
       return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
     }).join('') + '</tbody></table>';
   container.innerHTML = html;
