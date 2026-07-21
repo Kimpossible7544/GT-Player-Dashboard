@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Weekly Goals</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(0,255,180,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(255,200,0,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:16px 24px;background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.nav-brand{font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;}
+.nav-links a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:0.85rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:color 0.2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--accent);}
+.page-wrap{position:relative;z-index:1;max-width:1200px;margin:0 auto;padding:20px;}
+.header{padding:28px 0 8px;display:flex;align-items:flex-end;justify-content:space-between;flex-wrap:wrap;gap:16px;}
+.header h1{font-size:2rem;font-weight:900;color:var(--gold);letter-spacing:3px;text-transform:uppercase;}
+.header .sub{color:var(--dim);font-size:0.8rem;letter-spacing:1px;margin-top:4px;}
+.week-select{background:var(--panel);border:1px solid var(--gold);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.95rem;font-weight:700;font-family:inherit;outline:none;cursor:pointer;}
+.week-select option{background:var(--panel2);}
+.summary-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:20px 0 24px;}
+@media(max-width:900px){.summary-grid{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:560px){.summary-grid{grid-template-columns:repeat(2,1fr);}}
+.sum-card{background:var(--panel);border-radius:10px;padding:14px 12px;border-top:3px solid var(--accent2);text-align:center;}
+.sum-card.weekly{border-top-color:var(--gold);}
+.sum-label{font-size:0.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:4px;}
+.sum-goal{font-size:0.62rem;color:var(--accent3);font-weight:700;letter-spacing:1px;margin-bottom:8px;}
+.sum-value{font-size:1.35rem;font-weight:900;font-family:'Courier New',monospace;color:var(--text);}
+.sum-value.good{color:var(--accent);}
+.sum-value.mid{color:var(--gold);}
+.sum-value.bad{color:var(--red);}
+.sum-count{font-size:0.65rem;color:var(--dim);margin-top:4px;font-family:'Courier New',monospace;}
+.table-card{background:var(--panel);border-radius:12px;border:1px solid var(--border);overflow-x:auto;}
+table{width:100%;border-collapse:collapse;min-width:860px;}
+th{padding:12px 10px;text-align:center;font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;color:var(--dim);border-bottom:1px solid var(--border);cursor:pointer;user-select:none;white-space:nowrap;position:sticky;top:0;background:var(--panel);}
+th:hover{color:var(--accent);}
+th .th-goal{display:block;color:var(--accent3);font-size:0.6rem;margin-top:2px;letter-spacing:0.5px;}
+th.clutch-col{color:var(--gold);}
+td{padding:9px 10px;border-bottom:1px solid var(--border);font-size:0.85rem;text-align:center;white-space:nowrap;}
+tr:last-child td{border-bottom:none;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+td.pname{text-align:left;font-weight:700;}
+td.pname a{color:var(--text);text-decoration:none;}
+td.pname a:hover{color:var(--accent);}
+.cell-hit{color:var(--accent);font-weight:900;}
+.cell-near{color:var(--gold);font-weight:700;}
+.cell-miss{color:var(--red);}
+.cell-zero{color:#3a3a4e;}
+.cell-score{display:block;font-size:0.62rem;font-family:'Courier New',monospace;color:var(--dim);margin-top:1px;}
+.wk-total{font-family:'Courier New',monospace;font-weight:900;}
+.wk-total.hit{color:var(--accent);}
+.wk-total.miss{color:var(--red);}
+.streak{font-family:'Courier New',monospace;font-weight:900;color:var(--accent2);}
+.streak.fire{color:var(--gold);}
+.clutch-badge{display:inline-block;font-size:0.65rem;font-weight:900;letter-spacing:1px;color:var(--gold);background:rgba(255,200,0,0.12);border:1px solid rgba(255,200,0,0.4);padding:2px 8px;border-radius:10px;}
+.legend{display:flex;flex-wrap:wrap;gap:16px;margin:16px 4px 40px;color:var(--dim);font-size:0.72rem;letter-spacing:0.5px;}
+.legend span b{font-weight:900;}
+.in-progress-label{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);background:rgba(0,255,180,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+.loading{text-align:center;padding:60px 20px;color:var(--dim);font-size:1rem;letter-spacing:1px;}
+.loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
+.login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;}
+.login-logo{font-size:1.4rem;font-weight:900;color:var(--accent);letter-spacing:3px;margin-bottom:6px;}
+.login-sub{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:28px;}
+.login-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:12px 16px;border-radius:8px;font-size:1.1rem;font-family:'Courier New',monospace;outline:none;text-align:center;letter-spacing:3px;margin-bottom:12px;transition:border-color 0.2s;}
+.login-input:focus{border-color:var(--gold);}
+.login-btn{width:100%;background:var(--gold);color:var(--bg);border:none;padding:12px;border-radius:8px;font-size:0.9rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
+.login-btn:hover{opacity:0.85;}
+.login-error{color:var(--red);font-size:0.8rem;margin-top:10px;min-height:18px;}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">⚔ GT ALLIANCE</div>
+    <div class="login-sub">Weekly Goals</div>
+    <input class="login-input" id="loginInput" type="password" placeholder="Enter code" maxlength="20" onkeydown="if(event.key==='Enter')doGoalsLogin()"/>
+    <button class="login-btn" onclick="doGoalsLogin()">Enter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+
+<div id="pageArea" style="display:none;">
+<nav>
+<a class="nav-brand" href="index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
+<img src="icon.png" alt="GT" style="height:36px;width:36px;object-fit:contain;border-radius:6px;" onerror="this.style.display='none'"/>
+<span style="font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;">GT ALLIANCE</span>
+</a>
+<div class="nav-links">
+<a href="gt_standings.html">Standings</a>
+<a href="gt_dashboard.html">Dashboard</a>
+<a href="gt_projections.html">Projections</a>
+<a href="gt_goals.html" class="active" id="goalsNavLink" style="display:none;">Goals</a>
+</div>
+</nav>
+
+<div class="page-wrap">
+<div class="header">
+<div>
+<h1>Weekly Goals</h1>
+<p class="sub" id="weekSub">Loading data...</p>
+</div>
+<select class="week-select" id="weekSelect" onchange="renderWeek(this.value)"></select>
+</div>
+
+<div id="content"><div class="loading"><div class="spinner"></div><br>Loading goal data...</div></div>
+</div>
+</div>
+
+<script>
+var DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+var DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri' };
+var CLUTCH_DAYS = ['Tuesday','Wednesday','Friday']; // the grind days — lower goals, harder to show up for
+var gtData = null, DAILY_GOALS = null, WEEKLY_GOAL = 22000000;
+var sortCol = -1, sortAsc = false, currentWeekLabelShown = null;
+var GOALS_PASSWORD = 'GT2026';
+
+function doGoalsLogin(){
+  var val = document.getElementById('loginInput').value.trim();
+  document.getElementById('loginError').textContent = '';
+  if (!val) return;
+  if (val === GOALS_PASSWORD){
+    sessionStorage.setItem('gtGoalsAuth', '1');
+    unlockGoals();
+    return;
+  }
+  document.getElementById('loginError').textContent = 'Invalid code. Please try again.';
+  document.getElementById('loginInput').value = '';
+  document.getElementById('loginInput').focus();
+}
+
+function unlockGoals(){
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('pageArea').style.display = '';
+  var gl = document.getElementById('goalsNavLink');
+  if (gl) gl.style.display = '';
+}
+
+function fmtM(v){ return (v/1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M'; }
+function fmtScore(v){ return v ? v.toLocaleString() : '0'; }
+
+// Parse the calendar date of a given day within a week label like "Jul 13 - Jul 17"
+function dayDate(weekLabel, day){
+  var startPart = weekLabel.replace(/ - .+/, '').trim();
+  var d = new Date(startPart + ', ' + new Date().getFullYear());
+  if (isNaN(d.getTime())) return null;
+  var now = new Date();
+  if (d - now > 180*24*60*60*1000) d = new Date(startPart + ', ' + (new Date().getFullYear()-1));
+  var offsets = { Monday:0, Tuesday:1, Wednesday:2, Thursday:3, Friday:4 };
+  d.setDate(d.getDate() + (offsets[day] || 0));
+  return d;
+}
+
+// Has this day's date fully passed? (used so in-progress weeks don't count future days)
+function dayHasPassed(weekLabel, day){
+  var d = dayDate(weekLabel, day);
+  if (!d) return true;
+  var end = new Date(d); end.setDate(end.getDate() + 1);
+  return new Date() >= end;
+}
+
+// Current goal-hit streak: consecutive goal-met days across pushing weeks,
+// counting back from the most recent day that has passed. Resting weeks are
+// skipped (they neither extend nor break the streak). A miss or absence breaks it.
+function calcStreak(name){
+  var dd = gtData.dailyData;
+  var pd = dd.players[name];
+  if (!pd) return 0;
+  var np = gtData.notPushingWeeks || new Set();
+  var timeline = [];
+  dd.weekOrder.forEach(function(wk, wIdx){
+    if (np.has(wk)) return;
+    DAYS.forEach(function(day){
+      if (!dayHasPassed(wk, day)) return;
+      timeline.push({ score: (pd[day] && pd[day][wIdx]) || 0, goal: DAILY_GOALS[day] });
+    });
+  });
+  var streak = 0;
+  for (var i = timeline.length - 1; i >= 0; i--){
+    if (timeline[i].score >= timeline[i].goal) streak++;
+    else break;
+  }
+  return streak;
+}
+
+function weekIdxOf(label){ return gtData.dailyData.weekOrder.indexOf(label); }
+
+function buildWeekRows(weekLabel){
+  var wIdx = weekIdxOf(weekLabel);
+  var rows = [];
+  Object.keys(gtData.players).forEach(function(name){
+    var pd = gtData.dailyData.players[name];
+    if (!pd) return;
+    var dayScores = {};
+    var total = 0;
+    DAYS.forEach(function(day){
+      var s = (pd[day] && pd[day][wIdx]) || 0;
+      dayScores[day] = s;
+      total += s;
+    });
+    var clutch = CLUTCH_DAYS.every(function(day){
+      // only judge clutch on days that have actually passed (fair to in-progress weeks)
+      return !dayHasPassed(weekLabel, day) || dayScores[day] >= DAILY_GOALS[day];
+    }) && CLUTCH_DAYS.some(function(day){ return dayHasPassed(weekLabel, day) && dayScores[day] >= DAILY_GOALS[day]; });
+    rows.push({ name: name, days: dayScores, total: total, clutch: clutch, streak: calcStreak(name) });
+  });
+  return rows;
+}
+
+function cellHtml(weekLabel, day, score){
+  var goal = DAILY_GOALS[day];
+  var passed = dayHasPassed(weekLabel, day);
+  var mark, cls;
+  if (!passed && score === 0){ mark = '\u00b7'; cls = 'cell-zero'; }        // day not played yet
+  else if (score >= goal){ mark = '\u2713'; cls = 'cell-hit'; }             // hit
+  else if (score >= goal * 0.9){ mark = '\u25CB'; cls = 'cell-near'; }      // near miss (90%+)
+  else if (score > 0){ mark = '\u2717'; cls = 'cell-miss'; }                // miss
+  else { mark = '\u2014'; cls = 'cell-zero'; }                              // absent
+  return '<td><span class="' + cls + '">' + mark + '</span><span class="cell-score">' + (score ? fmtScore(score) : '') + '</span></td>';
+}
+
+function renderWeek(weekLabel){
+  currentWeekLabelShown = weekLabel;
+  var np = gtData.notPushingWeeks || new Set();
+  var isInProgress = weekLabel === gtData.currentWeekLabel;
+  var rows = buildWeekRows(weekLabel);
+
+  // Alliance summary — denominator: players with any score that week
+  var activeRows = rows.filter(function(r){ return r.total > 0; });
+  var denom = activeRows.length || 1;
+  var sumCards = DAYS.map(function(day){
+    if (!dayHasPassed(weekLabel, day)){
+      return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(DAILY_GOALS[day]) + '</div><div class="sum-value" style="color:var(--dim)">\u2014</div><div class="sum-count">not yet</div></div>';
+    }
+    var hits = activeRows.filter(function(r){ return r.days[day] >= DAILY_GOALS[day]; }).length;
+    var pct = Math.round(hits / denom * 100);
+    var cls = pct >= 75 ? 'good' : pct >= 50 ? 'mid' : 'bad';
+    return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(DAILY_GOALS[day]) + '</div><div class="sum-value ' + cls + '">' + pct + '%</div><div class="sum-count">' + hits + '/' + denom + ' hit</div></div>';
+  }).join('');
+  var wkHits = activeRows.filter(function(r){ return r.total >= WEEKLY_GOAL; }).length;
+  var wkPct = Math.round(wkHits / denom * 100);
+  var wkCls = wkPct >= 75 ? 'good' : wkPct >= 50 ? 'mid' : 'bad';
+  sumCards += '<div class="sum-card weekly"><div class="sum-label">Weekly</div><div class="sum-goal">' + fmtM(WEEKLY_GOAL) + '</div><div class="sum-value ' + wkCls + '">' + (isInProgress ? '\u2014' : wkPct + '%') + '</div><div class="sum-count">' + (isInProgress ? 'in progress' : wkHits + '/' + denom + ' hit') + '</div></div>';
+
+  // Sort
+  rows.sort(function(a, b){
+    if (sortCol === -1) return b.total - a.total;
+    if (sortCol === 0) return sortAsc ? a.name.localeCompare(b.name, undefined, {sensitivity:'base'}) : b.name.localeCompare(a.name, undefined, {sensitivity:'base'});
+    if (sortCol >= 1 && sortCol <= 5){ var d = DAYS[sortCol-1]; return sortAsc ? a.days[d]-b.days[d] : b.days[d]-a.days[d]; }
+    if (sortCol === 6) return sortAsc ? a.total-b.total : b.total-a.total;
+    if (sortCol === 7) return sortAsc ? a.streak-b.streak : b.streak-a.streak;
+    if (sortCol === 8) return sortAsc ? (a.clutch?1:0)-(b.clutch?1:0) : (b.clutch?1:0)-(a.clutch?1:0);
+    return 0;
+  });
+
+  var ths = '<th onclick="sortBy(0)">Player</th>' +
+    DAYS.map(function(day, i){ return '<th onclick="sortBy(' + (i+1) + ')">' + DAY_SHORT[day] + '<span class="th-goal">' + fmtM(DAILY_GOALS[day]) + '</span></th>'; }).join('') +
+    '<th onclick="sortBy(6)">Week Total<span class="th-goal">' + fmtM(WEEKLY_GOAL) + '</span></th>' +
+    '<th onclick="sortBy(7)">Streak<span class="th-goal">goal days</span></th>' +
+    '<th class="clutch-col" onclick="sortBy(8)">Clutch<span class="th-goal">Tue+Wed+Fri</span></th>';
+
+  var trs = rows.map(function(r){
+    var enc = encodeURIComponent(r.name);
+    var totalCls = isInProgress ? '' : (r.total >= WEEKLY_GOAL ? ' hit' : ' miss');
+    return '<tr>' +
+      '<td class="pname"><a href="gt_dashboard.html?player=' + enc + '">' + r.name + '</a></td>' +
+      DAYS.map(function(day){ return cellHtml(weekLabel, day, r.days[day]); }).join('') +
+      '<td><span class="wk-total' + totalCls + '">' + fmtScore(r.total) + '</span></td>' +
+      '<td><span class="streak' + (r.streak >= 5 ? ' fire' : '') + '">' + r.streak + (r.streak >= 5 ? ' \uD83D\uDD25' : '') + '</span></td>' +
+      '<td>' + (r.clutch ? '<span class="clutch-badge">\u2605 CLUTCH</span>' : '') + '</td>' +
+      '</tr>';
+  }).join('');
+
+  document.getElementById('weekSub').innerHTML = 'Week of ' + weekLabel +
+    (isInProgress ? '<span class="in-progress-label">In Progress</span>' : '') +
+    (np.has(weekLabel) ? ' <span style="color:var(--accent3)">(resting week — goals informational only)</span>' : '');
+
+  document.getElementById('content').innerHTML =
+    '<div class="summary-grid">' + sumCards + '</div>' +
+    '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
+    '<div class="legend">' +
+    '<span><b class="cell-hit">\u2713</b> hit goal</span>' +
+    '<span><b class="cell-near">\u25CB</b> near miss (90%+)</span>' +
+    '<span><b class="cell-miss">\u2717</b> missed</span>' +
+    '<span><b class="cell-zero">\u2014</b> no score</span>' +
+    '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
+    '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
+    '</div>';
+}
+
+function sortBy(col){
+  if (sortCol === col) sortAsc = !sortAsc;
+  else { sortCol = col; sortAsc = false; }
+  renderWeek(currentWeekLabelShown);
+}
+
+async function init(){
+  try {
+    gtData = await loadGTData();
+    DAILY_GOALS = gtData.DAILY_GOALS || { Monday:6000000, Tuesday:3000000, Wednesday:4000000, Thursday:6000000, Friday:3000000 };
+    WEEKLY_GOAL = gtData.WEEKLY_GOAL || 22000000;
+
+    // Week dropdown: newest first. Default = most recent COMPLETED week.
+    var weeks = gtData.dailyData.weekOrder.slice().reverse();
+    var defaultWeek = weeks.find(function(w){ return w !== gtData.currentWeekLabel; }) || weeks[0];
+    var sel = document.getElementById('weekSelect');
+    sel.innerHTML = weeks.map(function(w){
+      var tag = w === gtData.currentWeekLabel ? ' (in progress)' : '';
+      return '<option value="' + w.replace(/"/g,'&quot;') + '"' + (w === defaultWeek ? ' selected' : '') + '>' + w + tag + '</option>';
+    }).join('');
+    renderWeek(defaultWeek);
+  } catch(err){
+    document.getElementById('content').innerHTML = '<div class="error-msg">' + err.message + '</div>';
+    document.getElementById('weekSub').textContent = 'Failed to load';
+  }
+}
+window.addEventListener('DOMContentLoaded', function(){
+  if (sessionStorage.getItem('gtGoalsAuth') === '1') unlockGoals();
+  else document.getElementById('loginInput').focus();
+  init(); // data loads in the background while the code is entered
+});
+</script>
+<script>
+if (sessionStorage.getItem('gtGoalsAuth') === '1'){
+  var gl = document.getElementById('goalsNavLink');
+  if (gl) gl.style.display = '';
+}
+</script>
+</body>
+</html>

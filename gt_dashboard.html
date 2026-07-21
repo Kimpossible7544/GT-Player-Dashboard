@@ -125,6 +125,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <a href="gt_standings.html">Standings</a>
 <a href="gt_dashboard.html" class="active">Dashboard</a>
 <a href="gt_projections.html">Projections</a>
+<a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
 <button class="logout-btn" onclick="doLogout()">Logout</button>
 </div>
 </nav>
@@ -180,7 +181,7 @@ var selectedDay = 'Monday';
 var scoreChart = null, rankChart = null, dailyChart = null;
 var NP_COLOR = '#ff7832';
 var NP_BG = 'rgba(255,120,50,0.15)';
-var DAILY_GOAL = 6000000;
+var DAILY_GOALS = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 6000000, Friday: 3000000 };
 var SH_COLOR = '#00e5ff';
 var SH_BG = 'rgba(0,229,255,0.15)';
 var isMaster = false;
@@ -435,8 +436,9 @@ function renderDailyChart(playerName, day) {
     data: {
       labels: labels,
       datasets: [
-        { label: day + ' Score', data: scores, backgroundColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_BG; if (notPushingWeeks.has(wk)) return NP_BG; return s >= DAILY_GOAL ? 'rgba(0,255,180,0.6)' : s > 0 ? 'rgba(0,180,255,0.5)' : 'rgba(107,107,136,0.2)'; }), borderColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_COLOR; if (notPushingWeeks.has(wk)) return NP_COLOR; return s >= DAILY_GOAL ? '#00ffb4' : s > 0 ? '#00b4ff' : '#2a2a3a'; }), borderWidth: 1.5, borderRadius: 4 },
-        { label: 'Average', data: avgLine, type: 'line', borderColor: '#ffc800', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false }
+        { label: day + ' Score', data: scores, backgroundColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_BG; if (notPushingWeeks.has(wk)) return NP_BG; return s >= DAILY_GOALS[day] ? 'rgba(0,255,180,0.6)' : s > 0 ? 'rgba(0,180,255,0.5)' : 'rgba(107,107,136,0.2)'; }), borderColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_COLOR; if (notPushingWeeks.has(wk)) return NP_COLOR; return s >= DAILY_GOALS[day] ? '#00ffb4' : s > 0 ? '#00b4ff' : '#2a2a3a'; }), borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Average', data: avgLine, type: 'line', borderColor: '#ffc800', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false },
+        { label: 'Goal (' + (DAILY_GOALS[day] / 1000000) + 'M)', data: scores.map(function () { return DAILY_GOALS[day]; }), type: 'line', borderColor: '#b464ff', borderWidth: 2, borderDash: [3, 5], pointRadius: 0, fill: false }
       ]
     },
     options: {
@@ -460,7 +462,7 @@ async function init() {
     players = data.players;
     dailyData = data.dailyData;
     notPushingWeeks = data.notPushingWeeks || new Set();
-    DAILY_GOAL = data.DAILY_GOAL || 6000000;
+    DAILY_GOALS = data.DAILY_GOALS || DAILY_GOALS;
     idToPlayer = data.idToPlayer || {};
 
     var sel = document.getElementById('playerSelect');
@@ -488,5 +490,11 @@ async function init() {
 }
 
 window.addEventListener('DOMContentLoaded', init);
+</script>
+<script>
+if (sessionStorage.getItem('gtGoalsAuth') === '1'){
+  var gl = document.getElementById('goalsNavLink');
+  if (gl) gl.style.display = '';
+}
 </script>
 </body></html>
