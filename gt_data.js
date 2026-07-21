@@ -447,13 +447,14 @@ async function loadGTData() {
   const dailyData = { weekOrder: weekLabels, players: {} };
 
   Object.keys(players).forEach(name => {
-    dailyData.players[name] = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] };
+    dailyData.players[name] = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], rank: [] };
   });
 
   for (const weekLabel of weekLabels) {
     if (!workbook.SheetNames.includes(weekLabel)) {
       Object.keys(players).forEach(name => {
         DAYS.forEach(day => dailyData.players[name][day].push(0));
+        dailyData.players[name].rank.push(null);
       });
       continue;
     }
@@ -462,6 +463,8 @@ async function loadGTData() {
       workbook.Sheets[weekLabel],
       { header: 1, defval: null }
     );
+
+    const rankCol = weekRows[0] ? weekRows[0].findIndex(h => String(h || "").trim().toLowerCase() === "rank") : -1;
 
     const byPlayer = {};
     for (let r = 1; r < weekRows.length; r++) {
@@ -473,7 +476,8 @@ async function loadGTData() {
         Tuesday:   (typeof row[3] === 'number' ? row[3] : 0),
         Wednesday: (typeof row[4] === 'number' ? row[4] : 0),
         Thursday:  (typeof row[5] === 'number' ? row[5] : 0),
-        Friday:    (typeof row[6] === 'number' ? row[6] : 0)
+        Friday:    (typeof row[6] === 'number' ? row[6] : 0),
+        rank:      (rankCol >= 0 ? String(row[rankCol] || "").trim() || null : null)
       };
     }
 
@@ -482,6 +486,7 @@ async function loadGTData() {
       DAYS.forEach(day => {
         dailyData.players[name][day].push(pd ? (pd[day] || 0) : 0);
       });
+      dailyData.players[name].rank.push(pd ? (pd.rank || null) : null);
     });
   }
 
