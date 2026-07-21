@@ -1,0 +1,12 @@
+[project]
+name = "gt-player-dashboard-state"
+version = "0.1.0"
+description = "Shared checkbox state API for GT Player Dashboard"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.100",
+  "uvicorn[standard]>=0.23",
+]
+
+[project.scripts]
+app = "main:app"
