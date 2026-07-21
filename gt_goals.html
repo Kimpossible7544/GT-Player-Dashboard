@@ -331,7 +331,7 @@ function renderWeek(weekLabel){
     '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
     '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
     '</div>' +
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. All passed daily goals hit → R3; one miss → R2; 2+ misses → R1. R4/R5 players hold when already above the target.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Current rank comes from a weekly sheet\'s Rank column if present, otherwise the Roster. All passed daily goals hit → R3; one miss → R2; 2+ misses → R1. R4/R5 players hold when already above the target.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
   renderRankShifts(weekLabel, rows);
 }
 
@@ -342,9 +342,12 @@ function renderRankShifts(weekLabel, rows){
     return;
   }
   var rosterRanks = gtData.rosterRanks;
+  var wIdx = weekIdxOf(weekLabel);
   var shifts = [];
   rows.forEach(function(r){
-    var currentRank = rosterRanks[r.name] || 'Unknown';
+    var playerData = gtData.dailyData.players[r.name];
+    var weeklyRank = playerData && playerData.rank ? playerData.rank[wIdx] : null;
+    var currentRank = weeklyRank || rosterRanks[r.name] || 'Unknown';
     var passed = 0, hit = 0;
     DAYS.forEach(function(day){
       if (!dayHasPassed(weekLabel, day)) return;
