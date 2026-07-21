@@ -211,7 +211,7 @@ var RANK_ORDER = ['R1','R2','R3'];
 function rankIndex(rank){ return RANK_ORDER.indexOf(rank); }
 
 function suggestRank(currentRank, hitDays, passedDays){
-  if (passedDays === 0 || rankIndex(currentRank) < 0) return { rank: currentRank, action: 'hold' };
+  if (passedDays === 0) return { rank: currentRank || '\u2014', action: 'hold' };
   var missed = passedDays - hitDays;
   var targetRank;
   if (hitDays === passedDays){
@@ -221,8 +221,11 @@ function suggestRank(currentRank, hitDays, passedDays){
   } else {
     targetRank = 'R1';
   }
-  if (targetRank === currentRank) return { rank: currentRank, action: 'hold' };
-  return { rank: targetRank, action: rankIndex(targetRank) > rankIndex(currentRank) ? 'up' : 'down' };
+  if (targetRank === currentRank) return { rank: targetRank, action: 'hold' };
+  var cIdx = rankIndex(currentRank);
+  var tIdx = rankIndex(targetRank);
+  if (cIdx < 0) return { rank: targetRank, action: 'assign' };
+  return { rank: targetRank, action: tIdx > cIdx ? 'up' : 'down' };
 }
 
 function buildWeekRows(weekLabel){
@@ -339,10 +342,7 @@ function renderRankShifts(weekLabel, rows){
   var rosterRanks = gtData.rosterRanks;
   var shifts = [];
   rows.forEach(function(r){
-    if (r.total === 0) return;
-    var currentRank = rosterRanks[r.name];
-    // Only auto-suggest for the active R1–R3 ranks; skip R4/R5 and other designations.
-    if (!currentRank || RANK_ORDER.indexOf(currentRank) < 0) return;
+    var currentRank = rosterRanks[r.name] || 'Unknown';
     var passed = 0, hit = 0;
     DAYS.forEach(function(day){
       if (!dayHasPassed(weekLabel, day)) return;
@@ -350,21 +350,15 @@ function renderRankShifts(weekLabel, rows){
       if (r.days[day] >= DAILY_GOALS[day]) hit++;
     });
     var suggestion = suggestRank(currentRank, hit, passed);
-    if (suggestion.action !== 'hold' && suggestion.rank !== currentRank){
-      shifts.push({
-        name: r.name,
-        current: currentRank,
-        suggested: suggestion.rank,
-        hit: hit,
-        passed: passed,
-        action: suggestion.action
-      });
-    }
+    shifts.push({
+      name: r.name,
+      current: currentRank,
+      suggested: suggestion.rank,
+      hit: hit,
+      passed: passed,
+      action: suggestion.action
+    });
   });
-  if (shifts.length === 0){
-    container.innerHTML = '<div class="rank-empty">No rank changes suggested for this week.</div>';
-    return;
-  }
   shifts.sort(function(a, b){
     var ai = RANK_ORDER.indexOf(a.current);
     var bi = RANK_ORDER.indexOf(b.current);
@@ -373,8 +367,11 @@ function renderRankShifts(weekLabel, rows){
   });
   var html = '<table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
     shifts.map(function(s){
-      var cls = s.action === 'up' ? 'rank-up' : 'rank-down';
-      var actionText = s.action === 'up' ? 'Promote' : 'Demote';
+      var cls, actionText;
+      if (s.action === 'hold') { cls = 'rank-hold'; actionText = 'Hold'; }
+      else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
+      else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
+      else { cls = 'rank-up'; actionText = 'Suggest'; }
       return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
     }).join('') + '</tbody></table>';
   container.innerHTML = html;
