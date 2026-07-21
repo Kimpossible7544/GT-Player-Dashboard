@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <style>
-:root{--bg:#0a0a0f;--panel:#111118;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--accent4:#ff4466;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
+:root{--bg:#0a0a0f;--panel:#111118;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--accent4:#ff4466;--accent5:#ff6b1a;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(0,255,180,0.06) 0%,transparent 55%),radial-gradient(ellipse at 70% 80%,rgba(180,100,255,0.06) 0%,transparent 55%);pointer-events:none;z-index:0;}
@@ -27,6 +27,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-goals{background:linear-gradient(135deg,rgba(255,200,0,0.15),rgba(255,200,0,0.05));color:#ffc800;border-color:rgba(255,200,0,0.4);}
 .btn-goals:hover{background:linear-gradient(135deg,rgba(255,200,0,0.25),rgba(255,200,0,0.1));border-color:#ffc800;box-shadow:0 8px 30px rgba(255,200,0,0.2);}
 .btn-training:hover{background:linear-gradient(135deg,rgba(255,68,102,0.25),rgba(255,68,102,0.1));border-color:var(--accent4);box-shadow:0 8px 30px rgba(255,68,102,0.2);}
+.btn-duel{background:linear-gradient(135deg,rgba(255,107,26,0.15),rgba(255,107,26,0.05));color:var(--accent5);border-color:rgba(255,107,26,0.4);}
+.btn-duel:hover{background:linear-gradient(135deg,rgba(255,107,26,0.25),rgba(255,107,26,0.1));border-color:var(--accent5);box-shadow:0 8px 30px rgba(255,107,26,0.2);}
 .key-unlock{margin-top:28px;background:none;border:none;color:#2a2a3a;font-size:1.1rem;cursor:pointer;transition:color 0.3s;padding:8px;}
 .key-unlock:hover{color:var(--dim);}
 .code-row{display:none;margin-top:12px;gap:8px;justify-content:center;}
@@ -48,6 +50,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <a href="gt_projections.html" class="nav-btn btn-projections">Projections</a>
 <a href="gt_goals.html" class="nav-btn btn-goals" id="goalsBtn" style="display:none;">Goals</a>
 <a href="gt_training.html" class="nav-btn btn-training">Training</a>
+<a href="GT_Daily_Duel.html" class="nav-btn btn-duel" id="duelBtn" style="display:none;">Daily Duel</a>
 </div>
 <button class="key-unlock" id="keyBtn" onclick="toggleCode()" title="Member access">🔑</button>
 <div class="code-row" id="codeRow">
@@ -56,8 +59,9 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 </div>
 <script>
-function showGoals(){
+function showProtected(){
   document.getElementById('goalsBtn').style.display = '';
+  document.getElementById('duelBtn').style.display = '';
   document.getElementById('keyBtn').style.display = 'none';
   document.getElementById('codeRow').classList.remove('open');
 }
@@ -70,7 +74,7 @@ function tryCode(){
   var inp = document.getElementById('codeInput');
   if (inp.value.trim() === 'GT2026'){
     sessionStorage.setItem('gtGoalsAuth', '1');
-    showGoals();
+    showProtected();
   } else {
     inp.value = '';
     inp.classList.remove('shake');
@@ -79,7 +83,7 @@ function tryCode(){
     inp.focus();
   }
 }
-if (sessionStorage.getItem('gtGoalsAuth') === '1') showGoals();
+if (sessionStorage.getItem('gtGoalsAuth') === '1') showProtected();
 </script>
 </body>
 </html>

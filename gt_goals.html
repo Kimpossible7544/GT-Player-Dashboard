@@ -74,6 +74,18 @@ td.pname a:hover{color:var(--accent);}
 .login-btn{width:100%;background:var(--gold);color:var(--bg);border:none;padding:12px;border-radius:8px;font-size:0.9rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
 .login-btn:hover{opacity:0.85;}
 .login-error{color:var(--red);font-size:0.8rem;margin-top:10px;min-height:18px;}
+.rank-shifts-wrap{margin:40px 0 24px;}
+.rank-shifts-wrap h2{font-size:1.3rem;font-weight:900;color:var(--gold);letter-spacing:2px;text-transform:uppercase;margin-bottom:16px;}
+.rank-shifts-wrap .sub{font-size:0.75rem;color:var(--dim);margin-bottom:12px;}
+.rank-table{width:100%;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
+.rank-table th,.rank-table td{padding:10px 8px;text-align:center;border-bottom:1px solid var(--border);font-size:0.8rem;}
+.rank-table th{color:var(--dim);font-size:0.65rem;letter-spacing:1px;text-transform:uppercase;background:var(--panel2);}
+.rank-table td.pname{text-align:left;font-weight:700;}
+.rank-current{color:var(--text);}
+.rank-up{color:var(--accent);font-weight:900;}
+.rank-down{color:var(--red);font-weight:900;}
+.rank-hold{color:var(--dim);}
+.rank-empty{padding:20px;text-align:center;color:var(--dim);font-size:0.85rem;}
 </style>
 </head>
 <body>
@@ -194,6 +206,25 @@ function calcStreak(name){
 
 function weekIdxOf(label){ return gtData.dailyData.weekOrder.indexOf(label); }
 
+// R1 is highest rank; R4/R5 is lowest
+var RANK_ORDER = ['R1','R2','R3','R4/R5'];
+function rankIndex(rank){ return RANK_ORDER.indexOf(rank); }
+
+function suggestRank(currentRank, hitDays, passedDays){
+  if (passedDays === 0 || rankIndex(currentRank) < 0) return { rank: currentRank, action: 'hold' };
+  var missed = passedDays - hitDays;
+  var idx = rankIndex(currentRank);
+  if (hitDays === passedDays){
+    // Perfect week: promote one tier (cap at R1)
+    return { rank: RANK_ORDER[Math.max(0, idx - 1)], action: 'up' };
+  }
+  if (missed >= 2){
+    // Missed 2+ days: demote one tier (cap at R4/R5)
+    return { rank: RANK_ORDER[Math.min(RANK_ORDER.length - 1, idx + 1)], action: 'down' };
+  }
+  return { rank: currentRank, action: 'hold' };
+}
+
 function buildWeekRows(weekLabel){
   var wIdx = weekIdxOf(weekLabel);
   var rows = [];
@@ -294,7 +325,58 @@ function renderWeek(weekLabel){
     '<span><b class="cell-zero">\u2014</b> no score</span>' +
     '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
     '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
-    '</div>';
+    '</div>' +
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is highest, R4/R5 is lowest. A perfect week (all passed daily goals hit) suggests a promotion; 2+ missed days suggests a demotion.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>';
+  renderRankShifts(weekLabel, rows);
+}
+
+function renderRankShifts(weekLabel, rows){
+  var container = document.getElementById('rankShifts');
+  if (!gtData || !gtData.rosterRanks) {
+    container.innerHTML = '<div class="rank-empty">Roster rank data not available.</div>';
+    return;
+  }
+  var rosterRanks = gtData.rosterRanks;
+  var shifts = [];
+  rows.forEach(function(r){
+    if (r.total === 0) return;
+    var currentRank = rosterRanks[r.name];
+    if (!currentRank) return;
+    var passed = 0, hit = 0;
+    DAYS.forEach(function(day){
+      if (!dayHasPassed(weekLabel, day)) return;
+      passed++;
+      if (r.days[day] >= DAILY_GOALS[day]) hit++;
+    });
+    var suggestion = suggestRank(currentRank, hit, passed);
+    if (suggestion.action !== 'hold' && suggestion.rank !== currentRank){
+      shifts.push({
+        name: r.name,
+        current: currentRank,
+        suggested: suggestion.rank,
+        hit: hit,
+        passed: passed,
+        action: suggestion.action
+      });
+    }
+  });
+  if (shifts.length === 0){
+    container.innerHTML = '<div class="rank-empty">No rank changes suggested for this week.</div>';
+    return;
+  }
+  shifts.sort(function(a, b){
+    var ai = RANK_ORDER.indexOf(a.current);
+    var bi = RANK_ORDER.indexOf(b.current);
+    if (ai !== bi) return ai - bi;
+    return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
+  });
+  var html = '<table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
+    shifts.map(function(s){
+      var cls = s.action === 'up' ? 'rank-up' : 'rank-down';
+      var actionText = s.action === 'up' ? 'Promote' : 'Demote';
+      return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
+    }).join('') + '</tbody></table>';
+  container.innerHTML = html;
 }
 
 function sortBy(col){
