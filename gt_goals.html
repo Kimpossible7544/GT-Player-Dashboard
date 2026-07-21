@@ -79,7 +79,8 @@ td.pname a:hover{color:var(--accent);}
 .rank-shifts-wrap .sub{font-size:0.75rem;color:var(--dim);margin-bottom:12px;}
 .rank-shifts-wrap{font-size:0.85rem;}
 .rank-shifts-summaries{display:flex;flex-wrap:wrap;gap:16px;}
-.rank-summary-col{flex:1;min-width:280px;max-width:100%;overflow-x:auto;}
+.rank-summary-col{flex:1;min-width:280px;max-width:100%;overflow-x:auto;-ms-overflow-style:none;scrollbar-width:none;}
+.rank-summary-col::-webkit-scrollbar{display:none;}
 .rank-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;}
 .rank-sum-title{font-size:1rem;margin-bottom:8px;}
 .rank-table{width:auto;max-width:100%;margin:0 auto;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
