@@ -557,8 +557,10 @@ async function loadGTData() {
   // BUILD ID -> PLAYER NAME LOOKUP FROM ROSTER SHEET
   // =========================================================
   // Roster layout: ID in cols A(0),E(4),I(8),M(12) — Player Name in B(1),F(5),J(9),N(13)
+  // Rank group headers are in the first row above each name column (R4/R5, R3, R2, R1).
   // =========================================================
   const idToPlayer = {};
+  const rosterRanks = {};
   const ROSTER_SHEET = "Roster";
 
   if (workbook.SheetNames.includes(ROSTER_SHEET)) {
@@ -569,15 +571,30 @@ async function loadGTData() {
 
     const idCols   = [0, 4, 8, 12];
     const nameCols = [1, 5, 9, 13];
+    const akaCols  = [3, 7, 11, 15];
+    const rankHeaders = rosterRows[0] ? [
+      rosterRows[0][1],
+      rosterRows[0][5],
+      rosterRows[0][9],
+      rosterRows[0][13]
+    ] : [];
 
-    for (let r = 1; r < rosterRows.length; r++) {
-      const row = rosterRows[r];
-      for (let s = 0; s < idCols.length; s++) {
+    for (let s = 0; s < idCols.length; s++) {
+      const header = String(rankHeaders[s] || "");
+      const rank = header.split(" - ")[0].trim() || null;
+      for (let r = 1; r < rosterRows.length; r++) {
+        const row = rosterRows[r];
         const id   = row[idCols[s]];
         const name = row[nameCols[s]];
+        const aka  = row[akaCols[s]];
         // Skip header row and non-numeric IDs
         if (id && name && !isNaN(Number(id))) {
           idToPlayer[Number(id)] = String(name).trim();
+          if (rank) {
+            const n = String(name).trim();
+            rosterRanks[n] = rank;
+            if (aka) rosterRanks[String(aka).trim()] = rank;
+          }
         }
       }
     }
@@ -686,6 +703,7 @@ async function loadGTData() {
     notPushingWeeks,
     serverHelpers,
     idToPlayer,
+    rosterRanks,
     DAILY_GOAL,
     WEEKLY_GOAL
   };
