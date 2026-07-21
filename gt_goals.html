@@ -80,11 +80,10 @@ td.pname a:hover{color:var(--accent);}
 .rank-shifts-wrap{font-size:0.85rem;}
 .rank-shifts-summaries{display:flex;flex-wrap:wrap;gap:16px;}
 .rank-summary-col{flex:1;min-width:0;max-width:100%;overflow:visible;}
-.rank-summary-col .rank-table{width:100%;table-layout:fixed;}
-.rank-summary-col .rank-table td{white-space:normal;word-break:break-word;}
-.rank-summary-col .rank-table th:first-child,.rank-summary-col .rank-table td:first-child{width:45%;}
-.rank-summary-col .rank-table th:nth-child(2),.rank-summary-col .rank-table td:nth-child(2){width:25%;}
-.rank-summary-col .rank-table th:nth-child(3),.rank-summary-col .rank-table td:nth-child(3){width:30%;}
+.rank-summary-col .rank-table{width:fit-content;min-width:0;max-width:100%;table-layout:auto;margin:0 auto;}
+.rank-summary-col .rank-table td{white-space:nowrap;word-break:normal;}
+.rank-summary-col .rank-table th,.rank-summary-col .rank-table td{padding:6px 2px;}
+.rank-summary-col .rank-table th:first-child,.rank-summary-col .rank-table td:first-child{padding:6px 2.5ch;text-align:center;}
 .rank-table-wrap .rank-table{width:100%;table-layout:fixed;}
 .rank-table-wrap .rank-table td{white-space:normal;word-break:break-word;}
 .rank-table-wrap .rank-table th:first-child,.rank-table-wrap .rank-table td:first-child{width:22%;}
