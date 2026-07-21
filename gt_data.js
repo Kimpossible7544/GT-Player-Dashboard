@@ -186,7 +186,8 @@ async function loadGTData() {
   // =========================================================
   let response;
   try {
-    response = await fetch(DROPBOX_URL);
+    const bustUrl = DROPBOX_URL + "&cb=" + Date.now();
+    response = await fetch(bustUrl, { cache: "no-store" });
   } catch (err) {
     console.error("[GT] Fetch failed:", err);
     throw new Error("Could not reach Dropbox. Details: " + err.message);
