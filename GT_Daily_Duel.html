@@ -4,6 +4,8 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GT — Daily Duel Blurb</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Oswald:wght@400;600;700&family=Inter:wght@400;500;600&display=swap');
 
@@ -428,6 +430,17 @@
     text-transform: uppercase;
   }
 
+  .missed-goals { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 16px; margin-top: 8px; }
+  .missed-day { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 16px; }
+  .missed-day-title { font-family: 'Oswald', sans-serif; font-size: 14px; letter-spacing: 1px; text-transform: uppercase; color: var(--orange); margin-bottom: 10px; }
+  .missed-list { list-style: none; margin: 0; padding: 0; }
+  .missed-list li { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+  .missed-list li:last-child { border-bottom: none; }
+  .missed-list span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .missed-empty { color: var(--muted); font-size: 14px; font-style: italic; }
+  .loading-msg { color: var(--muted); font-size: 14px; }
+  .loading-msg.error { color: #ff6b6b; }
+
   @media(max-width:500px) {
     .today-day-num { font-size: 48px; top: 16px; right: 16px; }
     .today-card { padding: 24px 20px; }
@@ -468,6 +481,9 @@
 
   <div class="section-label">Full 6-Day Schedule</div>
   <div class="schedule" id="schedule-overview"></div>
+
+  <div class="section-label">Missed Alliance Duel Goals (Current Week)</div>
+  <div id="missed-goals-container"><div class="loading-msg">Loading player data…</div></div>
 
   <div class="section-label">Daily Tips</div>
   <div class="tips">
@@ -657,6 +673,81 @@ if (saved !== null) {
 }
 
 update();
+
+// Load and display which players missed the current week's Alliance Duel daily goals
+const DUEL_GOALS = {
+  Monday: 6000000,
+  Tuesday: 3000000,
+  Wednesday: 4000000,
+  Thursday: 6000000,
+  Friday: 3000000
+};
+
+function fmtM(n) {
+  if (n === null || n === undefined || isNaN(n)) return '-';
+  return (Number(n) / 1000000).toFixed(2) + 'M';
+}
+
+async function loadAndRenderMissedGoals() {
+  const container = document.getElementById('missed-goals-container');
+  if (!container) return;
+
+  try {
+    if (typeof loadGTData !== 'function') {
+      container.innerHTML = '<div class="loading-msg error">Data loader not available.</div>';
+      return;
+    }
+
+    const data = await loadGTData();
+    if (!data || !data.currentWeekLabel) {
+      container.innerHTML = '<div class="loading-msg">No active week found.</div>';
+      return;
+    }
+
+    const weekIdx = data.dailyData.weekOrder.indexOf(data.currentWeekLabel);
+    if (weekIdx < 0) {
+      container.innerHTML = '<div class="loading-msg">Could not locate current week data.</div>';
+      return;
+    }
+
+    const missed = {};
+    for (const day of Object.keys(DUEL_GOALS)) {
+      missed[day] = [];
+      for (const name of Object.keys(data.dailyData.players)) {
+        const playerDays = data.dailyData.players[name];
+        if (!playerDays || !Array.isArray(playerDays[day])) continue;
+        const score = playerDays[day][weekIdx] || 0;
+        if (score < DUEL_GOALS[day]) {
+          missed[day].push({ name, score });
+        }
+      }
+      missed[day].sort((a, b) => a.score - b.score);
+    }
+
+    let html = '<div class="missed-goals">';
+    for (const day of Object.keys(DUEL_GOALS)) {
+      const players = missed[day];
+      html += `<div class="missed-day"><div class="missed-day-title">${day} — Goal ${fmtM(DUEL_GOALS[day])}</div>`;
+      if (players.length === 0) {
+        html += '<div class="missed-empty">All players hit the goal.</div>';
+      } else {
+        html += '<ul class="missed-list">';
+        for (const p of players) {
+          html += `<li><span>${p.name}</span><span>${fmtM(p.score)}</span></li>`;
+        }
+        html += '</ul>';
+      }
+      html += '</div>';
+    }
+    html += '</div>';
+    container.innerHTML = html;
+  } catch (err) {
+    console.error('[GT Daily Duel] Failed to load missed goals:', err);
+    container.innerHTML = `<div class="loading-msg error">Failed to load data: ${err.message}</div>`;
+  }
+}
+
+loadAndRenderMissedGoals();
 </script>
 
 </body>
