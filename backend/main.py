@@ -8,9 +8,30 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
-STATE_FILE = os.environ.get("STATE_FILE", "/data/state.json")
 API_KEY = os.environ.get("API_KEY", "GT2026")
 _lock = threading.Lock()
+
+
+def _writable_state_file():
+    candidates = [
+        os.environ.get("STATE_FILE", "/data/state.json"),
+        "/app/data/state.json",
+        "/tmp/state.json",
+    ]
+    for path in candidates:
+        try:
+            directory = os.path.dirname(path)
+            if directory:
+                os.makedirs(directory, exist_ok=True)
+            with open(path, "a", encoding="utf-8") as f:
+                pass
+            return path
+        except OSError:
+            continue
+    return "/tmp/state.json"
+
+
+STATE_FILE = _writable_state_file()
 
 
 def _ensure_dir(path: str) -> None:
