@@ -7,7 +7,7 @@
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <style>
-:root{--bg:#0a0a0f;--panel:#111118;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--accent4:#ff4466;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
+:root{--bg:#0a0a0f;--panel:#111118;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--accent4:#ff4466;--accent5:#ff6b1a;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;}
 body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 30% 20%,rgba(0,255,180,0.06) 0%,transparent 55%),radial-gradient(ellipse at 70% 80%,rgba(180,100,255,0.06) 0%,transparent 55%);pointer-events:none;z-index:0;}
@@ -25,6 +25,12 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-projections:hover{background:linear-gradient(135deg,rgba(180,100,255,0.25),rgba(180,100,255,0.1));border-color:var(--accent3);box-shadow:0 8px 30px rgba(180,100,255,0.2);}
 .btn-training{background:linear-gradient(135deg,rgba(255,68,102,0.15),rgba(255,68,102,0.05));color:var(--accent4);border-color:rgba(255,68,102,0.4);}
 .btn-training:hover{background:linear-gradient(135deg,rgba(255,68,102,0.25),rgba(255,68,102,0.1));border-color:var(--accent4);box-shadow:0 8px 30px rgba(255,68,102,0.2);}
+.btn-duel{background:linear-gradient(135deg,rgba(255,107,26,0.15),rgba(255,107,26,0.05));color:var(--accent5);border-color:rgba(255,107,26,0.4);display:none;}
+.btn-duel:hover{background:linear-gradient(135deg,rgba(255,107,26,0.25),rgba(255,107,26,0.1));border-color:var(--accent5);box-shadow:0 8px 30px rgba(255,107,26,0.2);}
+.landing-login{margin-top:24px;display:flex;gap:10px;justify-content:center;align-items:center;}
+.landing-login input{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:12px 16px;border-radius:8px;font-size:0.9rem;letter-spacing:2px;text-align:center;outline:none;}
+.landing-login button{background:var(--accent);color:var(--bg);border:none;padding:12px 20px;border-radius:8px;font-size:0.85rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;}
+.landing-msg{color:var(--accent4);font-size:0.8rem;margin-top:10px;min-height:18px;}
 @media(max-width:500px){.logo{max-width:300px;margin-bottom:36px;}.nav-btn{padding:12px 28px;font-size:0.85rem;}}
 </style>
 </head>
@@ -36,7 +42,35 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <a href="gt_dashboard.html" class="nav-btn btn-dashboard">Dashboard</a>
 <a href="gt_projections.html" class="nav-btn btn-projections">Projections</a>
 <a href="gt_training.html" class="nav-btn btn-training">Training</a>
+<a href="GT_Daily_Duel.html" class="nav-btn btn-duel" id="duelBtn">Daily Duel</a>
 </div>
+<div class="landing-login" id="loginWrap">
+<input type="password" id="loginInput" placeholder="Enter GT2026" maxlength="10" onkeydown="if(event.key==='Enter')unlockLanding()"/>
+<button onclick="unlockLanding()">Unlock</button>
+</div>
+<div class="landing-msg" id="loginMsg"></div>
+<script>
+const MASTER='GT2026';
+function showProtected(){
+  const btn=document.getElementById('duelBtn');
+  if(btn) btn.style.display='inline-block';
+  const wrap=document.getElementById('loginWrap');
+  if(wrap) wrap.style.display='none';
+}
+function unlockLanding(){
+  const v=document.getElementById('loginInput').value.trim();
+  const msg=document.getElementById('loginMsg');
+  if(v===MASTER){
+    sessionStorage.setItem('gt2026','1');
+    showProtected();
+    msg.textContent='';
+  } else {
+    msg.textContent='Invalid login.';
+    document.getElementById('loginInput').value='';
+  }
+}
+if(sessionStorage.getItem('gt2026')==='1') showProtected();
+</script>
 </div>
 </body>
 </html>

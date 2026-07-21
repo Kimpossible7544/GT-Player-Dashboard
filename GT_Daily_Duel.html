@@ -498,6 +498,12 @@
 </div>
 
 <script>
+(function(){
+  if(sessionStorage.getItem('gt2026')!=='1'){
+    location.href='index.html';
+    return;
+  }
+})();
 const DAYS = [
   {
     num: 1,
