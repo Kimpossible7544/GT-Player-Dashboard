@@ -373,7 +373,7 @@ function renderRankShifts(weekLabel, rows){
   shifts.sort(function(a, b){
     var ai = rankSortIndex(a.current);
     var bi = rankSortIndex(b.current);
-    if (ai !== bi) return ai - bi;
+    if (ai !== bi) return bi - ai; // R4/R5 first, then R3, R2, R1
     return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
   });
 
@@ -386,11 +386,30 @@ function renderRankShifts(weekLabel, rows){
     return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
   }
 
-  function summaryTable(title, items, cls){
-    if (!items.length) return '<h3 class="rank-sum-title" style="color:var(--dim);margin-top:16px;">' + title + '</h3><div class="rank-empty">None</div>';
-    return '<h3 class="rank-sum-title" style="color:' + (cls === 'rank-up' ? 'var(--accent)' : 'var(--red)') + ';margin-top:16px;">' + title + '</h3>' +
-      '<table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
-      items.map(rowHtml).join('') + '</tbody></table>';
+  function summaryActionText(s){
+    if (s.action === 'up') return 'Promote';
+    if (s.action === 'down') return 'Demote';
+    if (s.action === 'assign') return rankIndex(s.suggested) >= 2 ? 'Promote' : 'Demote';
+    return 'Hold';
+  }
+
+  function summaryRowHtml(s){
+    var actionText = summaryActionText(s);
+    var cls = actionText === 'Promote' ? 'rank-up' : 'rank-down';
+    return '<tr><td class="pname">' + s.name + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
+  }
+
+  function summaryTable(title, items, color){
+    var html = '<div style="flex:1;min-width:280px;">';
+    html += '<h3 class="rank-sum-title" style="color:' + color + ';margin-top:16px;">' + title + '</h3>';
+    if (!items.length){
+      html += '<div class="rank-empty">None</div>';
+    } else {
+      html += '<table class="rank-table"><thead><tr><th>Player</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
+        items.map(summaryRowHtml).join('') + '</tbody></table>';
+    }
+    html += '</div>';
+    return html;
   }
 
   var promotions = shifts.filter(function(s){ return s.action === 'up' || (s.action === 'assign' && rankIndex(s.suggested) >= 2); });
@@ -398,7 +417,7 @@ function renderRankShifts(weekLabel, rows){
   var fullTable = '<h3 class="rank-sum-title" style="color:var(--gold);margin-top:24px;">All Players</h3><table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
     shifts.map(rowHtml).join('') + '</tbody></table>';
 
-  container.innerHTML = summaryTable('Promote', promotions, 'rank-up') + summaryTable('Demote', demotions, 'rank-down') + fullTable;
+  container.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:16px;">' + summaryTable('Promote', promotions, 'var(--accent)') + summaryTable('Demote', demotions, 'var(--red)') + '</div>' + fullTable;
 }
 
 function sortBy(col){
