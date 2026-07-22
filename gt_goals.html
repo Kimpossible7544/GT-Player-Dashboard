@@ -386,6 +386,7 @@ function renderWeek(weekLabel){
     '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. 4/5 or 5/5 daily goals hit → R3; 3/5 or fewer → demote one rank. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
     '<div class="summary-grid">' + sumCards + '</div>' +
     '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
+    '<div id="rankShiftsFull"></div>' +
     '<div class="legend">' +
     '<span><b class="cell-hit">\u2713</b> hit goal</span>' +
     '<span><b class="cell-near">\u25CB</b> near miss (90%+)</span>' +
@@ -441,8 +442,10 @@ function saveRankState(weekLabel, player, status){
 
 function renderRankShifts(weekLabel, rows){
   var container = document.getElementById('rankShifts');
+  var fullContainer = document.getElementById('rankShiftsFull');
   if (!gtData || !gtData.rosterRanks) {
     container.innerHTML = '<div class="rank-empty">Roster rank data not available.</div>';
+    if (fullContainer) fullContainer.innerHTML = '';
     return;
   }
   var rosterRanks = gtData.rosterRanks;
@@ -517,7 +520,8 @@ function renderRankShifts(weekLabel, rows){
   var fullTable = '<h3 class="rank-sum-title" style="color:var(--gold);margin-top:24px;">All Players</h3><div class="rank-table-wrap"><table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th><th>Done</th></tr></thead><tbody>' +
     shifts.map(rowHtml).join('') + '</tbody></table></div>';
 
-  container.innerHTML = '<div class="rank-shifts-summaries">' + summaryTable('Promote', promotions, 'var(--accent)') + summaryTable('Demote', demotions, 'var(--red)') + '</div>' + fullTable;
+  container.innerHTML = '<div class="rank-shifts-summaries">' + summaryTable('Promote', promotions, 'var(--accent)') + summaryTable('Demote', demotions, 'var(--red)') + '</div>';
+  if (fullContainer) fullContainer.innerHTML = fullTable;
   attachRankStatus(weekLabel);
 }
 
