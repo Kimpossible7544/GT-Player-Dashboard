@@ -207,6 +207,44 @@ function parseArenaRow(row) {
   };
 }
 
+async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 800) {
+  let lastErr;
+  let delay = baseDelay;
+
+  for (let i = 0; i < retries; i++) {
+    const cacheBuster = (url.includes("?") ? "&" : "?") + "cb=" + Date.now();
+    const fullUrl = url + cacheBuster;
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
+
+    try {
+      const resp = await fetch(fullUrl, { ...options, cache: "no-store", signal: controller.signal });
+      clearTimeout(timeoutId);
+
+      if (resp.ok) return resp;
+
+      if (resp.status >= 400 && resp.status < 500 && resp.status !== 429) {
+        throw new Error(`Dropbox returned ${resp.status} ${resp.statusText}. Make sure the file is shared as 'Anyone with the link'.`);
+      }
+      throw new Error(`Dropbox returned ${resp.status} ${resp.statusText}.`);
+    } catch (err) {
+      clearTimeout(timeoutId);
+      if (err.name === "AbortError") {
+        lastErr = new Error("Dropbox took longer than 60 seconds to respond.");
+      } else {
+        lastErr = err;
+      }
+      if (i < retries - 1) {
+        console.warn(`[GT] Fetch attempt ${i + 1}/${retries} failed: ${lastErr.message}; retrying in ${delay}ms`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+      }
+    }
+  }
+
+  throw lastErr;
+}
+
 async function loadGTData() {
 
   // =========================================================
@@ -214,14 +252,14 @@ async function loadGTData() {
   // =========================================================
   const DROPBOX_URL =
     "https://dl.dropboxusercontent.com/scl/fi/twt9mo3vvvngnx2cgrht6/GTStatsFINAL.xlsm" +
-    "?rlkey=u2zj5dscvonfqvtgd0opaapvo";
+    "?rlkey=u2zj5dscvonfqvtgd0opaapvo&raw=1";
 
   // Previous team's workbook — used only to pull Arena/HQ power history for
   // players who were on BOTH teams (matched by roster ID) so their growth
   // spans both. See CROSS_TEAM_PLAYER_IDS below.
   const WPX_DROPBOX_URL =
     "https://dl.dropboxusercontent.com/scl/fi/dx7xgqmjshf8hciso3uya/WPXStatsFinal.xlsm" +
-    "?rlkey=oyw14lm3fod48uxygykdnixar";
+    "?rlkey=oyw14lm3fod48uxygykdnixar&raw=1";
 
   // Roster IDs (stable across teams) whose WPX Arena/HQ power history should be
   // merged into their GT growth card and shown as a legacy WPX History card.
@@ -252,10 +290,10 @@ async function loadGTData() {
   // =========================================================
   let response;
   try {
-    response = await fetch(DROPBOX_URL);
+    response = await fetchWithRetry(DROPBOX_URL);
   } catch (err) {
-    console.error("[GT] Fetch failed:", err);
-    throw new Error("Could not reach Dropbox. Details: " + err.message);
+    console.error("[GT] Fetch failed after retries:", err);
+    throw new Error("Could not reach Dropbox after multiple attempts. Details: " + err.message);
   }
 
   if (!response.ok) {
@@ -621,7 +659,7 @@ async function loadGTData() {
   // =========================================================
   if (WPX_DROPBOX_URL) {
     try {
-      const wpxResp = await fetch(WPX_DROPBOX_URL + "&cb=" + Date.now(), { cache: "no-store" });
+      const wpxResp = await fetchWithRetry(WPX_DROPBOX_URL);
       if (!wpxResp.ok) throw new Error(`WPX Dropbox returned ${wpxResp.status}`);
       const wpxWorkbook = XLSX.read(await wpxResp.arrayBuffer(), { type: "array", cellDates: true });
 
