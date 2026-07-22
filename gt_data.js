@@ -194,6 +194,7 @@ function parseArenaRow(row) {
     currentLevel,
     currentArena,
     currentHQ,
+    currentDate:        fmtCellDate(row[1]),
     firstLevel,
     firstArena,
     firstHQ,
@@ -223,8 +224,8 @@ async function loadGTData() {
     "?rlkey=oyw14lm3fod48uxygykdnixar";
 
   // Roster IDs (stable across teams) whose WPX Arena/HQ power history should be
-  // merged into their GT growth card.
-  const CROSS_TEAM_PLAYER_IDS = [1030]; // Kimpossible7544
+  // merged into their GT growth card and shown as a legacy WPX History card.
+  const CROSS_TEAM_PLAYER_IDS = [1007, 1030, 1056, 1087]; // SurvivorBias, Kimpossible7544, Addis, TurkeyG
 
   const PLAYER_TRACKING_SHEET = "Player Tracking";
   const WEEK_SETTINGS_SHEET   = "Week Settings";
@@ -680,6 +681,7 @@ async function loadGTData() {
           levelNote:         hasGtCurrent ? gtG.levelNote : wpxG.levelNote,
           crossTeam:         true
         };
+        players[gtName].wpxHistory = wpxG;
         console.log(`[GT] Merged WPX Arena/HQ power for cross-team player ${gtName} (ID ${id}).`);
       });
     } catch (err) {

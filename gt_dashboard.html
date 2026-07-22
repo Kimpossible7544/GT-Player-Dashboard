@@ -89,6 +89,24 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .gs-pos{color:var(--accent);}
 .gs-neg{color:var(--red);}
 .gs-neu{color:var(--dim);}
+/* WPX History card (legacy data, amber accent) */
+.wpx-history-card{background:var(--panel);border-radius:12px;padding:20px;border:1px solid var(--border);border-top:3px solid var(--gold);margin-bottom:28px;}
+.wpx-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
+.wpx-title{font-size:0.75rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--gold);}
+.wpx-dates{font-size:0.65rem;color:var(--dim);letter-spacing:0.5px;}
+.wpx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+@media(max-width:600px){.wpx-grid{grid-template-columns:1fr;}}
+.wpx-stat{background:var(--panel2);border-radius:10px;padding:14px 12px;border-left:3px solid var(--gold);}
+.wpx-label{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
+.wpx-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
+.wpx-sub{font-size:0.7rem;color:var(--dim);}
+.wpx-val{font-family:'Courier New',monospace;font-size:1rem;font-weight:900;color:var(--text);}
+.wpx-val.amber{color:var(--gold);}
+.wpx-arrow{font-size:0.75rem;color:var(--dim);text-align:center;padding:4px 0;}
+.wpx-delta{display:flex;align-items:center;gap:6px;margin-top:8px;padding-top:8px;border-top:1px solid var(--border);}
+.wpx-delta-label{font-size:0.65rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);}
+.wpx-delta-val{font-family:'Courier New',monospace;font-size:0.95rem;font-weight:900;}
+.wpx-note{font-size:0.65rem;color:var(--dim);margin-top:12px;font-style:italic;}
 /* Login screen */
 .login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
 .login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;}
@@ -145,6 +163,12 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <div id="growthCard" class="growth-card" style="display:none;">
   <div class="chart-title">Growth Since Joining</div>
   <div class="growth-grid" id="growthGrid"></div>
+</div>
+<!-- WPX History (legacy, amber accent) -->
+<div id="wpxHistoryCard" class="wpx-history-card" style="display:none;">
+  <div class="wpx-header"><span class="wpx-title">WPX History</span><span class="wpx-dates" id="wpxDates"></span></div>
+  <div class="wpx-grid" id="wpxGrid"></div>
+  <div class="wpx-note" id="wpxNote"></div>
 </div>
 <div class="charts-grid">
 <div class="chart-card"><div class="chart-title">Weekly Score Trend</div><div class="chart-wrap"><canvas id="scoreChart"></canvas></div></div>
@@ -321,6 +345,59 @@ function renderGrowthCard(p) {
     '</div>';
 }
 
+function renderWpxHistoryCard(p) {
+  var card = document.getElementById('wpxHistoryCard');
+  var grid = document.getElementById('wpxGrid');
+  var datesEl = document.getElementById('wpxDates');
+  var noteEl = document.getElementById('wpxNote');
+
+  if (!p.wpxHistory) { card.style.display = 'none'; return; }
+
+  var h = p.wpxHistory;
+  card.style.display = '';
+
+  var dateText = '';
+  if (h.baselineDate) dateText = 'Baseline ' + h.baselineDate;
+  if (h.currentDate && h.currentDate !== h.baselineDate) {
+    dateText += (dateText ? ' \u2014 ' : '') + h.currentDate;
+  }
+  datesEl.textContent = dateText;
+
+  var levelDelta = (h.currentLevel && h.firstLevel) ? h.currentLevel - h.firstLevel : null;
+  var levelDeltaFmt = levelDelta !== null
+    ? { text: (levelDelta > 0 ? '+' : '') + levelDelta, cls: levelDelta > 0 ? 'gs-pos' : levelDelta < 0 ? 'gs-neg' : 'gs-neu' }
+    : { text: '-', cls: 'gs-neu' };
+
+  var arenaDelta = fmtDelta(h.deltaArenaOverall);
+  var hqDelta    = fmtDelta(h.deltaHQOverall);
+
+  grid.innerHTML =
+    '<div class="wpx-stat">' +
+      '<div class="wpx-label">Level</div>' +
+      '<div class="wpx-row"><span class="wpx-sub">Then</span><span class="wpx-val amber">' + (h.firstLevel || '-') + '</span></div>' +
+      '<div class="wpx-arrow">\u2193</div>' +
+      '<div class="wpx-row"><span class="wpx-sub">Now</span><span class="wpx-val amber">' + (h.currentLevel || '-') + '</span></div>' +
+      '<div class="wpx-delta"><span class="wpx-delta-label">\u0394</span><span class="wpx-delta-val ' + levelDeltaFmt.cls + '">' + levelDeltaFmt.text + '</span></div>' +
+    '</div>' +
+    '<div class="wpx-stat">' +
+      '<div class="wpx-label">Arena Power</div>' +
+      '<div class="wpx-row"><span class="wpx-sub">Then</span><span class="wpx-val">' + fmtPower(h.firstArena) + '</span></div>' +
+      '<div class="wpx-arrow">\u2193</div>' +
+      '<div class="wpx-row"><span class="wpx-sub">Now</span><span class="wpx-val">' + fmtPower(h.currentArena) + '</span></div>' +
+      '<div class="wpx-delta"><span class="wpx-delta-label">\u0394</span><span class="wpx-delta-val ' + arenaDelta.cls + '">' + arenaDelta.text + '</span></div>' +
+    '</div>' +
+    '<div class="wpx-stat">' +
+      '<div class="wpx-label">HQ Power</div>' +
+      '<div class="wpx-row"><span class="wpx-sub">Then</span><span class="wpx-val">' + fmtPower(h.firstHQ) + '</span></div>' +
+      '<div class="wpx-arrow">\u2193</div>' +
+      '<div class="wpx-row"><span class="wpx-sub">Now</span><span class="wpx-val">' + fmtPower(h.currentHQ) + '</span></div>' +
+      '<div class="wpx-delta"><span class="wpx-delta-label">\u0394</span><span class="wpx-delta-val ' + hqDelta.cls + '">' + hqDelta.text + '</span></div>' +
+    '</div>';
+
+  noteEl.textContent = (h.levelNote && h.levelNote !== '-') ? h.levelNote : '';
+  noteEl.style.display = noteEl.textContent ? 'block' : 'none';
+}
+
 function loadPlayer(name) {
   var p = players[name];
   if (!p) { document.getElementById('statsGrid').innerHTML = '<div class="no-data">No data found</div>'; return; }
@@ -338,6 +415,7 @@ function loadPlayer(name) {
     '<div class="stat-card c7"><div class="stat-label">20M Weeks</div><div class="stat-value accent">' + p.weeks.filter(function (w) { return w.score >= 20000000; }).length + '</div></div>';
 
   renderGrowthCard(p);
+  renderWpxHistoryCard(p);
 
   var labels = p.weeks.map(function (w) { if (w.serverHelp) return w.label + ' \u2020'; return w.pushing === false ? w.label + ' *' : w.label; });
   var scores = p.weeks.map(function (w) { return w.score; });
