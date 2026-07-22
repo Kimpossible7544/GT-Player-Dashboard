@@ -225,7 +225,8 @@ async function loadGTData() {
 
   // Roster IDs (stable across teams) whose WPX Arena/HQ power history should be
   // merged into their GT growth card and shown as a legacy WPX History card.
-  const CROSS_TEAM_PLAYER_IDS = [1007, 1030, 1056, 1087]; // SurvivorBias, Kimpossible7544, Addis, TurkeyG
+  // Leave this array empty to auto-detect every ID that exists in both rosters.
+  const CROSS_TEAM_PLAYER_IDS = [];
 
   const PLAYER_TRACKING_SHEET = "Player Tracking";
   const WEEK_SETTINGS_SHEET   = "Week Settings";
@@ -615,9 +616,10 @@ async function loadGTData() {
   // their WPX Arena Power + HQ (personal) power history so their growth card
   // spans both teams. GT's own Arena Power data (once present) stays "current"
   // and the WPX baseline becomes the "starting" values; deltas are recomputed
-  // across the full span. Only affects CROSS_TEAM_PLAYER_IDS.
+  // across the full span. Auto-detects IDs present in both rosters unless
+  // CROSS_TEAM_PLAYER_IDS is explicitly populated.
   // =========================================================
-  if (CROSS_TEAM_PLAYER_IDS.length) {
+  if (WPX_DROPBOX_URL) {
     try {
       const wpxResp = await fetch(WPX_DROPBOX_URL + "&cb=" + Date.now(), { cache: "no-store" });
       if (!wpxResp.ok) throw new Error(`WPX Dropbox returned ${wpxResp.status}`);
@@ -651,7 +653,11 @@ async function loadGTData() {
 
       const diff = (a, b) => (a !== null && b !== null) ? Math.round((a - b) * 10) / 10 : null;
 
-      CROSS_TEAM_PLAYER_IDS.forEach(id => {
+      const crossTeamIds = CROSS_TEAM_PLAYER_IDS.length
+        ? CROSS_TEAM_PLAYER_IDS
+        : Object.keys(wpxIdToPlayer).filter(id => idToPlayer[id]);
+
+      crossTeamIds.forEach(id => {
         const gtName = idToPlayer[id];
         const wpxName = wpxIdToPlayer[id];
         if (!gtName || !wpxName || !players[gtName]) return;
