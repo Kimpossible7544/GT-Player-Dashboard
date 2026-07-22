@@ -92,6 +92,11 @@ td.pname a:hover{color:var(--accent);}
 .rank-table-wrap .rank-table th:nth-child(4),.rank-table-wrap .rank-table td:nth-child(4){width:15%;}
 .rank-table-wrap .rank-table th:nth-child(5),.rank-table-wrap .rank-table td:nth-child(5){width:33%;}
 .rank-status-check{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;}
+.day-icons{white-space:nowrap;text-align:center;}
+.day-icon{display:inline-block;width:1.1em;text-align:center;}
+.day-hit{color:var(--gold);}
+.day-miss{color:var(--red);}
+.day-future{color:var(--dim);font-size:0.6rem;}
 .rank-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;}
 .rank-sum-title{font-size:1rem;margin-bottom:8px;}
 .rank-table{width:auto;max-width:100%;margin:0 auto;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
@@ -454,11 +459,19 @@ function renderRankShifts(weekLabel, rows){
     var playerData = gtData.dailyData.players[r.name];
     var weeklyRank = playerData && playerData.rank ? playerData.rank[wIdx] : null;
     var currentRank = weeklyRank || rosterRanks[r.name] || 'Unknown';
-    var passed = 0, hit = 0;
+    var passed = 0, hit = 0, dayIcons = '';
     DAYS.forEach(function(day){
-      if (!dayHasPassed(weekLabel, day)) return;
+      if (!dayHasPassed(weekLabel, day)){
+        dayIcons += '<span class="day-icon day-future">–</span>';
+        return;
+      }
       passed++;
-      if (r.days[day] >= DAILY_GOALS[day]) hit++;
+      if (r.days[day] >= DAILY_GOALS[day]){
+        hit++;
+        dayIcons += '<span class="day-icon day-hit">★</span>';
+      } else {
+        dayIcons += '<span class="day-icon day-miss">✕</span>';
+      }
     });
     var suggestion = suggestRank(currentRank, hit, passed);
     shifts.push({
@@ -467,6 +480,7 @@ function renderRankShifts(weekLabel, rows){
       suggested: suggestion.rank,
       hit: hit,
       passed: passed,
+      dayIcons: dayIcons,
       action: suggestion.action
     });
   });
@@ -498,7 +512,7 @@ function renderRankShifts(weekLabel, rows){
   }
 
   function summaryRowHtml(s){
-    return '<tr><td class="pname">' + s.name + '</td><td>' + s.hit + '/' + s.passed + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
+    return '<tr><td class="pname">' + s.name + '</td><td class="day-icons">' + s.dayIcons + '</td><td>' + s.hit + '/' + s.passed + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
   }
 
   function summaryTable(title, items, color){
@@ -507,7 +521,7 @@ function renderRankShifts(weekLabel, rows){
     if (!items.length){
       html += '<div class="rank-empty">None</div>';
     } else {
-      html += '<table class="rank-table"><thead><tr><th>Player</th><th>Goal Days</th><th>Done</th></tr></thead><tbody>' +
+      html += '<table class="rank-table"><thead><tr><th>Player</th><th>Days</th><th>Goal Days</th><th>Done</th></tr></thead><tbody>' +
         items.map(summaryRowHtml).join('') + '</tbody></table>';
     }
     html += '</div>';
