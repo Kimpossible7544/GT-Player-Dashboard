@@ -90,8 +90,7 @@ td.pname a:hover{color:var(--accent);}
 .rank-table-wrap .rank-table th:nth-child(2),.rank-table-wrap .rank-table td:nth-child(2){width:15%;}
 .rank-table-wrap .rank-table th:nth-child(3),.rank-table-wrap .rank-table td:nth-child(3){width:15%;}
 .rank-table-wrap .rank-table th:nth-child(4),.rank-table-wrap .rank-table td:nth-child(4){width:15%;}
-.rank-table-wrap .rank-table th:nth-child(5),.rank-table-wrap .rank-table td:nth-child(5){width:15%;}
-.rank-table-wrap .rank-table th:nth-child(6),.rank-table-wrap .rank-table td:nth-child(6){width:18%;}
+.rank-table-wrap .rank-table th:nth-child(5),.rank-table-wrap .rank-table td:nth-child(5){width:33%;}
 .rank-status-check{width:18px;height:18px;accent-color:var(--accent);cursor:pointer;}
 .rank-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;}
 .rank-sum-title{font-size:1rem;margin-bottom:8px;}
@@ -488,7 +487,7 @@ function renderRankShifts(weekLabel, rows){
     else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
     else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
     else { cls = 'rank-up'; actionText = 'Set'; }
-    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
+    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
   }
 
   function summaryActionText(s){
@@ -517,7 +516,7 @@ function renderRankShifts(weekLabel, rows){
 
   var promotions = shifts.filter(function(s){ return s.action === 'up' || (s.action === 'assign' && rankIndex(s.suggested) >= 2); });
   var demotions  = shifts.filter(function(s){ return s.action === 'down' || (s.action === 'assign' && rankIndex(s.suggested) < 2); });
-  var fullTable = '<h3 class="rank-sum-title" style="color:var(--gold);margin-top:24px;">All Players</h3><div class="rank-table-wrap"><table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th><th>Done</th></tr></thead><tbody>' +
+  var fullTable = '<h3 class="rank-sum-title" style="color:var(--gold);margin-top:24px;">All Players</h3><div class="rank-table-wrap"><table class="rank-table"><thead><tr><th>Player</th><th>Current Rank</th><th>Suggested Rank</th><th>Goal Days</th><th>Action</th></tr></thead><tbody>' +
     shifts.map(rowHtml).join('') + '</tbody></table></div>';
 
   container.innerHTML = '<div class="rank-shifts-summaries">' + summaryTable('Promote', promotions, 'var(--accent)') + summaryTable('Demote', demotions, 'var(--red)') + '</div>';
