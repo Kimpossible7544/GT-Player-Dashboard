@@ -75,7 +75,7 @@ Private Sub BuildCrossTeamList(wsGTRoster As Worksheet, wsWpxRoster As Worksheet
     Set wpxMap = CreateObject("Scripting.Dictionary")
 
     Dim lastRow As Long, r As Long
-    lastRow = wsWpxRoster.Cells(wsWpxRoster.Rows.Count, 2).End(xlUp).Row
+    lastRow = MaxLastRow(wsWpxRoster, Array(2, 6, 10, 14))
     For r = 2 To lastRow
         Call AddToIdMap(wpxMap, wsWpxRoster, r, 1, 2)
         Call AddToIdMap(wpxMap, wsWpxRoster, r, 5, 6)
@@ -83,7 +83,7 @@ Private Sub BuildCrossTeamList(wsGTRoster As Worksheet, wsWpxRoster As Worksheet
         Call AddToIdMap(wpxMap, wsWpxRoster, r, 13, 14)
     Next r
 
-    lastRow = wsGTRoster.Cells(wsGTRoster.Rows.Count, 2).End(xlUp).Row
+    lastRow = MaxLastRow(wsGTRoster, Array(2, 6, 10, 14))
     For r = 2 To lastRow
         Call CheckAndAdd(coll, wsGTRoster, wpxMap, r, 1, 2)
         Call CheckAndAdd(coll, wsGTRoster, wpxMap, r, 5, 6)
@@ -257,6 +257,17 @@ Private Function FindNameRow(ws As Worksheet, name As String) As Long
         End If
     Next r
     FindNameRow = 0
+End Function
+
+Private Function MaxLastRow(ws As Worksheet, cols As Variant) As Long
+    Dim maxLr As Long, lr As Long, i As Long
+    maxLr = 0
+    For i = LBound(cols) To UBound(cols)
+        lr = ws.Cells(ws.Rows.Count, CLng(cols(i))).End(xlUp).Row
+        If lr > maxLr Then maxLr = lr
+    Next i
+    If maxLr < 2 Then maxLr = 2
+    MaxLastRow = maxLr
 End Function
 
 Private Function Nz(v As Variant, defaultVal As Variant) As Variant

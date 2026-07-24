@@ -261,7 +261,7 @@ End Sub
 
 Private Function GetRosterID(ws As Worksheet, player As String) As Long
     Dim lastRow As Long, r As Long
-    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    lastRow = MaxLastRow(ws, Array(2, 6, 10, 14))
     For r = 2 To lastRow
         If IsNumeric(ws.Cells(r, 1).Value) Then
             If Trim(LCase(CStr(Nz(ws.Cells(r, 2).Value, "")))) = LCase(player) Then
@@ -293,7 +293,7 @@ End Function
 
 Private Function GetWpxNameFromID(ws As Worksheet, pID As Long) As String
     Dim lastRow As Long, r As Long
-    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    lastRow = MaxLastRow(ws, Array(2, 6, 10, 14))
     For r = 2 To lastRow
         If IsNumeric(ws.Cells(r, 1).Value) Then
             If CLng(ws.Cells(r, 1).Value) = pID Then
@@ -333,6 +333,17 @@ Private Function FindNameRow(ws As Worksheet, name As String) As Long
         End If
     Next r
     FindNameRow = 0
+End Function
+
+Private Function MaxLastRow(ws As Worksheet, cols As Variant) As Long
+    Dim maxLr As Long, lr As Long, i As Long
+    maxLr = 0
+    For i = LBound(cols) To UBound(cols)
+        lr = ws.Cells(ws.Rows.Count, CLng(cols(i))).End(xlUp).Row
+        If lr > maxLr Then maxLr = lr
+    Next i
+    If maxLr < 2 Then maxLr = 2
+    MaxLastRow = maxLr
 End Function
 
 Private Function ParsePower(v As Variant) As Variant
