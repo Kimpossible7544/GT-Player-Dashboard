@@ -251,8 +251,8 @@ async function loadGTData() {
   // DROPBOX FILE LOCATION
   // =========================================================
   const DROPBOX_URL =
-    "https://dl.dropboxusercontent.com/scl/fi/twt9mo3vvvngnx2cgrht6/GTStatsFINAL.xlsm" +
-    "?rlkey=u2zj5dscvonfqvtgd0opaapvo&raw=1";
+    "https://dl.dropboxusercontent.com/scl/fi/wr3mw6b3avurhjeg759yy/GTStatsFINAL.xlsm" +
+    "?rlkey=l0vgltfg8plegl3ui34u5ux47&raw=1";
 
   // Previous team's workbook — used only to pull Arena/HQ power history for
   // players who were on BOTH teams (matched by roster ID) so their growth
