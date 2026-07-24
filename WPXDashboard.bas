@@ -263,21 +263,29 @@ Private Function GetRosterID(ws As Worksheet, player As String) As Long
     Dim lastRow As Long, r As Long
     lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
     For r = 2 To lastRow
-        If Trim(LCase(CStr(Nz(ws.Cells(r, 2).Value, "")))) = LCase(player) Then
-            GetRosterID = CLng(Nz(ws.Cells(r, 1).Value, 0))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 1).Value) Then
+            If Trim(LCase(CStr(Nz(ws.Cells(r, 2).Value, "")))) = LCase(player) Then
+                GetRosterID = CLng(ws.Cells(r, 1).Value)
+                Exit Function
+            End If
         End If
-        If Trim(LCase(CStr(Nz(ws.Cells(r, 6).Value, "")))) = LCase(player) Then
-            GetRosterID = CLng(Nz(ws.Cells(r, 5).Value, 0))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 5).Value) Then
+            If Trim(LCase(CStr(Nz(ws.Cells(r, 6).Value, "")))) = LCase(player) Then
+                GetRosterID = CLng(ws.Cells(r, 5).Value)
+                Exit Function
+            End If
         End If
-        If Trim(LCase(CStr(Nz(ws.Cells(r, 10).Value, "")))) = LCase(player) Then
-            GetRosterID = CLng(Nz(ws.Cells(r, 9).Value, 0))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 9).Value) Then
+            If Trim(LCase(CStr(Nz(ws.Cells(r, 10).Value, "")))) = LCase(player) Then
+                GetRosterID = CLng(ws.Cells(r, 9).Value)
+                Exit Function
+            End If
         End If
-        If Trim(LCase(CStr(Nz(ws.Cells(r, 14).Value, "")))) = LCase(player) Then
-            GetRosterID = CLng(Nz(ws.Cells(r, 13).Value, 0))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 13).Value) Then
+            If Trim(LCase(CStr(Nz(ws.Cells(r, 14).Value, "")))) = LCase(player) Then
+                GetRosterID = CLng(ws.Cells(r, 13).Value)
+                Exit Function
+            End If
         End If
     Next r
     GetRosterID = 0
@@ -287,21 +295,29 @@ Private Function GetWpxNameFromID(ws As Worksheet, pID As Long) As String
     Dim lastRow As Long, r As Long
     lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
     For r = 2 To lastRow
-        If CLng(Nz(ws.Cells(r, 1).Value, 0)) = pID Then
-            GetWpxNameFromID = CStr(Nz(ws.Cells(r, 2).Value, ""))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 1).Value) Then
+            If CLng(ws.Cells(r, 1).Value) = pID Then
+                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 2).Value, ""))
+                Exit Function
+            End If
         End If
-        If CLng(Nz(ws.Cells(r, 5).Value, 0)) = pID Then
-            GetWpxNameFromID = CStr(Nz(ws.Cells(r, 6).Value, ""))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 5).Value) Then
+            If CLng(ws.Cells(r, 5).Value) = pID Then
+                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 6).Value, ""))
+                Exit Function
+            End If
         End If
-        If CLng(Nz(ws.Cells(r, 9).Value, 0)) = pID Then
-            GetWpxNameFromID = CStr(Nz(ws.Cells(r, 10).Value, ""))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 9).Value) Then
+            If CLng(ws.Cells(r, 9).Value) = pID Then
+                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 10).Value, ""))
+                Exit Function
+            End If
         End If
-        If CLng(Nz(ws.Cells(r, 13).Value, 0)) = pID Then
-            GetWpxNameFromID = CStr(Nz(ws.Cells(r, 14).Value, ""))
-            Exit Function
+        If IsNumeric(ws.Cells(r, 13).Value) Then
+            If CLng(ws.Cells(r, 13).Value) = pID Then
+                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 14).Value, ""))
+                Exit Function
+            End If
         End If
     Next r
     GetWpxNameFromID = ""
