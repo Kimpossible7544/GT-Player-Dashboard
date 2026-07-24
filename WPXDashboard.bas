@@ -5,7 +5,7 @@ Attribute VB_Name = "WPXDashboard"
 ' is also in the WPX workbook.
 '
 ' It does NOT overwrite any existing GT data on the dashboard or in Arena Power.
-' It only writes to rows 8-13, columns B-G, and leaves the rest of the sheet alone.
+' It only writes to rows 8-16, columns B-G, and leaves the rest of the sheet alone.
 '
 ' To use:
 '   1. Import this module into GTStatsFINAL.xlsm (Alt+F11).
@@ -30,6 +30,7 @@ Public Sub ShowWPXHistoryOnDashboard()
     Dim wsGTRoster As Worksheet
     Dim wsWpxRoster As Worksheet
     Dim wsWpxAP As Worksheet
+    Dim wsWpxPT As Worksheet
     Dim wbWpx As Workbook
 
     Set wsDash = ThisWorkbook.Sheets("Player Dashboard")
@@ -61,9 +62,10 @@ Public Sub ShowWPXHistoryOnDashboard()
     On Error Resume Next
     Set wsWpxRoster = ThisWorkbook.Sheets("WPX_Roster")
     Set wsWpxAP = ThisWorkbook.Sheets("WPX_ArenaPower")
+    Set wsWpxPT = ThisWorkbook.Sheets("WPX_PlayerTracking")
     On Error GoTo 0
 
-    If wsWpxRoster Is Nothing Or wsWpxAP Is Nothing Then
+    If wsWpxRoster Is Nothing Or wsWpxAP Is Nothing Or wsWpxPT Is Nothing Then
         Dim f As Variant
         f = Application.GetOpenFilename( _
             "Excel Macro-Enabled Workbook (*.xlsm), *.xlsm", , _
@@ -74,10 +76,11 @@ Public Sub ShowWPXHistoryOnDashboard()
         Set wbWpx = Workbooks.Open(CStr(f), ReadOnly:=True)
         Set wsWpxRoster = wbWpx.Sheets("Roster")
         Set wsWpxAP = wbWpx.Sheets("Arena Power")
+        Set wsWpxPT = wbWpx.Sheets("Player Tracking")
         wpxWasOpen = True
     End If
 
-    Dim wpxName As String, wpxRow As Long
+    Dim wpxName As String, wpxRow As Long, wpxPTRow As Long
     wpxName = GetWpxNameFromID(wsWpxRoster, pID)
     If wpxName = "" Then
         Call ClearWPXArea(wsDash)
@@ -90,6 +93,21 @@ Public Sub ShowWPXHistoryOnDashboard()
         Call ClearWPXArea(wsDash)
         If wpxWasOpen Then wbWpx.Close SaveChanges:=False
         Exit Sub
+    End If
+
+    wpxPTRow = FindNameRow(wsWpxPT, wpxName)
+    Dim wpxOverallScore As Variant, wpxOverallRank As Variant
+    Dim wpxMissedDaily As Variant, wpxMissedWeekly As Variant
+    If wpxPTRow > 0 Then
+        wpxOverallScore = Nz(wsWpxPT.Cells(wpxPTRow, 3).Value, 0)
+        wpxOverallRank = Nz(wsWpxPT.Cells(wpxPTRow, 5).Value, "-")
+        wpxMissedDaily = Nz(wsWpxPT.Cells(wpxPTRow, 8).Value, 0)
+        wpxMissedWeekly = Nz(wsWpxPT.Cells(wpxPTRow, 9).Value, 0)
+    Else
+        wpxOverallScore = 0
+        wpxOverallRank = "-"
+        wpxMissedDaily = 0
+        wpxMissedWeekly = 0
     End If
 
     ' Read WPX current values and baseline
@@ -105,7 +123,7 @@ Public Sub ShowWPXHistoryOnDashboard()
 
     Call FindWpxBaseline(wsWpxAP, wpxRow, baseDate, baseLevel, baseArena, baseHQ)
 
-    ' Write to Player Dashboard rows 8-13 (below the GT top stats, does not touch them)
+    ' Write to Player Dashboard rows 8-16 (below the GT top stats, does not touch them)
     Call ClearWPXArea(wsDash)
     With wsDash
         .Range("B8").Value = "WPX HISTORY"
@@ -130,6 +148,21 @@ Public Sub ShowWPXHistoryOnDashboard()
         .Range("E11").Value = FormatDelta(CalcDelta(curArena, baseArena))
         .Range("F11").Value = "HQ "
         .Range("G11").Value = FormatDelta(CalcDelta(curHQ, baseHQ))
+
+        .Range("B13").Value = "WPX OVERALL"
+        .Range("B13").Font.Bold = True
+        .Range("B13").Font.Color = RGB(255, 200, 0)
+
+        .Range("B14").Value = "Overall Score"
+        .Range("C14").Value = wpxOverallScore
+        .Range("C14").NumberFormat = "#,##0"
+        .Range("D14").Value = "Overall Rank"
+        .Range("E14").Value = wpxOverallRank
+
+        .Range("B15").Value = "Missed Daily"
+        .Range("C15").Value = wpxMissedDaily
+        .Range("D15").Value = "Missed Weekly"
+        .Range("E15").Value = wpxMissedWeekly
     End With
 
     If wpxWasOpen Then
@@ -138,8 +171,8 @@ Public Sub ShowWPXHistoryOnDashboard()
     End If
 End Sub
 
-' Copies WPX Roster and Arena Power sheets into this workbook as hidden sheets
-' so ShowWPXHistoryOnDashboard() can use them without prompting every time.
+' Copies WPX Roster, Arena Power, and Player Tracking sheets into this workbook
+' as hidden sheets so ShowWPXHistoryOnDashboard() can use them without prompting every time.
 Public Sub ImportWPXData()
     Dim f As Variant
     Dim wbWpx As Workbook
@@ -168,6 +201,10 @@ Public Sub ImportWPXData()
     ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_Roster"
     ThisWorkbook.Sheets("WPX_Roster").Visible = xlSheetVeryHidden
 
+    wbWpx.Sheets("Player Tracking").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
+    ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_PlayerTracking"
+    ThisWorkbook.Sheets("WPX_PlayerTracking").Visible = xlSheetVeryHidden
+
     wbWpx.Close SaveChanges:=False
 
     Application.DisplayAlerts = True
@@ -178,9 +215,9 @@ End Sub
 
 ' Clears the WPX History display area on the Player Dashboard.
 Private Sub ClearWPXArea(ws As Worksheet)
-    ws.Range("B8:G13").ClearContents
+    ws.Range("B8:G16").ClearContents
     On Error Resume Next
-    ws.Range("B8:G13").Interior.ColorIndex = xlNone
+    ws.Range("B8:G16").Interior.ColorIndex = xlNone
     On Error GoTo 0
 End Sub
 
