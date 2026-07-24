@@ -1,11 +1,11 @@
 Attribute VB_Name = "WPXDashboard"
 ' WPXDashboard.bas
-' Adds a visible WPX History line/section to the existing "Player Dashboard" sheet
+' Adds a visible WPX data row and WPX History section to the existing "Player Dashboard" sheet
 ' in GTStatsFINAL.xlsm for the player selected in B3, if that player's roster ID
 ' is also in the WPX workbook.
 '
 ' It does NOT overwrite any existing GT data on the dashboard or in Arena Power.
-' It only writes to rows 8-16, columns B-G, and leaves the rest of the sheet alone.
+' It writes the WPX overall row at A7:F7 and the WPX History section at rows 9-12.
 '
 ' To use:
 '   1. Import this module into GTStatsFINAL.xlsm (Alt+F11).
@@ -96,16 +96,18 @@ Public Sub ShowWPXHistoryOnDashboard()
     End If
 
     wpxPTRow = FindNameRow(wsWpxPT, wpxName)
-    Dim wpxOverallScore As Variant, wpxOverallRank As Variant
-    Dim wpxMissedDaily As Variant, wpxMissedWeekly As Variant
+    Dim wpxOverallRank As Variant, wpxOverallScore As Variant
+    Dim wpxDailyAvg As Variant, wpxMissedDaily As Variant, wpxMissedWeekly As Variant
     If wpxPTRow > 0 Then
-        wpxOverallScore = Nz(wsWpxPT.Cells(wpxPTRow, 3).Value, 0)
         wpxOverallRank = Nz(wsWpxPT.Cells(wpxPTRow, 5).Value, "-")
+        wpxOverallScore = Nz(wsWpxPT.Cells(wpxPTRow, 3).Value, 0)
+        wpxDailyAvg = Nz(wsWpxPT.Cells(wpxPTRow, 7).Value, 0)
         wpxMissedDaily = Nz(wsWpxPT.Cells(wpxPTRow, 8).Value, 0)
         wpxMissedWeekly = Nz(wsWpxPT.Cells(wpxPTRow, 9).Value, 0)
     Else
-        wpxOverallScore = 0
         wpxOverallRank = "-"
+        wpxOverallScore = 0
+        wpxDailyAvg = 0
         wpxMissedDaily = 0
         wpxMissedWeekly = 0
     End If
@@ -123,46 +125,49 @@ Public Sub ShowWPXHistoryOnDashboard()
 
     Call FindWpxBaseline(wsWpxAP, wpxRow, baseDate, baseLevel, baseArena, baseHQ)
 
-    ' Write to Player Dashboard rows 8-16 (below the GT top stats, does not touch them)
+    ' Write WPX overall row at A7:F7 (same order as GT top stats, marked with WPX tag)
+    ' and WPX History section at rows 9-12. Existing GT top stats in rows 5-6 untouched.
     Call ClearWPXArea(wsDash)
     With wsDash
-        .Range("B8").Value = "WPX HISTORY"
-        .Range("B8").Font.Bold = True
-        .Range("B8").Font.Color = RGB(255, 200, 0)
+        .Range("A7").Value = "WPX"
+        .Range("A7").Font.Bold = True
+        .Range("A7").Font.Color = RGB(255, 200, 0)
 
-        .Range("B9").Value = "Baseline"
-        .Range("C9").Value = baseDate
-        .Range("D9").Value = "Level " & baseLevel
-        .Range("E9").Value = "Arena " & FormatPower(baseArena)
-        .Range("F9").Value = "HQ " & FormatPower(baseHQ)
+        .Range("B7").Value = wpxOverallRank
+        .Range("C7").Value = wpxOverallScore
+        .Range("C7").NumberFormat = "#,##0"
+        .Range("D7").Value = wpxDailyAvg
+        .Range("D7").NumberFormat = "#,##0.0"
+        .Range("E7").Value = wpxMissedDaily
+        .Range("F7").Value = wpxMissedWeekly
 
-        .Range("B10").Value = "WPX Current"
-        .Range("C10").Value = curDate
-        .Range("D10").Value = "Level " & curLevel
-        .Range("E10").Value = "Arena " & FormatPower(curArena)
-        .Range("F10").Value = "HQ " & FormatPower(curHQ)
+        ' Apply amber font to the WPX overall row to mark it as legacy WPX data
+        .Range("A7:F7").Font.Name = .Range("B6").Font.Name
+        .Range("A7:F7").Font.Size = .Range("B6").Font.Size
+        .Range("A7:F7").Font.Color = RGB(255, 200, 0)
 
-        .Range("B11").Value = "Level "
-        .Range("C11").Value = FormatDeltaNum(SafeDiff(curLevel, baseLevel))
-        .Range("D11").Value = "Arena "
-        .Range("E11").Value = FormatDelta(CalcDelta(curArena, baseArena))
-        .Range("F11").Value = "HQ "
-        .Range("G11").Value = FormatDelta(CalcDelta(curHQ, baseHQ))
+        .Range("B9").Value = "WPX HISTORY"
+        .Range("B9").Font.Bold = True
+        .Range("B9").Font.Color = RGB(255, 200, 0)
 
-        .Range("B13").Value = "WPX OVERALL"
-        .Range("B13").Font.Bold = True
-        .Range("B13").Font.Color = RGB(255, 200, 0)
+        .Range("B10").Value = "Baseline"
+        .Range("C10").Value = baseDate
+        .Range("D10").Value = "Level " & baseLevel
+        .Range("E10").Value = "Arena " & FormatPower(baseArena)
+        .Range("F10").Value = "HQ " & FormatPower(baseHQ)
 
-        .Range("B14").Value = "Overall Score"
-        .Range("C14").Value = wpxOverallScore
-        .Range("C14").NumberFormat = "#,##0"
-        .Range("D14").Value = "Overall Rank"
-        .Range("E14").Value = wpxOverallRank
+        .Range("B11").Value = "WPX Current"
+        .Range("C11").Value = curDate
+        .Range("D11").Value = "Level " & curLevel
+        .Range("E11").Value = "Arena " & FormatPower(curArena)
+        .Range("F11").Value = "HQ " & FormatPower(curHQ)
 
-        .Range("B15").Value = "Missed Daily"
-        .Range("C15").Value = wpxMissedDaily
-        .Range("D15").Value = "Missed Weekly"
-        .Range("E15").Value = wpxMissedWeekly
+        .Range("B12").Value = "Level "
+        .Range("C12").Value = FormatDeltaNum(SafeDiff(curLevel, baseLevel))
+        .Range("D12").Value = "Arena "
+        .Range("E12").Value = FormatDelta(CalcDelta(curArena, baseArena))
+        .Range("F12").Value = "HQ "
+        .Range("G12").Value = FormatDelta(CalcDelta(curHQ, baseHQ))
     End With
 
     If wpxWasOpen Then
@@ -191,6 +196,7 @@ Public Sub ImportWPXData()
     On Error Resume Next
     ThisWorkbook.Sheets("WPX_ArenaPower").Delete
     ThisWorkbook.Sheets("WPX_Roster").Delete
+    ThisWorkbook.Sheets("WPX_PlayerTracking").Delete
     On Error GoTo 0
 
     wbWpx.Sheets("Arena Power").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
@@ -215,9 +221,9 @@ End Sub
 
 ' Clears the WPX History display area on the Player Dashboard.
 Private Sub ClearWPXArea(ws As Worksheet)
-    ws.Range("B8:G16").ClearContents
+    ws.Range("A7:G16").ClearContents
     On Error Resume Next
-    ws.Range("B8:G16").Interior.ColorIndex = xlNone
+    ws.Range("A7:G16").Interior.ColorIndex = xlNone
     On Error GoTo 0
 End Sub
 
