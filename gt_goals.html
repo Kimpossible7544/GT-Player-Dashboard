@@ -550,9 +550,11 @@ async function init(){
     DAILY_GOALS = gtData.DAILY_GOALS || { Monday:6000000, Tuesday:3000000, Wednesday:4000000, Thursday:6000000, Friday:3000000 };
     WEEKLY_GOAL = gtData.WEEKLY_GOAL || 22000000;
 
-    // Week dropdown: newest first. Default = most recent COMPLETED week.
+    // Week dropdown: newest first. Default = current in-progress week.
     var weeks = gtData.dailyData.weekOrder.slice().reverse();
-    var defaultWeek = weeks.find(function(w){ return w !== gtData.currentWeekLabel; }) || weeks[0];
+    var defaultWeek = (gtData.currentWeekLabel && weeks.indexOf(gtData.currentWeekLabel) >= 0)
+      ? gtData.currentWeekLabel
+      : weeks[0];
     var sel = document.getElementById('weekSelect');
     sel.innerHTML = weeks.map(function(w){
       var tag = w === gtData.currentWeekLabel ? ' (in progress)' : '';
