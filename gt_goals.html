@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>GT — Weekly Goals</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -23,6 +26,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .header .sub{color:var(--dim);font-size:0.8rem;letter-spacing:1px;margin-top:4px;}
 .week-select{background:var(--panel);border:1px solid var(--gold);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.95rem;font-weight:700;font-family:inherit;outline:none;cursor:pointer;}
 .week-select option{background:var(--panel2);}
+.week-controls{display:flex;align-items:center;gap:10px;}
+.refresh-btn{background:var(--panel);border:1px solid var(--gold);color:var(--gold);padding:10px 16px;border-radius:8px;font-size:0.95rem;font-weight:700;font-family:inherit;cursor:pointer;}
+.refresh-btn:disabled{opacity:0.5;cursor:default;}
 .summary-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:12px;margin:20px 0 24px;}
 @media(max-width:900px){.summary-grid{grid-template-columns:repeat(3,1fr);}}
 @media(max-width:560px){.summary-grid{grid-template-columns:repeat(2,1fr);}}
@@ -113,6 +119,8 @@ td.pname{position:sticky;left:0;z-index:10;background:var(--panel);}
 @media(max-width:640px){
 .page-wrap{padding:12px;}
 .header{flex-direction:column;align-items:stretch;gap:12px;}
+.week-controls{width:100%;}
+.week-controls .week-select{flex:1;}
 .header h1{font-size:1.4rem;}
 .week-select{width:100%;}
 nav{padding:12px 16px;gap:8px;}
@@ -165,7 +173,10 @@ th,td{padding:7px 6px;}
 <h1>Weekly Goals</h1>
 <p class="sub" id="weekSub">Loading data...</p>
 </div>
+<div class="week-controls">
 <select class="week-select" id="weekSelect" onchange="renderWeek(this.value)"></select>
+<button class="refresh-btn" id="refreshBtn" onclick="refreshData()" title="Re-download the latest workbook from Dropbox">Refresh</button>
+</div>
 </div>
 
 <div id="content"><div class="loading"><div class="spinner"></div><br>Loading goal data...</div></div>
@@ -544,9 +555,13 @@ function sortBy(col){
   renderWeek(currentWeekLabelShown);
 }
 
-async function init(){
+var lastLoadTime = 0;
+var STALE_MS = 5 * 60 * 1000;
+
+async function init(keepWeek){
   try {
     gtData = await loadGTData();
+    lastLoadTime = Date.now();
     DAILY_GOALS = gtData.DAILY_GOALS || { Monday:6000000, Tuesday:3000000, Wednesday:4000000, Thursday:6000000, Friday:3000000 };
     WEEKLY_GOAL = gtData.WEEKLY_GOAL || 22000000;
 
@@ -555,6 +570,7 @@ async function init(){
     var defaultWeek = (gtData.currentWeekLabel && weeks.indexOf(gtData.currentWeekLabel) >= 0)
       ? gtData.currentWeekLabel
       : weeks[0];
+    if (keepWeek && weeks.indexOf(keepWeek) >= 0) defaultWeek = keepWeek;
     var sel = document.getElementById('weekSelect');
     sel.innerHTML = weeks.map(function(w){
       var tag = w === gtData.currentWeekLabel ? ' (in progress)' : '';
@@ -566,10 +582,28 @@ async function init(){
     document.getElementById('weekSub').textContent = 'Failed to load';
   }
 }
+async function refreshData(){
+  var btn = document.getElementById('refreshBtn');
+  if (btn){ btn.disabled = true; btn.textContent = 'Refreshing...'; }
+  await init(currentWeekLabelShown);
+  if (btn){ btn.disabled = false; btn.textContent = 'Refresh'; }
+}
+
 window.addEventListener('DOMContentLoaded', function(){
   if (sessionStorage.getItem('gtGoalsAuth') === '1') unlockGoals();
   else document.getElementById('loginInput').focus();
   init(); // data loads in the background while the code is entered
+});
+
+// A tab left open (or restored from the back/forward cache) keeps showing the
+// workbook as it was when the page first loaded; re-pull once it goes stale.
+document.addEventListener('visibilitychange', function(){
+  if (document.visibilityState === 'visible' && lastLoadTime && Date.now() - lastLoadTime > STALE_MS) {
+    refreshData();
+  }
+});
+window.addEventListener('pageshow', function(e){
+  if (e.persisted) refreshData();
 });
 </script>
 <script>
