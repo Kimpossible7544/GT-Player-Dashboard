@@ -242,12 +242,32 @@ function dayDate(weekLabel, day){
   return d;
 }
 
-// Has this day's date fully passed? (used so in-progress weeks don't count future days)
+var dayScoresCache = {};
+
+// True once any score has been recorded for this day of the week.
+function dayHasScores(weekLabel, day){
+  if (!gtData || !gtData.dailyData) return false;
+  var key = weekLabel + '|' + day;
+  if (key in dayScoresCache) return dayScoresCache[key];
+  var idx = gtData.dailyData.weekOrder.indexOf(weekLabel);
+  var players = gtData.dailyData.players;
+  var has = idx >= 0 && Object.keys(players).some(function(n){
+    var scores = players[n][day];
+    return scores && scores[idx] > 0;
+  });
+  dayScoresCache[key] = has;
+  return has;
+}
+
+// Should this day count towards the week? True once its date has fully passed
+// in the viewer's timezone, or as soon as scores for it are in the workbook —
+// otherwise viewers west of the game's clock see the latest day as "future".
 function dayHasPassed(weekLabel, day){
   var d = dayDate(weekLabel, day);
   if (!d) return true;
   var end = new Date(d); end.setDate(end.getDate() + 1);
-  return new Date() >= end;
+  if (new Date() >= end) return true;
+  return dayHasScores(weekLabel, day);
 }
 
 // Current goal-hit streak: consecutive goal-met days across pushing weeks,
@@ -562,6 +582,7 @@ async function init(keepWeek){
   try {
     gtData = await loadGTData();
     lastLoadTime = Date.now();
+    dayScoresCache = {};
     DAILY_GOALS = gtData.DAILY_GOALS || { Monday:6000000, Tuesday:3000000, Wednesday:4000000, Thursday:6000000, Friday:3000000 };
     WEEKLY_GOAL = gtData.WEEKLY_GOAL || 22000000;
 
