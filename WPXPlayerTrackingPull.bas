@@ -13,10 +13,19 @@ Attribute VB_Name = "WPXPlayerTrackingPull"
 ' "Player Tracking" sheet on purpose: the WPX week labels are older weeks and
 ' gt_data.js would read them as GT weeks and skew ranks, averages and streaks.
 '
+' Two ways to run it:
+'   A. Button mode - go to the sheet that lists player IDs in column B, run
+'      AddWPXPullButton() once to drop a "Pull WPX Data" button on it, then
+'      click that button any time. Each ID in column B is looked up in the WPX
+'      workbook and that player's WPX Player Tracking data is filled in across
+'      their row, starting two columns past the sheet's existing content.
+'   B. Whole-roster mode - run PullWPXPlayerTracking() to build a standalone
+'      "WPX Player Tracking" sheet for every cross-team player.
+'
 ' To use:
 '   1. Open GTStatsFINAL.xlsm.
 '   2. Alt+F11 > File > Import File > WPXPlayerTrackingPull.bas
-'   3. Run PullWPXPlayerTracking() from the macro list.
+'   3. Run AddWPXPullButton() (button mode) or PullWPXPlayerTracking().
 '   4. Pick WPXStatsFinal.xlsm if prompted (auto-found if it sits in the
 '      same folder, or if WPX_PlayerTracking / WPX_Roster sheets are
 '      already embedded by WPXDashboard.ImportWPXData).
@@ -43,6 +52,138 @@ Private Const WPX_PT_SHEET    As String = "Player Tracking"
 Private Const WPX_ROSTER      As String = "Roster"
 Private Const GT_ROSTER       As String = "Roster"
 Private Const WPX_FILE_NAME   As String = "WPXStatsFinal.xlsm"
+
+' Button mode (PullWPXForListedIDs): where the IDs live and where the pulled
+' data is written. ID_COL 2 = column B. FILL_START_COL 0 = start two columns
+' past whatever the sheet already uses; set a number to pin it.
+Private Const ID_COL          As Long = 2
+Private Const HEADER_ROW      As Long = 1
+Private Const FILL_START_COL  As Long = 0
+
+' Puts a "Pull WPX Data" button on the active sheet, wired to
+' PullWPXForListedIDs. Run once; the button is saved with the workbook.
+Public Sub AddWPXPullButton()
+    Dim ws As Worksheet
+    Set ws = ActiveSheet
+
+    Dim shp As Shape
+    On Error Resume Next
+    ws.Shapes("btnPullWPXData").Delete
+    On Error GoTo 0
+
+    Set shp = ws.Shapes.AddShape(msoShapeRoundedRectangle, 8, 8, 140, 28)
+    shp.Name = "btnPullWPXData"
+    shp.Fill.ForeColor.RGB = RGB(0, 90, 160)
+    shp.Line.ForeColor.RGB = RGB(0, 60, 110)
+    With shp.TextFrame2.TextRange
+        .Text = "Pull WPX Data"
+        .Font.Size = 11
+        .Font.Bold = msoTrue
+        .Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+    End With
+    shp.TextFrame2.VerticalAnchor = msoAnchorMiddle
+    shp.TextFrame2.HorizontalAnchor = msoAnchorCenter
+    shp.OnAction = "PullWPXForListedIDs"
+
+    MsgBox "Button added to """ & ws.Name & """. Click it to pull WPX data " & _
+           "for the IDs in column " & Split(ws.Cells(1, ID_COL).Address(True, False), "$")(0) & ".", _
+           vbInformation
+End Sub
+
+' Button target: reads every player ID in column B of the sheet the button is
+' on and fills that player's WPX Player Tracking data in across their row.
+' Rows whose ID has no WPX match are left untouched.
+Public Sub PullWPXForListedIDs()
+    Dim ws As Worksheet
+    Set ws = ActiveSheet
+
+    Dim wsWpxRoster As Worksheet, wsWpxPT As Worksheet
+    Dim wbWpx As Workbook
+    Dim wpxWasOpened As Boolean
+    If Not GetWpxSheets(wsWpxRoster, wsWpxPT, wbWpx, wpxWasOpened) Then Exit Sub
+
+    Application.ScreenUpdating = False
+    Application.DisplayAlerts = False
+
+    Dim wpxMap As Object
+    Set wpxMap = BuildWpxIdMap(wsWpxRoster)
+
+    Dim srcLastCol As Long
+    srcLastCol = wsWpxPT.Cells(1, wsWpxPT.Columns.Count).End(xlToLeft).Column
+
+    Dim startCol As Long
+    startCol = FillStartColumn(ws, srcLastCol)
+
+    ' Header labels come straight from the WPX Player Tracking header row.
+    Dim c As Long
+    ws.Cells(HEADER_ROW, startCol).Value = "WPX Player"
+    For c = 1 To srcLastCol
+        ws.Cells(HEADER_ROW, startCol + c).Value = wsWpxPT.Cells(1, c).Value
+    Next c
+    ws.Range(ws.Cells(HEADER_ROW, startCol), ws.Cells(HEADER_ROW, startCol + srcLastCol)).Font.Bold = True
+
+    Dim lastRow As Long, r As Long
+    lastRow = ws.Cells(ws.Rows.Count, ID_COL).End(xlUp).Row
+
+    Dim filled As Long, noMatch As Long, noRow As Long
+    For r = HEADER_ROW + 1 To lastRow
+        Dim id As String
+        id = ParseId(ws.Cells(r, ID_COL).Value)
+        If id <> "" Then
+            If Not wpxMap.Exists(id) Then
+                noMatch = noMatch + 1
+            Else
+                Dim wpxName As String, wpxRow As Long
+                wpxName = CStr(wpxMap(id))
+                wpxRow = FindPlayerRow(wsWpxPT, wpxName, "")
+                If wpxRow = 0 Then
+                    noRow = noRow + 1
+                Else
+                    ws.Cells(r, startCol).Value = wpxName
+                    Call CopyTrackingRow(wsWpxPT, wpxRow, srcLastCol, ws, r, startCol)
+                    filled = filled + 1
+                End If
+            End If
+        End If
+    Next r
+
+    If wpxWasOpened Then wbWpx.Close SaveChanges:=False
+
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+
+    MsgBox "WPX data filled in for " & filled & " player(s), starting at column " & _
+           Split(ws.Cells(1, startCol).Address(True, False), "$")(0) & "." & vbCrLf & _
+           "IDs not on the WPX Roster: " & noMatch & vbCrLf & _
+           "IDs matched but with no WPX Player Tracking row: " & noRow, _
+           vbInformation, "Done"
+End Sub
+
+' First column to write into: FILL_START_COL when set, otherwise two columns
+' past the sheet's current content. Re-running reuses the same block instead
+' of walking further right each time.
+Private Function FillStartColumn(ws As Worksheet, srcLastCol As Long) As Long
+    If FILL_START_COL > 0 Then
+        FillStartColumn = FILL_START_COL
+        Exit Function
+    End If
+
+    Dim c As Long, lastCol As Long
+    lastCol = ws.Cells(HEADER_ROW, ws.Columns.Count).End(xlToLeft).Column
+
+    ' Reuse the previous block if this sheet was already filled in.
+    For c = 1 To lastCol
+        If CleanText(ws.Cells(HEADER_ROW, c).Value) = "WPX Player" Then
+            FillStartColumn = c
+            Exit Function
+        End If
+    Next c
+
+    If ws.UsedRange.Columns.Count + ws.UsedRange.Column - 1 > lastCol Then
+        lastCol = ws.UsedRange.Columns.Count + ws.UsedRange.Column - 1
+    End If
+    FillStartColumn = lastCol + 2
+End Function
 
 Public Sub PullWPXPlayerTracking()
     Dim wsGTRoster As Worksheet
@@ -100,7 +241,7 @@ Public Sub PullWPXPlayerTracking()
             wsDest.Cells(destRow, 1).Value = p(0)
             wsDest.Cells(destRow, 2).Value = p(2)
             wsDest.Cells(destRow, 3).Value = p(1)
-            Call CopyTrackingRow(wsWpxPT, wpxRow, lastCol, wsDest, destRow)
+            Call CopyTrackingRow(wsWpxPT, wpxRow, lastCol, wsDest, destRow, 3)
             written = written + 1
         End If
     Next i
@@ -217,14 +358,14 @@ End Sub
 ' Copies one WPX Player Tracking row, skipping cells with no real data so
 ' weeks outside the player's WPX tenure stay blank rather than zero.
 Private Sub CopyTrackingRow(wsSrc As Worksheet, rSrc As Long, lastCol As Long, _
-    wsDst As Worksheet, rDst As Long)
+    wsDst As Worksheet, rDst As Long, colOffset As Long)
 
     Dim c As Long, v As Variant
     For c = 1 To lastCol
         v = wsSrc.Cells(rSrc, c).Value
         If HasData(v) Then
-            wsDst.Cells(rDst, c + 3).Value = v
-            wsDst.Cells(rDst, c + 3).NumberFormat = wsSrc.Cells(rSrc, c).NumberFormat
+            wsDst.Cells(rDst, colOffset + c).Value = v
+            wsDst.Cells(rDst, colOffset + c).NumberFormat = wsSrc.Cells(rSrc, c).NumberFormat
         End If
     Next c
 End Sub
