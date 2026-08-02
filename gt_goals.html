@@ -230,22 +230,12 @@ function fmtM(v){ return (v/1000000).toFixed(v % 1000000 === 0 ? 0 : 1) + 'M'; }
 function fmtScore(v){ return v ? v.toLocaleString() : '0'; }
 function escAttr(s){ return String(s || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;'); }
 
-// Parse the calendar date of a given day within a week label like "Jul 13 - Jul 17"
-function dayDate(weekLabel, day){
-  var startPart = weekLabel.replace(/ - .+/, '').trim();
-  var d = new Date(startPart + ', ' + new Date().getFullYear());
-  if (isNaN(d.getTime())) return null;
-  var now = new Date();
-  if (d - now > 180*24*60*60*1000) d = new Date(startPart + ', ' + (new Date().getFullYear()-1));
-  var offsets = { Monday:0, Tuesday:1, Wednesday:2, Thursday:3, Friday:4 };
-  d.setDate(d.getDate() + (offsets[day] || 0));
-  return d;
-}
-
 var dayScoresCache = {};
 
-// True once any score has been recorded for this day of the week.
-function dayHasScores(weekLabel, day){
+// Should this day count towards the week? Only once its scores have been
+// entered — a day whose data is still missing is neither hit nor missed, so a
+// player who hit Mon-Thu shows 4/4 while Friday is unrecorded, not 4/5.
+function dayHasData(weekLabel, day){
   if (!gtData || !gtData.dailyData) return false;
   var key = weekLabel + '|' + day;
   if (key in dayScoresCache) return dayScoresCache[key];
@@ -259,19 +249,8 @@ function dayHasScores(weekLabel, day){
   return has;
 }
 
-// Should this day count towards the week? True once its date has fully passed
-// in the viewer's timezone, or as soon as scores for it are in the workbook —
-// otherwise viewers west of the game's clock see the latest day as "future".
-function dayHasPassed(weekLabel, day){
-  var d = dayDate(weekLabel, day);
-  if (!d) return true;
-  var end = new Date(d); end.setDate(end.getDate() + 1);
-  if (new Date() >= end) return true;
-  return dayHasScores(weekLabel, day);
-}
-
 // Current goal-hit streak: consecutive goal-met days across pushing weeks,
-// counting back from the most recent day that has passed. Resting weeks are
+// counting back from the most recent day with data. Resting weeks are
 // skipped (they neither extend nor break the streak). A miss or absence breaks it.
 function calcStreak(name){
   var dd = gtData.dailyData;
@@ -282,7 +261,7 @@ function calcStreak(name){
   dd.weekOrder.forEach(function(wk, wIdx){
     if (np.has(wk)) return;
     DAYS.forEach(function(day){
-      if (!dayHasPassed(wk, day)) return;
+      if (!dayHasData(wk, day)) return;
       timeline.push({ score: (pd[day] && pd[day][wIdx]) || 0, goal: DAILY_GOALS[day] });
     });
   });
@@ -305,13 +284,13 @@ function rankIndex(rank){
   return RANK_ORDER.indexOf(rank);
 }
 
-function suggestRank(currentRank, hitDays, passedDays){
-  if (passedDays === 0) return { rank: currentRank || '\u2014', action: 'hold' };
+function suggestRank(currentRank, hitDays, recordedDays){
+  if (recordedDays === 0) return { rank: currentRank || '\u2014', action: 'hold' };
   // R4/R5 players (including separate R4/R5 entries) are above the active tiers and always hold.
   if (TOP_RANKS.indexOf(String(currentRank || '').trim().toUpperCase()) >= 0) return { rank: currentRank, action: 'hold' };
   var cIdx = rankIndex(currentRank);
-  // At most one miss (with at least one day passed) keeps the player at R3.
-  var metThreshold = passedDays > 1 ? passedDays - 1 : 1;
+  // At most one miss (with at least one day recorded) keeps the player at R3.
+  var metThreshold = recordedDays > 1 ? recordedDays - 1 : 1;
   var targetRank;
   if (hitDays >= metThreshold){
     targetRank = 'R3';
@@ -341,9 +320,9 @@ function buildWeekRows(weekLabel){
       total += s;
     });
     var clutch = CLUTCH_DAYS.every(function(day){
-      // only judge clutch on days that have actually passed (fair to in-progress weeks)
-      return !dayHasPassed(weekLabel, day) || dayScores[day] >= DAILY_GOALS[day];
-    }) && CLUTCH_DAYS.some(function(day){ return dayHasPassed(weekLabel, day) && dayScores[day] >= DAILY_GOALS[day]; });
+      // only judge clutch on days whose scores are in (fair to in-progress weeks)
+      return !dayHasData(weekLabel, day) || dayScores[day] >= DAILY_GOALS[day];
+    }) && CLUTCH_DAYS.some(function(day){ return dayHasData(weekLabel, day) && dayScores[day] >= DAILY_GOALS[day]; });
     rows.push({ name: name, days: dayScores, total: total, clutch: clutch, streak: calcStreak(name) });
   });
   return rows;
@@ -351,9 +330,9 @@ function buildWeekRows(weekLabel){
 
 function cellHtml(weekLabel, day, score){
   var goal = DAILY_GOALS[day];
-  var passed = dayHasPassed(weekLabel, day);
+  var hasData = dayHasData(weekLabel, day);
   var mark, cls;
-  if (!passed && score === 0){ mark = '\u00b7'; cls = 'cell-zero'; }        // day not played yet
+  if (!hasData && score === 0){ mark = '\u00b7'; cls = 'cell-zero'; }       // scores not entered yet
   else if (score >= goal){ mark = '\u2713'; cls = 'cell-hit'; }             // hit
   else if (score >= goal * 0.9){ mark = '\u25CB'; cls = 'cell-near'; }      // near miss (90%+)
   else if (score > 0){ mark = '\u2717'; cls = 'cell-miss'; }                // miss
@@ -371,7 +350,7 @@ function renderWeek(weekLabel){
   var activeRows = rows.filter(function(r){ return r.total > 0; });
   var denom = activeRows.length || 1;
   var sumCards = DAYS.map(function(day){
-    if (!dayHasPassed(weekLabel, day)){
+    if (!dayHasData(weekLabel, day)){
       return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(DAILY_GOALS[day]) + '</div><div class="sum-value" style="color:var(--dim)">\u2014</div><div class="sum-count">not yet</div></div>';
     }
     var hits = activeRows.filter(function(r){ return r.days[day] >= DAILY_GOALS[day]; }).length;
@@ -418,7 +397,7 @@ function renderWeek(weekLabel){
     (np.has(weekLabel) ? ' <span style="color:var(--accent3)">(resting week — goals informational only)</span>' : '');
 
   document.getElementById('content').innerHTML =
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. 4/5 or 5/5 daily goals hit → R3; 3/5 or fewer → demote one rank. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: all but one of them hit → R3; more than one miss → demote one rank. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
     '<div class="summary-grid">' + sumCards + '</div>' +
     '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
     '<div id="rankShiftsFull"></div>' +
@@ -490,13 +469,13 @@ function renderRankShifts(weekLabel, rows){
     var playerData = gtData.dailyData.players[r.name];
     var weeklyRank = playerData && playerData.rank ? playerData.rank[wIdx] : null;
     var currentRank = weeklyRank || rosterRanks[r.name] || 'Unknown';
-    var passed = 0, hit = 0, dayIcons = '';
+    var recorded = 0, hit = 0, dayIcons = '';
     DAYS.forEach(function(day){
-      if (!dayHasPassed(weekLabel, day)){
+      if (!dayHasData(weekLabel, day)){
         dayIcons += '<span class="day-icon day-future">–</span>';
         return;
       }
-      passed++;
+      recorded++;
       if (r.days[day] >= DAILY_GOALS[day]){
         hit++;
         dayIcons += '<span class="day-icon day-hit">★</span>';
@@ -504,13 +483,13 @@ function renderRankShifts(weekLabel, rows){
         dayIcons += '<span class="day-icon day-miss">✕</span>';
       }
     });
-    var suggestion = suggestRank(currentRank, hit, passed);
+    var suggestion = suggestRank(currentRank, hit, recorded);
     shifts.push({
       name: r.name,
       current: currentRank,
       suggested: suggestion.rank,
       hit: hit,
-      passed: passed,
+      recorded: recorded,
       dayIcons: dayIcons,
       action: suggestion.action
     });
@@ -532,7 +511,7 @@ function renderRankShifts(weekLabel, rows){
     else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
     else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
     else { cls = 'rank-up'; actionText = 'Set'; }
-    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.passed + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
+    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.recorded + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
   }
 
   function summaryActionText(s){
@@ -543,7 +522,7 @@ function renderRankShifts(weekLabel, rows){
   }
 
   function summaryRowHtml(s){
-    return '<tr><td class="pname">' + s.name + '</td><td class="day-icons">' + s.dayIcons + '</td><td>' + s.hit + '/' + s.passed + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
+    return '<tr><td class="pname">' + s.name + '</td><td class="day-icons">' + s.dayIcons + '</td><td>' + s.hit + '/' + s.recorded + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
   }
 
   function summaryTable(title, items, color){
