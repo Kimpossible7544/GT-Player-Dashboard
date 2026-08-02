@@ -11,10 +11,11 @@ Attribute VB_Name = "WPXHistorySheet"
 ' to Player Tracking column CL by name, and existing rows are updated in place
 ' so the sheet's row order, notes and any hand-kept columns survive.
 '
-' Scores come from the WPX Player Tracking row where the player has one, and
-' from the WPX weekly sheets (name in A, weekly total in L, ID in V) for any
-' week that row is missing - players who left mid-season were often never rolled
-' up onto WPX Player Tracking at all.
+' Scores come from the "WPX Player Tracking" sheet in this workbook when there
+' is one, otherwise from the Player Tracking sheet in WPXStatsFinal.xlsm. In the
+' latter case the WPX weekly sheets (name in A, weekly total in L, ID in V) top
+' up any week that row is missing - players who left mid-season were often never
+' rolled up onto WPX Player Tracking at all.
 '
 ' The header row drives placement: each header is matched against the stats
 ' below, so the layout can be anything. Per-week columns named
@@ -36,8 +37,9 @@ Attribute VB_Name = "WPXHistorySheet"
 '   3. Alt+F8 > RefreshWPXHistorySheet. When a player stays blank, run
 '      DiagnoseWPXHistoryPlayer and give it their ID or name - it reports where
 '      they were and were not found in the WPX workbook.
-'   4. Pick WPXStatsFinal.xlsm when prompted (skipped when it sits in the same
-'      folder as GTStatsFINAL.xlsm).
+'   4. Pick WPXStatsFinal.xlsm when prompted. There is no prompt when this
+'      workbook holds a "WPX Player Tracking" sheet (that copy is used instead)
+'      or when the file sits in the same folder as GTStatsFINAL.xlsm.
 
 Option Explicit
 
@@ -47,6 +49,10 @@ Private Const HIST_SHEET    As String = "WPX History"
 Private Const WPX_PT_SHEET  As String = "Player Tracking"
 Private Const WPX_FILE      As String = "WPXStatsFinal.xlsm"
 Private Const ALLIANCE_TAG  As String = "WPX"
+
+' A copy of the WPX tracking data living in this workbook is used in preference
+' to opening WPXStatsFinal.xlsm. First name that exists wins.
+Private Const LOCAL_WPX_SHEETS As String = "WPX Player Tracking|WPX_PlayerTracking|WPX Tracking|WPX Player Tracking New"
 
 ' Stat keys.
 Private Const F_ID       As String = "ID"
@@ -124,20 +130,24 @@ Public Sub ListWPXHistoryHeaders()
 End Sub
 
 ' Reports, for one player, exactly where the macro does and does not find them
-' in the WPX workbook. Run it when a row stays blank.
+' in the WPX data. Run it when a row stays blank.
 Public Sub DiagnoseWPXHistoryPlayer()
     Dim answer As String
-    answer = Trim$(InputBox("Player ID or name to look up in " & WPX_FILE & ":", "WPX diagnosis"))
+    answer = Trim$(InputBox("Player ID or name to look up in the WPX data:", "WPX diagnosis"))
     If answer = "" Then Exit Sub
 
     Dim wbWpx As Workbook, wsWpx As Worksheet
     Dim opened As Boolean
-    Set wbWpx = OpenWpxWorkbook(opened)
-    If wbWpx Is Nothing Then Exit Sub
 
-    On Error Resume Next
-    Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
-    On Error GoTo 0
+    Set wsWpx = LocalWpxSheet()
+    If wsWpx Is Nothing Then
+        Set wbWpx = OpenWpxWorkbook(opened)
+        If wbWpx Is Nothing Then Exit Sub
+
+        On Error Resume Next
+        Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
+        On Error GoTo 0
+    End If
 
     Dim playerID As String, nameKey As String, msg As String
     playerID = WpxNormalizeID(answer)
@@ -166,9 +176,11 @@ Public Sub DiagnoseWPXHistoryPlayer()
     If wsWpx Is Nothing Then
         msg = msg & "WPX Player Tracking sheet: not found in " & wbWpx.name & "." & vbCrLf
     Else
+        msg = msg & "Source: " & wsWpx.Parent.name & " > " & wsWpx.name & "." & vbCrLf
+
         Dim idCol As Long
         idCol = FindWpxIDColumn(wsWpx)
-        msg = msg & "WPX Player Tracking IDs read from column " & ColumnLetter(idCol) & _
+        msg = msg & "IDs read from column " & ColumnLetter(idCol) & _
               " (first value: " & CStr(wsWpx.Cells(2, idCol).Value) & ")." & vbCrLf
 
         Dim rowByID As Object, rowByName As Object, wpxRow As Long
@@ -184,22 +196,27 @@ Public Sub DiagnoseWPXHistoryPlayer()
         End If
     End If
 
-    ' Weekly sheets.
+    ' Weekly sheets, only in the WPX workbook - this workbook's weekly sheets
+    ' are GT's.
     Dim weekLabels As Object, sheetWeeks As Object, hits As String, weeksFound As Long
     Set weekLabels = CreateObject("Scripting.Dictionary")
-    Set sheetWeeks = BuildWpxSheetWeeks(wbWpx, weekLabels)
 
-    Dim k As Variant, v As Variant
-    For Each k In SortedKeys(sheetWeeks)
-        v = SheetWeekScore(sheetWeeks, CStr(k), playerID, nameKey)
-        If HasScore(v) Then
-            weeksFound = weeksFound + 1
-            hits = hits & vbCrLf & "  " & weekLabels(k) & ": " & Format$(CDbl(v), "#,##0")
-        End If
-    Next k
+    If wbWpx Is Nothing Then
+        msg = msg & "Weekly sheets: not read (using the copy in this workbook)."
+    Else
+        Set sheetWeeks = BuildWpxSheetWeeks(wbWpx, weekLabels)
 
-    msg = msg & "Weekly sheets with a score: " & weeksFound
-    If hits <> "" Then msg = msg & hits
+        Dim k As Variant, v As Variant
+        For Each k In SortedKeys(sheetWeeks)
+            v = SheetWeekScore(sheetWeeks, CStr(k), playerID, nameKey)
+            If HasScore(v) Then
+                weeksFound = weeksFound + 1
+                hits = hits & vbCrLf & "  " & weekLabels(k) & ": " & Format$(CDbl(v), "#,##0")
+            End If
+        Next k
+
+        msg = msg & "Weekly sheets with a score: " & weeksFound & hits
+    End If
 
     If opened Then wbWpx.Close SaveChanges:=False
     MsgBox msg, vbInformation, "WPX diagnosis: " & answer
@@ -231,16 +248,23 @@ Public Sub RefreshWPXHistorySheet()
         Exit Sub
     End If
 
-    Set wbWpx = OpenWpxWorkbook(opened)
-    If wbWpx Is Nothing Then Exit Sub
+    Set wsWpx = LocalWpxSheet()
 
-    On Error Resume Next
-    Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
-    On Error GoTo SafeExit
     If wsWpx Is Nothing Then
-        MsgBox "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
-        GoTo SafeExit
+        Set wbWpx = OpenWpxWorkbook(opened)
+        If wbWpx Is Nothing Then Exit Sub
+
+        On Error Resume Next
+        Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
+        On Error GoTo SafeExit
+        If wsWpx Is Nothing Then
+            MsgBox "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
+            GoTo SafeExit
+        End If
     End If
+
+    Dim sourceName As String
+    sourceName = wsWpx.Parent.name & " > " & wsWpx.name
 
     oldCalc = Application.Calculation
     Application.ScreenUpdating = False
@@ -274,8 +298,13 @@ Public Sub RefreshWPXHistorySheet()
     Next wk
 
     ' Players who left before a week was rolled up onto WPX Player Tracking only
-    ' exist on the WPX weekly sheets, so those are read as a fallback.
-    Set sheetWeeks = BuildWpxSheetWeeks(wbWpx, weekLabels)
+    ' exist on the WPX weekly sheets, so those are read as a fallback - but only
+    ' out of the WPX workbook, since this workbook's weekly sheets are GT's.
+    If wbWpx Is Nothing Then
+        Set sheetWeeks = CreateObject("Scripting.Dictionary")
+    Else
+        Set sheetWeeks = BuildWpxSheetWeeks(wbWpx, weekLabels)
+    End If
 
     Dim wpxRowByID As Object, wpxRowByName As Object
     Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx, wpxRowByName)
@@ -354,7 +383,7 @@ SafeExit:
         MsgBox "RefreshWPXHistorySheet error " & Err.Number & ": " & Err.Description, vbExclamation
     ElseIf Not wsWpx Is Nothing Then
         Dim msg As String
-        msg = HIST_SHEET & " filled from " & WPX_FILE & "." & vbCrLf & _
+        msg = HIST_SHEET & " filled from " & sourceName & "." & vbCrLf & _
               "Rows updated: " & updated & vbCrLf & _
               "Rows added: " & added & vbCrLf & _
               "Rows with no WPX weeks found: " & noData
@@ -901,15 +930,41 @@ Private Function FindWpxIDColumn(ws As Worksheet) As Long
     FindWpxIDColumn = ws.Range(PT_ID_COL & "1").Column
 End Function
 
+' The WPX tracking sheet kept inside this workbook, if there is one.
+Private Function LocalWpxSheet() As Worksheet
+    Dim names As Variant, i As Long, ws As Worksheet
+    names = Split(LOCAL_WPX_SHEETS, "|")
+
+    For i = LBound(names) To UBound(names)
+        Set ws = Nothing
+        On Error Resume Next
+        Set ws = ThisWorkbook.Worksheets(CStr(names(i)))
+        On Error GoTo 0
+
+        If Not ws Is Nothing Then
+            ' An empty placeholder sheet is no use as a source.
+            If ws.Cells(2, 1).Value <> "" Then
+                Set LocalWpxSheet = ws
+                Exit Function
+            End If
+        End If
+    Next i
+End Function
+
 ' Player name -> ID from the WPX Roster, using the same four ID/name blocks as
-' the GT roster (A/B, E/F, I/J, M/N).
+' the GT roster (A/B, E/F, I/J, M/N). Falls back to this workbook's imported
+' copy when the WPX workbook is not open.
 Private Function BuildWpxNameToID(wb As Workbook) As Object
     Dim dict As Object
     Set dict = CreateObject("Scripting.Dictionary")
 
     Dim ws As Worksheet
     On Error Resume Next
-    Set ws = wb.Worksheets("Roster")
+    If wb Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets("WPX_Roster")
+    Else
+        Set ws = wb.Worksheets("Roster")
+    End If
     On Error GoTo 0
     If ws Is Nothing Then
         Set BuildWpxNameToID = dict
