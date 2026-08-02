@@ -11,6 +11,11 @@ Attribute VB_Name = "WPXHistorySheet"
 ' to Player Tracking column CL by name, and existing rows are updated in place
 ' so the sheet's row order, notes and any hand-kept columns survive.
 '
+' Scores come from the WPX Player Tracking row where the player has one, and
+' from the WPX weekly sheets (name in A, weekly total in L, ID in V) for any
+' week that row is missing - players who left mid-season were often never rolled
+' up onto WPX Player Tracking at all.
+'
 ' The header row drives placement: each header is matched against the stats
 ' below, so the layout can be anything. Per-week columns named
 ' "WPX Weekly Total (Mar 23 - Mar 29)" / "WPX Weekly Rank (...)" are filled from
@@ -28,7 +33,9 @@ Attribute VB_Name = "WPXHistorySheet"
 ' To use:
 '   1. Open GTStatsFINAL.xlsm.
 '   2. Alt+F11 > File > Import File > WPXHistorySheet.bas
-'   3. Alt+F8 > RefreshWPXHistorySheet.
+'   3. Alt+F8 > RefreshWPXHistorySheet. When a player stays blank, run
+'      DiagnoseWPXHistoryPlayer and give it their ID or name - it reports where
+'      they were and were not found in the WPX workbook.
 '   4. Pick WPXStatsFinal.xlsm when prompted (skipped when it sits in the same
 '      folder as GTStatsFINAL.xlsm).
 
@@ -116,6 +123,88 @@ Public Sub ListWPXHistoryHeaders()
     MsgBox "Header mapping written to " & wsOut.name & ".", vbInformation
 End Sub
 
+' Reports, for one player, exactly where the macro does and does not find them
+' in the WPX workbook. Run it when a row stays blank.
+Public Sub DiagnoseWPXHistoryPlayer()
+    Dim answer As String
+    answer = Trim$(InputBox("Player ID or name to look up in " & WPX_FILE & ":", "WPX diagnosis"))
+    If answer = "" Then Exit Sub
+
+    Dim wbWpx As Workbook, wsWpx As Worksheet
+    Dim opened As Boolean
+    Set wbWpx = OpenWpxWorkbook(opened)
+    If wbWpx Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
+    On Error GoTo 0
+
+    Dim playerID As String, nameKey As String, msg As String
+    playerID = WpxNormalizeID(answer)
+    nameKey = WpxNameKey(answer)
+
+    ' A name typed in resolves to an ID through the GT roster/tracking sheet.
+    Dim wsPT As Worksheet, gtByID As Object, gtIDByName As Object
+    On Error Resume Next
+    Set wsPT = ThisWorkbook.Worksheets(PT_SHEET)
+    On Error GoTo 0
+    If Not wsPT Is Nothing Then
+        BuildGTMaps wsPT, gtByID, gtIDByName
+        If gtIDByName.Exists(nameKey) Then
+            msg = msg & "GT Player Tracking: ID " & gtIDByName(nameKey) & " for that name." & vbCrLf
+            If Not IsNumeric(answer) Then playerID = CStr(gtIDByName(nameKey))
+        Else
+            If gtByID.Exists(playerID) Then
+                msg = msg & "GT Player Tracking: row found, name " & gtByID(playerID)(0) & "." & vbCrLf
+                nameKey = WpxNameKey(gtByID(playerID)(0))
+            Else
+                msg = msg & "GT Player Tracking: no row with that ID in " & PT_ID_COL & "." & vbCrLf
+            End If
+        End If
+    End If
+
+    If wsWpx Is Nothing Then
+        msg = msg & "WPX Player Tracking sheet: not found in " & wbWpx.name & "." & vbCrLf
+    Else
+        Dim idCol As Long
+        idCol = FindWpxIDColumn(wsWpx)
+        msg = msg & "WPX Player Tracking IDs read from column " & ColumnLetter(idCol) & _
+              " (first value: " & CStr(wsWpx.Cells(2, idCol).Value) & ")." & vbCrLf
+
+        Dim rowByID As Object, rowByName As Object, wpxRow As Long
+        Set rowByID = BuildWpxRowMap(wsWpx, wbWpx, rowByName)
+        wpxRow = WpxRowFor(rowByID, rowByName, playerID, nameKey)
+
+        If wpxRow > 0 Then
+            msg = msg & "WPX Player Tracking: row " & wpxRow & ", name " & _
+                  CStr(wsWpx.Cells(wpxRow, 1).Value) & "." & vbCrLf
+        Else
+            msg = msg & "WPX Player Tracking: no row for ID " & playerID & _
+                  " or name key " & nameKey & "." & vbCrLf
+        End If
+    End If
+
+    ' Weekly sheets.
+    Dim weekLabels As Object, sheetWeeks As Object, hits As String, weeksFound As Long
+    Set weekLabels = CreateObject("Scripting.Dictionary")
+    Set sheetWeeks = BuildWpxSheetWeeks(wbWpx, weekLabels)
+
+    Dim k As Variant, v As Variant
+    For Each k In SortedKeys(sheetWeeks)
+        v = SheetWeekScore(sheetWeeks, CStr(k), playerID, nameKey)
+        If HasScore(v) Then
+            weeksFound = weeksFound + 1
+            hits = hits & vbCrLf & "  " & weekLabels(k) & ": " & Format$(CDbl(v), "#,##0")
+        End If
+    Next k
+
+    msg = msg & "Weekly sheets with a score: " & weeksFound
+    If hits <> "" Then msg = msg & hits
+
+    If opened Then wbWpx.Close SaveChanges:=False
+    MsgBox msg, vbInformation, "WPX diagnosis: " & answer
+End Sub
+
 ' Fills WPX History for every row on it, and for every GT player with a WPX row
 ' that is missing from it.
 Public Sub RefreshWPXHistorySheet()
@@ -125,7 +214,7 @@ Public Sub RefreshWPXHistorySheet()
     Dim oldCalc As XlCalculation
     Dim opened As Boolean
     Dim updated As Long, added As Long, noData As Long
-    Dim unknownHeaders As String
+    Dim unknownHeaders As String, missing As String
 
     On Error GoTo SafeExit
 
@@ -175,12 +264,21 @@ Public Sub RefreshWPXHistorySheet()
     Dim gtByID As Object, gtIDByName As Object
     BuildGTMaps wsPT, gtByID, gtIDByName
 
-    Dim wpxWeekCols As Object, weekOrder As Variant
+    Dim wpxWeekCols As Object, weekLabels As Object, sheetWeeks As Object
     Set wpxWeekCols = BuildWpxWeekColumnMap(wsWpx)
-    weekOrder = SortedKeys(wpxWeekCols)
+    Set weekLabels = CreateObject("Scripting.Dictionary")
 
-    Dim wpxRowByID As Object
-    Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx)
+    Dim wk As Variant
+    For Each wk In wpxWeekCols.Keys
+        weekLabels(wk) = wpxWeekCols(wk)(1)
+    Next wk
+
+    ' Players who left before a week was rolled up onto WPX Player Tracking only
+    ' exist on the WPX weekly sheets, so those are read as a fallback.
+    Set sheetWeeks = BuildWpxSheetWeeks(wbWpx, weekLabels)
+
+    Dim wpxRowByID As Object, wpxRowByName As Object
+    Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx, wpxRowByName)
 
     ' Existing rows, top of the sheet down to the first blank name - anything
     ' below that (blank spacer, footnotes) is left alone.
@@ -191,18 +289,26 @@ Public Sub RefreshWPXHistorySheet()
     Dim k As Variant, playerID As String, wpxRow As Long, r As Long
     Dim stats As Object
 
+    Dim nameKey As String
+
     ' 1) Every row already on the sheet.
     For Each k In rowByID.Keys
         playerID = CStr(k)
         r = rowByID(playerID)
+        nameKey = WpxNameKey(wsHist.Cells(r, cols(F_NAME)).Value)
 
-        If wpxRowByID.Exists(playerID) Then
-            Set stats = BuildPlayerStats(wsWpx, wpxRowByID(playerID), wpxWeekCols, weekOrder)
+        wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, playerID, nameKey)
+        Set stats = BuildPlayerStats(wsWpx, wpxRow, wpxWeekCols, sheetWeeks, _
+            weekLabels, playerID, nameKey)
+
+        If stats(F_WEEKS) > 0 Then
             FinishStats stats, playerID, gtByID, wsHist, r, cols
             WriteRow wsHist, r, cols, weekTotalCols, weekRankCols, stats
-            If stats(F_WEEKS) > 0 Then updated = updated + 1 Else noData = noData + 1
+            updated = updated + 1
         Else
             noData = noData + 1
+            missing = missing & vbCrLf & "  " & _
+                Trim$(CStr(wsHist.Cells(r, cols(F_NAME)).Value)) & " (" & playerID & ")"
         End If
     Next k
 
@@ -214,8 +320,12 @@ Public Sub RefreshWPXHistorySheet()
         playerID = WpxNormalizeID(wsPT.Cells(r, PT_ID_COL).Value)
         If playerID <> "" Then
             If Not rowByID.Exists(playerID) Then
-                If wpxRowByID.Exists(playerID) Then
-                    Set stats = BuildPlayerStats(wsWpx, wpxRowByID(playerID), wpxWeekCols, weekOrder)
+                nameKey = WpxNameKey(wsPT.Cells(r, "A").Value)
+                wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, playerID, nameKey)
+
+                If wpxRow > 0 Or HasSheetWeeks(sheetWeeks, playerID, nameKey) Then
+                    Set stats = BuildPlayerStats(wsWpx, wpxRow, wpxWeekCols, sheetWeeks, _
+                        weekLabels, playerID, nameKey)
 
                     If stats(F_WEEKS) > 0 Then
                         lastDataRow = lastDataRow + 1
@@ -248,6 +358,7 @@ SafeExit:
               "Rows updated: " & updated & vbCrLf & _
               "Rows added: " & added & vbCrLf & _
               "Rows with no WPX weeks found: " & noData
+        If missing <> "" Then msg = msg & vbCrLf & vbCrLf & "Nothing found for:" & missing
         If unknownHeaders <> "" Then _
             msg = msg & vbCrLf & vbCrLf & "Columns left untouched:" & unknownHeaders
         MsgBox msg, vbInformation, "Done"
@@ -384,9 +495,11 @@ Private Sub BuildGTMaps(wsPT As Worksheet, ByRef gtByID As Object, ByRef gtIDByN
     Next r
 End Sub
 
-' WPX numbers for one player, from their row on the WPX Player Tracking sheet.
+' WPX numbers for one player: their row on the WPX Player Tracking sheet where
+' they have one, topped up from the weekly sheets for any week it is missing.
 Private Function BuildPlayerStats(ws As Worksheet, wpxRow As Long, _
-    wpxWeekCols As Object, weekOrder As Variant) As Object
+    wpxWeekCols As Object, sheetWeeks As Object, weekLabels As Object, _
+    playerID As String, nameKey As String) As Object
 
     Dim s As Object
     Set s = CreateObject("Scripting.Dictionary")
@@ -398,17 +511,24 @@ Private Function BuildPlayerStats(ws As Worksheet, wpxRow As Long, _
     Dim total As Double, weeks As Long, best As Double
     Dim bestWeek As String, firstWeek As String, lastWeek As String
     Dim i As Long, key As String, label As String, v As Variant
+    Dim weekOrder As Variant
+    weekOrder = SortedKeys(weekLabels)
 
     For i = LBound(weekOrder) To UBound(weekOrder)
         key = weekOrder(i)
-        label = wpxWeekCols(key)(1)
-        v = ws.Cells(wpxRow, wpxWeekCols(key)(0)).Value
+        label = weekLabels(key)
+
+        v = ""
+        If wpxRow > 0 And wpxWeekCols.Exists(key) Then v = ws.Cells(wpxRow, wpxWeekCols(key)(0)).Value
+        If Not HasScore(v) Then v = SheetWeekScore(sheetWeeks, key, playerID, nameKey)
 
         If HasScore(v) Then
             weeklies.Add key, CDbl(v)
-            If wpxWeekCols(key)(2) > 0 Then
-                If HasScore(ws.Cells(wpxRow, wpxWeekCols(key)(2)).Value) Then
-                    weeklyRanks.Add key, CDbl(ws.Cells(wpxRow, wpxWeekCols(key)(2)).Value)
+            If wpxRow > 0 And wpxWeekCols.Exists(key) Then
+                If wpxWeekCols(key)(2) > 0 Then
+                    If HasScore(ws.Cells(wpxRow, wpxWeekCols(key)(2)).Value) Then
+                        weeklyRanks.Add key, CDbl(ws.Cells(wpxRow, wpxWeekCols(key)(2)).Value)
+                    End If
                 End If
             End If
             total = total + CDbl(v)
@@ -433,19 +553,25 @@ Private Function BuildPlayerStats(ws As Worksheet, wpxRow As Long, _
     ' WPX's own average and overall rank are the official numbers; the computed
     ' average is only a fallback, and a rank cannot be recomputed here because
     ' WPX ranked every player in that alliance, not just the ones who moved.
-    If HasScore(ws.Cells(wpxRow, "G").Value) Then
-        s(F_AVG) = CDbl(ws.Cells(wpxRow, "G").Value)
+    If wpxRow > 0 Then
+        If HasScore(ws.Cells(wpxRow, "G").Value) Then
+            s(F_AVG) = CDbl(ws.Cells(wpxRow, "G").Value)
+        ElseIf weeks > 0 Then
+            s(F_AVG) = total / weeks
+        Else
+            s(F_AVG) = ""
+        End If
+        s(F_RANK) = NumOrBlank(ws.Cells(wpxRow, "E").Value)
+        s(F_MISSD) = NumOrBlank(ws.Cells(wpxRow, "H").Value)
+        s(F_MISSW) = NumOrBlank(ws.Cells(wpxRow, "I").Value)
     ElseIf weeks > 0 Then
         s(F_AVG) = total / weeks
     Else
         s(F_AVG) = ""
     End If
-    s(F_RANK) = NumOrBlank(ws.Cells(wpxRow, "E").Value)
     s(F_BESTWK) = bestWeek
     If weeks > 0 Then s(F_BEST) = best Else s(F_BEST) = ""
     s(F_ALLIANCE) = ALLIANCE_TAG
-    s(F_MISSD) = NumOrBlank(ws.Cells(wpxRow, "H").Value)
-    s(F_MISSW) = NumOrBlank(ws.Cells(wpxRow, "I").Value)
 
     Set BuildPlayerStats = s
 End Function
@@ -608,8 +734,10 @@ Private Function WeekStartDate(ByVal label As String) As Date
     WeekStartDate = d
 End Function
 
-' Player ID -> row on the WPX Player Tracking sheet.
-Private Function BuildWpxRowMap(ws As Worksheet, wb As Workbook) As Object
+' Player ID -> row on the WPX Player Tracking sheet, plus name key -> row for
+' rows whose ID is missing on both that sheet and the WPX roster.
+Private Function BuildWpxRowMap(ws As Worksheet, wb As Workbook, _
+    ByRef rowByName As Object) As Object
     Dim dict As Object
     Set dict = CreateObject("Scripting.Dictionary")
 
@@ -627,24 +755,130 @@ Private Function BuildWpxRowMap(ws As Worksheet, wb As Workbook) As Object
         End If
     End If
 
+    Set rowByName = CreateObject("Scripting.Dictionary")
+
     Dim r As Long, playerID As String, nameKey As String
     For r = 2 To lastRow
         playerID = ""
         If idCol > 0 Then playerID = WpxNormalizeID(ws.Cells(r, idCol).Value)
+        nameKey = WpxNameKey(ws.Cells(r, 1).Value)
 
-        If playerID = "" Then
-            nameKey = WpxNameKey(ws.Cells(r, 1).Value)
-            If nameKey <> "" Then
-                If nameToID.Exists(nameKey) Then playerID = CStr(nameToID(nameKey))
-            End If
+        If playerID = "" And nameKey <> "" Then
+            If nameToID.Exists(nameKey) Then playerID = CStr(nameToID(nameKey))
         End If
 
         If playerID <> "" Then
             If Not dict.Exists(playerID) Then dict.Add playerID, r
         End If
+        If nameKey <> "" Then
+            If Not rowByName.Exists(nameKey) Then rowByName.Add nameKey, r
+        End If
     Next r
 
     Set BuildWpxRowMap = dict
+End Function
+
+Private Function WpxRowFor(rowByID As Object, rowByName As Object, _
+    playerID As String, nameKey As String) As Long
+
+    If rowByID.Exists(playerID) Then
+        WpxRowFor = rowByID(playerID)
+    ElseIf nameKey <> "" Then
+        If rowByName.Exists(nameKey) Then WpxRowFor = rowByName(nameKey)
+    End If
+End Function
+
+' Week key -> dictionary of ID and name key -> weekly total, read straight off
+' the WPX weekly sheets ("Mar 23 - Mar 29": name in A, weekly total in L,
+' player ID in V). Labels for weeks the Player Tracking sheet never got are
+' added to weekLabels.
+Private Function BuildWpxSheetWeeks(wb As Workbook, weekLabels As Object) As Object
+    Dim weeks As Object
+    Set weeks = CreateObject("Scripting.Dictionary")
+
+    Dim nameToID As Object
+    Set nameToID = BuildWpxNameToID(wb)
+
+    Dim ws As Worksheet, key As String, scores As Object
+    Dim lastRow As Long, r As Long, playerID As String, nameKey As String
+    Dim v As Variant
+
+    For Each ws In wb.Worksheets
+        If IsWpxWeeklySheet(ws.name) Then
+            key = WeekKey(ws.name)
+
+            If Not weeks.Exists(key) Then
+                Set scores = CreateObject("Scripting.Dictionary")
+                weeks.Add key, scores
+            Else
+                Set scores = weeks(key)
+            End If
+            If Not weekLabels.Exists(key) Then weekLabels.Add key, ws.name
+
+            lastRow = ws.Cells(ws.Rows.count, "A").End(xlUp).row
+            For r = 2 To lastRow
+                playerID = WpxNormalizeID(ws.Cells(r, "V").Value)
+                nameKey = WpxNameKey(ws.Cells(r, "A").Value)
+                If playerID = "" And nameKey <> "" Then
+                    If nameToID.Exists(nameKey) Then playerID = CStr(nameToID(nameKey))
+                End If
+
+                v = ws.Cells(r, "L").Value
+                If HasScore(v) Then
+                    If playerID <> "" Then
+                        If Not scores.Exists(playerID) Then scores.Add playerID, CDbl(v)
+                    End If
+                    If nameKey <> "" Then
+                        If Not scores.Exists("N:" & nameKey) Then scores.Add "N:" & nameKey, CDbl(v)
+                    End If
+                End If
+            Next r
+        End If
+    Next ws
+
+    Set BuildWpxSheetWeeks = weeks
+End Function
+
+Private Function SheetWeekScore(sheetWeeks As Object, key As String, _
+    playerID As String, nameKey As String) As Variant
+
+    SheetWeekScore = ""
+    If Not sheetWeeks.Exists(key) Then Exit Function
+
+    Dim scores As Object
+    Set scores = sheetWeeks(key)
+
+    If playerID <> "" Then
+        If scores.Exists(playerID) Then SheetWeekScore = scores(playerID): Exit Function
+    End If
+    If nameKey <> "" Then
+        If scores.Exists("N:" & nameKey) Then SheetWeekScore = scores("N:" & nameKey)
+    End If
+End Function
+
+Private Function HasSheetWeeks(sheetWeeks As Object, playerID As String, _
+    nameKey As String) As Boolean
+
+    Dim k As Variant
+    For Each k In sheetWeeks.Keys
+        If HasScore(SheetWeekScore(sheetWeeks, CStr(k), playerID, nameKey)) Then
+            HasSheetWeeks = True
+            Exit Function
+        End If
+    Next k
+End Function
+
+' Weekly sheets are the ones named like "Mar 23 - Mar 29".
+Private Function IsWpxWeeklySheet(ByVal sheetName As String) As Boolean
+    Select Case LCase$(Trim$(sheetName))
+        Case "player tracking", "player tracking new", "master template", _
+             "player dashboard", "archived players", "control", "roster", _
+             "start", "end", "score import", "week settings", "id match log", _
+             "arena power", "wpx history"
+            Exit Function
+    End Select
+    If InStr(1, sheetName, "OLD", vbTextCompare) > 0 Then Exit Function
+    IsWpxWeeklySheet = (InStr(1, sheetName, " - ") > 0)
 End Function
 
 ' CL when it holds IDs, otherwise the first "Player ID" header.
