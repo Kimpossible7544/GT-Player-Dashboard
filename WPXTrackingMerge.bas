@@ -29,6 +29,17 @@ Attribute VB_Name = "WPXTrackingMerge"
 ' UpdatePlayerTrackingFromRosterAndWeeks, just before SafeExit:
 '
 '     Call MergeWPXTrackingIntoPlayerTracking
+'
+' To have it run by itself every time the workbook opens, run
+' InstallWPXAutoRun() once - it writes a Workbook_Open handler into the
+' ThisWorkbook module (RemoveWPXAutoRun() takes it back out). Excel only allows
+' that with "Trust access to the VBA project object model" ticked under File >
+' Options > Trust Center > Trust Center Settings > Macro Settings; without it,
+' the installer just shows you the four lines to paste into ThisWorkbook.
+'
+' The auto-run is silent: no popups, and if WPXStatsFinal.xlsm is not open and
+' not sitting next to GTStatsFINAL.xlsm it is skipped rather than prompting for
+' the file and stalling the open.
 
 Option Explicit
 
@@ -40,6 +51,109 @@ Private Const WPX_FILE      As String = "WPXStatsFinal.xlsm"
 ' A GT cell holding a real score is left alone; set this to False to let WPX
 ' numbers overwrite whatever the GT refresh wrote.
 Private Const FILL_ONLY_BLANKS As Boolean = True
+
+Private Const AUTORUN_TAG As String = "' --- WPX auto-run (WPXTrackingMerge) ---"
+
+' Set while running from Workbook_Open: no message boxes, no file prompt.
+Private m_silent As Boolean
+
+' Entry point for the Workbook_Open handler.
+Public Sub RunWPXTrackingOnOpen()
+    m_silent = True
+    On Error Resume Next
+    MergeWPXTrackingIntoPlayerTracking
+    On Error GoTo 0
+    m_silent = False
+End Sub
+
+' Writes the Workbook_Open handler into ThisWorkbook so the merge runs on every
+' open. Needs "Trust access to the VBA project object model"; without it the
+' handler is shown for pasting in by hand.
+Public Sub InstallWPXAutoRun()
+    Dim code As String
+    code = AUTORUN_TAG & vbCrLf & _
+           "Private Sub Workbook_Open()" & vbCrLf & _
+           "    RunWPXTrackingOnOpen" & vbCrLf & _
+           "End Sub"
+
+    Dim cm As Object
+    On Error Resume Next
+    Set cm = ThisWorkbook.VBProject.VBComponents("ThisWorkbook").CodeModule
+    On Error GoTo 0
+
+    If cm Is Nothing Then
+        MsgBox "Excel is blocking macro access to the VBA project." & vbCrLf & vbCrLf & _
+               "Either tick File > Options > Trust Center > Trust Center Settings > " & _
+               "Macro Settings > ""Trust access to the VBA project object model"" and " & _
+               "run this again, or paste these lines into the ThisWorkbook module " & _
+               "yourself (Alt+F11 > double-click ThisWorkbook):" & vbCrLf & vbCrLf & code, _
+               vbExclamation, "WPX auto-run"
+        Exit Sub
+    End If
+
+    If FindAutoRunLine(cm) > 0 Then
+        MsgBox "The WPX auto-run is already installed.", vbInformation, "WPX auto-run"
+        Exit Sub
+    End If
+
+    If HasWorkbookOpen(cm) Then
+        MsgBox "ThisWorkbook already has its own Workbook_Open." & vbCrLf & vbCrLf & _
+               "Add this line inside it instead:" & vbCrLf & vbCrLf & _
+               "    RunWPXTrackingOnOpen", vbExclamation, "WPX auto-run"
+        Exit Sub
+    End If
+
+    cm.AddFromString code
+    MsgBox "WPX auto-run installed - the merge now runs when " & ThisWorkbook.name & _
+           " opens. Save the workbook to keep it.", vbInformation, "WPX auto-run"
+End Sub
+
+' Takes the generated Workbook_Open handler back out.
+Public Sub RemoveWPXAutoRun()
+    Dim cm As Object
+    On Error Resume Next
+    Set cm = ThisWorkbook.VBProject.VBComponents("ThisWorkbook").CodeModule
+    On Error GoTo 0
+
+    If cm Is Nothing Then
+        MsgBox "Excel is blocking macro access to the VBA project - delete the " & _
+               "Workbook_Open handler in ThisWorkbook by hand.", vbExclamation, "WPX auto-run"
+        Exit Sub
+    End If
+
+    Dim tagLine As Long
+    tagLine = FindAutoRunLine(cm)
+    If tagLine = 0 Then
+        MsgBox "No WPX auto-run handler found in ThisWorkbook.", vbInformation, "WPX auto-run"
+        Exit Sub
+    End If
+
+    ' The tag line plus the three lines of the handler it precedes.
+    cm.DeleteLines tagLine, 4
+    MsgBox "WPX auto-run removed. Save the workbook to keep it.", _
+           vbInformation, "WPX auto-run"
+End Sub
+
+Private Function FindAutoRunLine(cm As Object) As Long
+    Dim i As Long
+    For i = 1 To cm.CountOfLines
+        If InStr(1, cm.Lines(i, 1), AUTORUN_TAG, vbTextCompare) > 0 Then
+            FindAutoRunLine = i
+            Exit Function
+        End If
+    Next i
+End Function
+
+Private Function HasWorkbookOpen(cm As Object) As Boolean
+    Dim i As Long, txt As String
+    For i = 1 To cm.CountOfLines
+        txt = LCase$(Trim$(cm.Lines(i, 1)))
+        If InStr(txt, "sub workbook_open(") > 0 Then
+            HasWorkbookOpen = True
+            Exit Function
+        End If
+    Next i
+End Function
 
 ' Puts a "Pull WPX Weeks" button on the Player Tracking sheet.
 Public Sub AddWPXTrackingButton()
@@ -92,7 +206,7 @@ Public Sub MergeWPXTrackingIntoPlayerTracking()
     Set wsPT = ThisWorkbook.Worksheets(PT_SHEET)
     On Error GoTo SafeExit
     If wsPT Is Nothing Then
-        MsgBox "Sheet """ & PT_SHEET & """ not found.", vbExclamation
+        Notify "Sheet """ & PT_SHEET & """ not found.", vbExclamation
         Exit Sub
     End If
 
@@ -103,7 +217,7 @@ Public Sub MergeWPXTrackingIntoPlayerTracking()
     Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
     On Error GoTo SafeExit
     If wsWpx Is Nothing Then
-        MsgBox "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
+        Notify "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
         GoTo SafeExit
     End If
 
@@ -119,12 +233,12 @@ Public Sub MergeWPXTrackingIntoPlayerTracking()
     Set wpxWeekCols = BuildWeekColumnMap(wsWpx)
 
     If gtWeekCols.count = 0 Then
-        MsgBox "No ""Weekly Total (...)"" headers found on " & PT_SHEET & _
+        Notify "No ""Weekly Total (...)"" headers found on " & PT_SHEET & _
                ". Run the GT Player Tracking refresh first.", vbExclamation
         GoTo SafeExit
     End If
     If wpxWeekCols.count = 0 Then
-        MsgBox "No ""Weekly Total (...)"" headers found on the WPX " & _
+        Notify "No ""Weekly Total (...)"" headers found on the WPX " & _
                WPX_PT_SHEET & " sheet.", vbExclamation
         GoTo SafeExit
     End If
@@ -206,10 +320,10 @@ SafeExit:
     Application.ScreenUpdating = True
 
     If Err.Number <> 0 Then
-        MsgBox "MergeWPXTrackingIntoPlayerTracking error " & Err.Number & ": " & _
+        Notify "MergeWPXTrackingIntoPlayerTracking error " & Err.Number & ": " & _
                Err.Description, vbExclamation
     ElseIf Not wsWpx Is Nothing Then
-        MsgBox "WPX weeks pulled into " & PT_SHEET & "." & vbCrLf & _
+        Notify "WPX weeks pulled into " & PT_SHEET & "." & vbCrLf & _
                "Players filled: " & matchedPlayers & vbCrLf & _
                "Week cells filled: " & filledCells & vbCrLf & _
                "Players with an ID but no WPX row: " & unmatchedPlayers & vbCrLf & _
@@ -217,6 +331,14 @@ SafeExit:
                vbInformation, "Done"
     End If
 
+End Sub
+
+' MsgBox, unless we are running from Workbook_Open.
+Private Sub Notify(ByVal msg As String, ByVal style As VbMsgBoxStyle, _
+    Optional ByVal title As String = "WPX Merge")
+
+    If m_silent Then Exit Sub
+    MsgBox msg, style, title
 End Sub
 
 ' Week start date -> Array(total column, week label, rank column), read from the
@@ -493,6 +615,9 @@ Private Function OpenWpxWorkbook(ByRef opened As Boolean) As Workbook
     samePath = ThisWorkbook.Path & Application.PathSeparator & WPX_FILE
     If Dir(samePath) <> "" Then
         f = samePath
+    ElseIf m_silent Then
+        ' Opening the workbook must not stall on a file picker.
+        Exit Function
     Else
         f = Application.GetOpenFilename( _
             "Excel Macro-Enabled Workbook (*.xlsm), *.xlsm", , "Select " & WPX_FILE)
