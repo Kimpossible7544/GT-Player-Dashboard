@@ -262,7 +262,7 @@ function calcStreak(name){
     if (np.has(wk)) return;
     DAYS.forEach(function(day){
       if (!dayHasData(wk, day)) return;
-      timeline.push({ score: (pd[day] && pd[day][wIdx]) || 0, goal: DAILY_GOALS[day] });
+      timeline.push({ score: (pd[day] && pd[day][wIdx]) || 0, goal: getDailyGoal(day, wk, gtData.currentWeekLabel) });
     });
   });
   var streak = 0;
@@ -321,15 +321,15 @@ function buildWeekRows(weekLabel){
     });
     var clutch = CLUTCH_DAYS.every(function(day){
       // only judge clutch on days whose scores are in (fair to in-progress weeks)
-      return !dayHasData(weekLabel, day) || dayScores[day] >= DAILY_GOALS[day];
-    }) && CLUTCH_DAYS.some(function(day){ return dayHasData(weekLabel, day) && dayScores[day] >= DAILY_GOALS[day]; });
+      return !dayHasData(weekLabel, day) || dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel);
+    }) && CLUTCH_DAYS.some(function(day){ return dayHasData(weekLabel, day) && dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel); });
     rows.push({ name: name, days: dayScores, total: total, clutch: clutch, streak: calcStreak(name) });
   });
   return rows;
 }
 
 function cellHtml(weekLabel, day, score){
-  var goal = DAILY_GOALS[day];
+  var goal = getDailyGoal(day, weekLabel, gtData.currentWeekLabel);
   var hasData = dayHasData(weekLabel, day);
   var mark, cls;
   if (!hasData && score === 0){ mark = '\u00b7'; cls = 'cell-zero'; }       // scores not entered yet
@@ -351,12 +351,12 @@ function renderWeek(weekLabel){
   var denom = activeRows.length || 1;
   var sumCards = DAYS.map(function(day){
     if (!dayHasData(weekLabel, day)){
-      return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(DAILY_GOALS[day]) + '</div><div class="sum-value" style="color:var(--dim)">\u2014</div><div class="sum-count">not yet</div></div>';
+      return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(getDailyGoal(day, weekLabel, gtData.currentWeekLabel)) + '</div><div class="sum-value" style="color:var(--dim)">\u2014</div><div class="sum-count">not yet</div></div>';
     }
-    var hits = activeRows.filter(function(r){ return r.days[day] >= DAILY_GOALS[day]; }).length;
+    var hits = activeRows.filter(function(r){ return r.days[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel); }).length;
     var pct = Math.round(hits / denom * 100);
     var cls = pct >= 75 ? 'good' : pct >= 50 ? 'mid' : 'bad';
-    return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(DAILY_GOALS[day]) + '</div><div class="sum-value ' + cls + '">' + pct + '%</div><div class="sum-count">' + hits + '/' + denom + ' hit</div></div>';
+    return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(getDailyGoal(day, weekLabel, gtData.currentWeekLabel)) + '</div><div class="sum-value ' + cls + '">' + pct + '%</div><div class="sum-count">' + hits + '/' + denom + ' hit</div></div>';
   }).join('');
   var wkHits = activeRows.filter(function(r){ return r.total >= WEEKLY_GOAL; }).length;
   var wkPct = Math.round(wkHits / denom * 100);
@@ -375,7 +375,7 @@ function renderWeek(weekLabel){
   });
 
   var ths = '<th onclick="sortBy(0)">Player</th>' +
-    DAYS.map(function(day, i){ return '<th onclick="sortBy(' + (i+1) + ')">' + DAY_SHORT[day] + '<span class="th-goal">' + fmtM(DAILY_GOALS[day]) + '</span></th>'; }).join('') +
+    DAYS.map(function(day, i){ return '<th onclick="sortBy(' + (i+1) + ')">' + DAY_SHORT[day] + '<span class="th-goal">' + fmtM(getDailyGoal(day, weekLabel, gtData.currentWeekLabel)) + '</span></th>'; }).join('') +
     '<th onclick="sortBy(6)">Week Total<span class="th-goal">' + fmtM(WEEKLY_GOAL) + '</span></th>' +
     '<th onclick="sortBy(7)">Streak<span class="th-goal">goal days</span></th>' +
     '<th class="clutch-col" onclick="sortBy(8)">Clutch<span class="th-goal">Tue+Wed+Fri</span></th>';
@@ -476,7 +476,7 @@ function renderRankShifts(weekLabel, rows){
         return;
       }
       recorded++;
-      if (r.days[day] >= DAILY_GOALS[day]){
+      if (r.days[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel)){
         hit++;
         dayIcons += '<span class="day-icon day-hit">★</span>';
       } else {
@@ -562,7 +562,7 @@ async function init(keepWeek){
     gtData = await loadGTData();
     lastLoadTime = Date.now();
     dayScoresCache = {};
-    DAILY_GOALS = gtData.DAILY_GOALS || { Monday:6000000, Tuesday:3000000, Wednesday:4000000, Thursday:6000000, Friday:3000000 };
+    DAILY_GOALS = gtData.DAILY_GOALS || { Monday:6000000, Tuesday:3000000, Wednesday:4000000, Thursday:8000000, Friday:3000000 };
     WEEKLY_GOAL = gtData.WEEKLY_GOAL || 22000000;
 
     // Week dropdown: newest first. Default = current in-progress week.

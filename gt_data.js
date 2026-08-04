@@ -65,6 +65,40 @@ function isOnOrAfterSeasonStart(weekLabel) {
   return startDate >= SEASON_START;
 }
 
+// Parses a "Month D - Month D" week label into the start-of-week date.
+function parseWeekStartDate(weekLabel) {
+  const parts = (weekLabel || '').split(' - ');
+  if (parts.length < 2) return null;
+  const startPart = parts[0].trim();
+  const now = new Date();
+  const year = now.getFullYear();
+  let startDate = new Date(`${startPart}, ${year}`);
+  if (isNaN(startDate.getTime())) return null;
+  if (startDate - now > 180 * 24 * 60 * 60 * 1000) {
+    startDate = new Date(`${startPart}, ${year - 1}`);
+  }
+  return startDate;
+}
+
+// Parses an MM/DD/YYYY string into a Date (or null).
+function parseDateMMDDYYYY(dateStr) {
+  if (!dateStr) return null;
+  const [m, d, y] = String(dateStr).split('/').map(Number);
+  if (!m || !d || !y) return null;
+  return new Date(y, m - 1, d);
+}
+
+// Daily goals. Thursday is raised from 6M to 8M from the current week forward.
+const DAILY_GOALS_NEW = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 8000000, Friday: 3000000 };
+const DAILY_GOALS_OLD = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 6000000, Friday: 3000000 };
+
+function getDailyGoal(day, weekLabel, cutoffLabel) {
+  const cutoff = cutoffLabel ? parseWeekStartDate(cutoffLabel) : null;
+  const weekStart = weekLabel ? parseWeekStartDate(weekLabel) : null;
+  const goals = (cutoff && weekStart && weekStart < cutoff) ? DAILY_GOALS_OLD : DAILY_GOALS_NEW;
+  return goals[day] || 0;
+}
+
 // Parses a power value into a float expressed in MILLIONS.
 // Values are normally entered in millions ("182.6 M", "182.6", 157.7), but a
 // few cells hold the full raw count (e.g. 161660000). Anything >= 100000 is
@@ -272,7 +306,6 @@ async function loadGTData() {
 
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
-  const DAILY_GOAL  = 6000000;
   const WEEKLY_GOAL = 20000000;
 
   // =========================================================
@@ -531,12 +564,41 @@ async function loadGTData() {
   }
 
   // =========================================================
-  // RECALCULATE MISSED GOALS
+  // FILTER WEEKS BY JOIN DATE AND RECOMPUTE SCORES/RANKS
+  // =========================================================
+  // Cross-team (WPX) players and any late arrivals should only have weeks
+  // on or after their GT join date counted. Recompute totals, averages,
+  // missed goals, and ranks from the filtered weeks.
   // =========================================================
   Object.values(players).forEach(player => {
+    if (player.joinDate) {
+      const joinDate = parseDateMMDDYYYY(player.joinDate);
+      if (joinDate) {
+        player.weeks = player.weeks.filter(week => {
+          const weekStart = parseWeekStartDate(week.label);
+          return weekStart && weekStart >= joinDate;
+        });
+      }
+    }
+
+    let totalScore = 0;
+    let pushingTotal = 0;
+    let weeksWithScore = 0;
+
+    player.weeks.forEach(week => {
+      const score = week.score || 0;
+      totalScore += score;
+      if (week.pushing) pushingTotal += score;
+      if (score > 0) weeksWithScore++;
+    });
+
+    player.totalScore = totalScore;
+    player.pushingTotal = pushingTotal;
+    player.weeklyAvg = weeksWithScore ? totalScore / weeksWithScore : 0;
+
     let missedDaily = 0, missedWeekly = 0;
 
-    player.weeks.forEach((week, i) => {
+    player.weeks.forEach(week => {
       if (!week.pushing || week.inProgress) return;
       if (!week.score || week.score <= 0) return;
 
@@ -547,7 +609,7 @@ async function loadGTData() {
       if (pd && weekIdx >= 0) {
         DAYS.forEach(day => {
           const dayScore = pd[day][weekIdx];
-          if (dayScore > 0 && dayScore < DAILY_GOAL) missedDaily++;
+          if (dayScore > 0 && dayScore < getDailyGoal(day, week.label, currentWeekLabel)) missedDaily++;
         });
       }
     });
@@ -555,6 +617,13 @@ async function loadGTData() {
     player.missedDaily  = missedDaily;
     player.missedWeekly = missedWeekly;
   });
+
+  // Recompute overall and pushing ranks from the filtered totals.
+  const playersByTotal = Object.values(players).sort((a, b) => b.totalScore - a.totalScore);
+  playersByTotal.forEach((player, i) => { player.overallRank = i + 1; });
+
+  const playersByPush = Object.values(players).sort((a, b) => b.pushingTotal - a.pushingTotal);
+  playersByPush.forEach((player, i) => { player.pushingRank = i + 1; });
 
   // =========================================================
   // READ ARENA POWER SHEET
@@ -755,7 +824,7 @@ async function loadGTData() {
     serverHelpers,
     idToPlayer,
     rosterRanks,
-    DAILY_GOAL,
+    DAILY_GOALS: DAILY_GOALS_NEW,
     WEEKLY_GOAL
   };
 }
