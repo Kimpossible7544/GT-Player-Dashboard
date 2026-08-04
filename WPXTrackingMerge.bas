@@ -642,45 +642,93 @@ Private Sub WriteHelperColumn(wsPT As Worksheet, lastRow As Long)
     wsPT.Columns(col).Hidden = True
 End Sub
 
-' Adds a "Weekly Total (...)" / "Weekly Rank (...)" header pair for every WPX
-' week the GT sheet has no column for, appended after the last existing week
-' column so nothing shifts. Returns how many pairs were added; stops short if
-' there is not enough room before the Player ID column.
+' Lays the WPX-owned week columns out newest to oldest, directly after the GT
+' weeks, so the sheet reads in one unbroken run of weeks: a WPX week the GT sheet
+' had no column for gets one in date order rather than tacked on at the end.
+' Returns how many week pairs were written.
+'
+' The GT weeks themselves are left exactly where they are. The GT refresh writes
+' them positionally - newest at column J, two columns per week, clearing
+' C..(9 + weeks*2) - so moving them would put its output in the wrong columns.
 Private Function EnsureWeekColumns(wsPT As Worksheet, gtWeekCols As Object, _
     wpxWeekCols As Object) As Long
 
-    Dim keys As Collection
-    Set keys = WeekKeysByColumn(wpxWeekCols)
-
-    Dim nextCol As Long, idCol As Long
-    nextCol = LastWeekColumn(gtWeekCols) + 1
+    Dim idCol As Long
     idCol = wsPT.Range(PT_ID_COL & "1").Column
-    If nextCol < 2 Then Exit Function
 
-    Dim k As Variant, added As Long
-    For Each k In keys
-        If Not gtWeekCols.Exists(k) Then
-            If nextCol + 1 >= idCol Then Exit For
-            If CleanText(wsPT.Cells(1, nextCol).Value) <> "" Then Exit For
-            If CleanText(wsPT.Cells(1, nextCol + 1).Value) <> "" Then Exit For
+    Dim firstCol As Long
+    firstCol = LastGTWeekColumn(gtWeekCols) + 1
+    If firstCol < 10 Then firstCol = 10
+    If firstCol + 1 >= idCol Then Exit Function
 
-            wsPT.Cells(1, nextCol).Value = "Weekly Total (" & wpxWeekCols(k)(1) & ")"
-            wsPT.Cells(1, nextCol + 1).Value = "Weekly Rank (" & wpxWeekCols(k)(1) & ")"
-            nextCol = nextCol + 2
-            added = added + 1
+    ' Every week that is not a GT week: the WPX weeks, plus any week already on
+    ' the sheet that GT never played, keyed so a week is only laid out once.
+    Dim labels As Object
+    Set labels = CreateObject("Scripting.Dictionary")
+
+    Dim k As Variant
+    For Each k In gtWeekCols.Keys
+        If Not GTPlayedWeek(CStr(gtWeekCols(k)(1))) Then labels(k) = gtWeekCols(k)(1)
+    Next k
+    For Each k In wpxWeekCols.Keys
+        If Not labels.Exists(k) Then
+            If Not GTPlayedWeek(CStr(wpxWeekCols(k)(1))) Then labels(k) = wpxWeekCols(k)(1)
         End If
     Next k
 
-    EnsureWeekColumns = added
+    ' Newest first, matching the direction the GT refresh writes its own weeks.
+    Dim ordered As Collection
+    Set ordered = KeysNewestFirst(labels)
+
+    ' The old layout goes before the new one is written, so a week that moves
+    ' does not leave a copy of itself behind.
+    wsPT.Range(wsPT.Cells(1, firstCol), wsPT.Cells(LAST_PT_ROW, idCol - 1)).ClearContents
+
+    Dim c As Long, written As Long
+    c = firstCol
+    For Each k In ordered
+        If c + 1 >= idCol Then Exit For
+        wsPT.Cells(1, c).Value = "Weekly Total (" & labels(k) & ")"
+        wsPT.Cells(1, c + 1).Value = "Weekly Rank (" & labels(k) & ")"
+        c = c + 2
+        written = written + 1
+    Next k
+
+    EnsureWeekColumns = written
 End Function
 
-Private Function LastWeekColumn(weekCols As Object) As Long
+' The last column the GT weeks occupy: the weeks GT played itself, which the GT
+' refresh owns.
+Private Function LastGTWeekColumn(gtWeekCols As Object) As Long
     Dim k As Variant, c As Long
-    For Each k In weekCols.Keys
-        c = weekCols(k)(0)
-        If weekCols(k)(2) > c Then c = weekCols(k)(2)
-        If c > LastWeekColumn Then LastWeekColumn = c
+    For Each k In gtWeekCols.Keys
+        If GTPlayedWeek(CStr(gtWeekCols(k)(1))) Then
+            c = gtWeekCols(k)(0)
+            If gtWeekCols(k)(2) > c Then c = gtWeekCols(k)(2)
+            If c > LastGTWeekColumn Then LastGTWeekColumn = c
+        End If
     Next k
+End Function
+
+' Week keys sorted newest week first. The keys are month-day, which sorts
+' correctly for a season that stays inside one calendar year.
+Private Function KeysNewestFirst(weekLabels As Object) As Collection
+    Dim ordered As New Collection
+
+    Dim k As Variant, i As Long, inserted As Boolean
+    For Each k In weekLabels.Keys
+        inserted = False
+        For i = 1 To ordered.count
+            If CStr(k) > CStr(ordered(i)) Then
+                ordered.Add k, , i
+                inserted = True
+                Exit For
+            End If
+        Next i
+        If Not inserted Then ordered.Add k
+    Next k
+
+    Set KeysNewestFirst = ordered
 End Function
 
 ' Fills the GT weekly columns for weeks GT never played, plus their rank
