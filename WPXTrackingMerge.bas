@@ -1,21 +1,46 @@
 Attribute VB_Name = "WPXTrackingMerge"
 ' WPXTrackingMerge.bas
-' Fills the GT "Player Tracking" sheet with a player's WPX weeks, read straight
-' off the "Player Tracking" sheet in WPXStatsFinal.xlsm and matched on the
-' Player ID in column CL - the same ID UpdatePlayerTrackingFromRosterAndWeeks
-' uses.
+' Puts each player's legacy WPX weeks onto the GT "Player Tracking" sheet, in the
+' column for the week they were scored, matched on the Player ID in column CL -
+' the same ID UpdatePlayerTrackingFromRosterAndWeeks writes.
 '
-' Each WPX week lands in the GT column for that same week: both sheets label
-' their weekly columns "Weekly Total (Jul 13 - Jul 19)", so the two sets of
-' headers are paired by week, not by column position. Only cells the GT refresh
-' left empty are filled, so a week the player actually played in GT is never
-' overwritten by their WPX number. WPX weeks with no matching GT column are
-' reported in the summary and left alone.
+' The WPX numbers are written as ID-keyed formulas, not as pasted values. That
+' matters because UpdatePlayerTrackingFromRosterAndWeeks clears A2:A500, B2:B500
+' and CL2:CL500 and rewrites names and IDs in roster order, while leaving the
+' WPX columns alone: pasted values stay glued to their old row numbers and end
+' up beside whoever now sits in that row. A formula keyed on CL follows its
+' player through any roster reshuffle instead.
 '
-' After filling, the weekly ranks of the touched columns plus Overall Total (C),
-' Overall Rank (E) and Overall Weekly Average (G) are recalculated so they
-' include the WPX weeks. Pushing Total (D), Pushing Rank (F) and the missed-goal
-' counts (H, I) are GT-season figures and are left as the GT macro wrote them.
+' Three pieces are built, all rebuilt from scratch on each run:
+'   "WPX Snapshot"  hidden sheet - one row per WPX player (ID, name, one column
+'                   per WPX week), copied out of WPXStatsFinal.xlsm so the GT
+'                   workbook keeps working when the WPX file is not open.
+'   "WPX ID Map"    crosswalk for players whose GT roster ID differs from their
+'                   WPX one - the transfers that were re-added to the roster and
+'                   given a new ID. Put the GT ID in column A and their WPX
+'                   player ID *or* their WPX player name in column B. Every
+'                   player with a note in the "WPX Transfer" column (CN) that no
+'                   WPX row can be found for is pre-listed here for you to fill
+'                   in, so flag transfers there as you re-add them.
+'   Column CO       hidden helper on Player Tracking: the WPX key for the row,
+'                   i.e. the mapped ID when there is one, else the GT ID.
+'
+' Only weeks GT itself never played are filled: a GT week column is treated as
+' WPX-owned when the workbook has no weekly sheet of that name, so a week the
+' player actually played in GT is never overwritten. A WPX week with no GT column
+' at all gets one, appended after the last existing week column so nothing
+' shifts, and every WPX week is also mirrored into the "WPX Weekly ..." block
+' from CV onwards, which is past everything the GT refresh clears.
+'
+' This module owns both the pre-GT week columns and the CV block. Do not also run
+' WPXWeeksMerge or PullWPXPlayerTracking against the same sheet: two macros
+' pasting into the same columns is how the numbers drifted onto the wrong players
+' in the first place.
+'
+' After filling, Overall Total (C), Overall Rank (E) and Overall Weekly Average
+' (G) are recalculated so they include the WPX weeks. Pushing Total (D), Pushing
+' Rank (F) and the missed-goal counts (H, I) are GT-season figures and are left
+' as the GT macro wrote them.
 '
 ' To use:
 '   1. Open GTStatsFINAL.xlsm.
@@ -24,11 +49,13 @@ Attribute VB_Name = "WPXTrackingMerge"
 '      Player Tracking sheet, then click it after each GT refresh.
 '   4. Pick WPXStatsFinal.xlsm when prompted (skipped when it sits in the same
 '      folder as GTStatsFINAL.xlsm).
+'   5. Fill in any rows the macro added to "WPX ID Map" and click the button
+'      again.
 '
 ' To refresh GT and WPX in one go, add this line at the end of
 ' UpdatePlayerTrackingFromRosterAndWeeks, just before SafeExit:
 '
-'     Call MergeWPXTrackingIntoPlayerTracking
+'     Call RefreshWPXTracking
 '
 ' To have it run by itself every time the workbook opens, run
 ' InstallWPXAutoRun() once - it writes a Workbook_Open handler into the
@@ -42,45 +69,1091 @@ Attribute VB_Name = "WPXTrackingMerge"
 ' the file and stalling the open.
 '
 ' IDs are compared as digits only, so an ID typed with commas or spaces, stored
-' in scientific notation, or padded with leading zeros still matches. Players
-' whose ID is missing or mistyped in one of the workbooks fall back to matching
-' on player name (set MATCH_BY_NAME to False for ID-only matching).
+' in scientific notation, or padded with leading zeros still matches.
 '
-' If players are missing from the result, run DiagnoseWPXTrackingMerge(). It
-' builds a "WPX Merge Diagnostics" sheet listing every GT Player Tracking row
-' with its ID, the WPX row it matched, how it matched, and the reason nothing
-' was filled (no WPX row, no shared week column, or GT already has a score).
+' ClearWPXTracking() strips every WPX column back out, which is also the way to
+' clear stale pasted values left behind by an older version of this macro.
+' DiagnoseWPXTrackingMerge() writes a "WPX Merge Diagnostics" sheet listing each
+' player, the WPX row they resolved to, how they matched, and how many weeks
+' were filled.
 
 Option Explicit
 
 Private Const PT_SHEET      As String = "Player Tracking"
 Private Const PT_ID_COL     As String = "CL"
+Private Const TRANSFER_COL  As String = "CN"    ' "WPX Transfer" note column
+Private Const HELPER_COL    As String = "CO"
+Private Const WPX_BLOCK_COL As String = "CV"
+Private Const SNAP_SHEET    As String = "WPX Snapshot"
+Private Const MAP_SHEET     As String = "WPX ID Map"
+Private Const DIAG_SHEET    As String = "WPX Merge Diagnostics"
 Private Const WPX_PT_SHEET  As String = "Player Tracking"
 Private Const WPX_FILE      As String = "WPXStatsFinal.xlsm"
 
-' A GT cell holding a real score is left alone; set this to False to let WPX
-' numbers overwrite whatever the GT refresh wrote.
-Private Const FILL_ONLY_BLANKS As Boolean = True
-
-' Players whose ID is missing or mistyped in one of the workbooks are matched on
-' player name instead. Set to False for ID-only matching.
-Private Const MATCH_BY_NAME As Boolean = True
+' Rows the GT refresh itself writes and clears, so the formulas cover the same
+' span it does.
+Private Const LAST_PT_ROW   As Long = 500
 
 Private Const AUTORUN_TAG As String = "' --- WPX auto-run (WPXTrackingMerge) ---"
 
 ' Set while running from Workbook_Open: no message boxes, no file prompt.
 Private m_silent As Boolean
 
+'==============================================================================
+' Entry points
+'==============================================================================
+
+' Rebuilds the snapshot and every WPX column on Player Tracking.
+Public Sub RefreshWPXTracking()
+    Dim wsPT As Worksheet, wsWpx As Worksheet
+    Dim wbWpx As Workbook
+    Dim opened As Boolean
+    Dim oldCalc As XlCalculation
+    Dim calcSaved As Boolean
+
+    On Error GoTo SafeExit
+
+    Set wsPT = SheetOrNothing(ThisWorkbook, PT_SHEET)
+    If wsPT Is Nothing Then
+        Notify "Sheet """ & PT_SHEET & """ not found.", vbExclamation
+        Exit Sub
+    End If
+
+    Set wbWpx = OpenWpxWorkbook(opened)
+    If wbWpx Is Nothing Then Exit Sub
+
+    Set wsWpx = SheetOrNothing(wbWpx, WPX_PT_SHEET)
+    If wsWpx Is Nothing Then
+        Notify "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
+        GoTo SafeExit
+    End If
+
+    oldCalc = Application.Calculation
+    calcSaved = True
+    Application.ScreenUpdating = False
+    Application.EnableEvents = False
+    Application.Calculation = xlCalculationManual
+
+    ' Week start date -> Array(total column, label, rank column) on each sheet.
+    Dim gtWeekCols As Object, wpxWeekCols As Object
+    Set gtWeekCols = BuildWeekColumnMap(wsPT)
+    Set wpxWeekCols = BuildWeekColumnMap(wsWpx)
+
+    If wpxWeekCols.count = 0 Then
+        Notify "No ""Weekly Total (...)"" headers found on the WPX " & _
+               WPX_PT_SHEET & " sheet.", vbExclamation
+        GoTo SafeExit
+    End If
+
+    ' Week key -> snapshot column letter.
+    Dim snapCols As Object
+    Set snapCols = BuildSnapshot(wsWpx, wpxWeekCols)
+
+    Dim lastRow As Long
+    lastRow = LastPlayerRow(wsPT)
+    If lastRow < 2 Then GoTo SafeExit
+
+    ' A WPX week with no GT column of its own gets one, so every WPX week ends up
+    ' in a week column rather than only in the CV block.
+    Dim addedCols As Long
+    addedCols = EnsureWeekColumns(wsPT, gtWeekCols, wpxWeekCols)
+    If addedCols > 0 Then Set gtWeekCols = BuildWeekColumnMap(wsPT)
+
+    Dim unmatched As Collection
+    Set unmatched = ListUnmatchedPlayers(wsPT, lastRow)
+    Dim mapAdded As Long
+    mapAdded = EnsureIDMap(unmatched)
+
+    WriteHelperColumn wsPT, lastRow
+
+    ' GT week columns for weeks GT never played: those are the WPX-owned ones.
+    Dim ownedWeeks As Long, missingWeeks As Long
+    ownedWeeks = WriteGTWeekFormulas(wsPT, gtWeekCols, snapCols, lastRow)
+    missingWeeks = WriteWpxBlock(wsPT, wsWpx, wpxWeekCols, snapCols, lastRow)
+
+    Application.Calculation = xlCalculationAutomatic
+    Application.Calculate
+    Application.Calculation = xlCalculationManual
+
+    RecalcOverall wsPT, gtWeekCols, lastRow
+
+SafeExit:
+    Dim errNum As Long, errText As String
+    errNum = Err.Number
+    errText = Err.Description
+    On Error Resume Next
+
+    If Not wbWpx Is Nothing Then
+        If opened Then wbWpx.Close SaveChanges:=False
+    End If
+
+    If calcSaved Then Application.Calculation = oldCalc
+    Application.EnableEvents = True
+    Application.ScreenUpdating = True
+
+    If errNum <> 0 Then
+        Notify "RefreshWPXTracking error " & errNum & ": " & errText, vbExclamation
+    ElseIf Not unmatched Is Nothing Then
+        Dim msg As String
+        msg = "WPX weeks linked into " & PT_SHEET & " by Player ID." & vbCrLf & _
+              "GT week columns filled from WPX: " & ownedWeeks & vbCrLf & _
+              "Week columns added for WPX weeks GT had none for: " & addedCols & vbCrLf & _
+              "WPX weeks still without a GT column (in the " & WPX_BLOCK_COL & _
+              " block only): " & missingWeeks & vbCrLf & _
+              "Flagged transfers with no WPX match: " & unmatched.count
+        If mapAdded > 0 Then
+            msg = msg & vbCrLf & vbCrLf & mapAdded & " player(s) were added to the """ & _
+                  MAP_SHEET & """ sheet. Fill in their WPX player ID or name in " & _
+                  "column B and run this again."
+        End If
+        msg = msg & vbCrLf & vbCrLf & "Run DiagnoseWPXTrackingMerge for a per-player reason."
+        Notify msg, vbInformation, "Done"
+    End If
+End Sub
+
+' Kept so the old macro name and any existing button still work.
+Public Sub MergeWPXTrackingIntoPlayerTracking()
+    RefreshWPXTracking
+End Sub
+
 ' Entry point for the Workbook_Open handler.
 Public Sub RunWPXTrackingOnOpen()
     m_silent = True
     On Error Resume Next
-    MergeWPXTrackingIntoPlayerTracking
+    RefreshWPXTracking
     On Error GoTo 0
     m_silent = False
 End Sub
 
-' Writes the Workbook_Open handler into ThisWorkbook so the merge runs on every
+' Strips every WPX column back off Player Tracking, including stale pasted
+' values written by an older version of this macro.
+Public Sub ClearWPXTracking()
+    Dim wsPT As Worksheet
+    Set wsPT = SheetOrNothing(ThisWorkbook, PT_SHEET)
+    If wsPT Is Nothing Then
+        MsgBox "Sheet """ & PT_SHEET & """ not found.", vbExclamation
+        Exit Sub
+    End If
+
+    If MsgBox("Clear every WPX column on " & PT_SHEET & "?" & vbCrLf & vbCrLf & _
+              "Weeks GT played are left untouched.", vbYesNo + vbQuestion, _
+              "Clear WPX data") <> vbYes Then Exit Sub
+
+    Application.ScreenUpdating = False
+
+    Dim gtWeekCols As Object
+    Set gtWeekCols = BuildWeekColumnMap(wsPT)
+
+    Dim k As Variant
+    For Each k In gtWeekCols.Keys
+        If Not GTPlayedWeek(CStr(gtWeekCols(k)(1))) Then
+            ClearColumnBody wsPT, CLng(gtWeekCols(k)(0))
+            If gtWeekCols(k)(2) > 0 Then ClearColumnBody wsPT, CLng(gtWeekCols(k)(2))
+        End If
+    Next k
+
+    Dim firstBlock As Long, lastCol As Long
+    firstBlock = wsPT.Range(WPX_BLOCK_COL & "1").Column
+    lastCol = wsPT.Cells(1, wsPT.Columns.count).End(xlToLeft).Column
+    If lastCol >= firstBlock Then
+        wsPT.Range(wsPT.Cells(1, firstBlock), wsPT.Cells(LAST_PT_ROW, lastCol)).ClearContents
+    End If
+    ClearColumnBody wsPT, wsPT.Range(HELPER_COL & "1").Column
+
+    Application.ScreenUpdating = True
+    MsgBox "WPX columns cleared.", vbInformation
+End Sub
+
+' Reports, per Player Tracking row, the WPX row it resolved to, how it matched,
+' and how many weeks it filled. Writes a sheet and changes no data.
+Public Sub DiagnoseWPXTrackingMerge()
+    Dim wsPT As Worksheet
+    Set wsPT = SheetOrNothing(ThisWorkbook, PT_SHEET)
+    If wsPT Is Nothing Then
+        MsgBox "Sheet """ & PT_SHEET & """ not found.", vbExclamation
+        Exit Sub
+    End If
+
+    Dim wsSnap As Worksheet
+    Set wsSnap = SheetOrNothing(ThisWorkbook, SNAP_SHEET)
+    If wsSnap Is Nothing Then
+        MsgBox "No """ & SNAP_SHEET & """ sheet yet - run RefreshWPXTracking first.", _
+               vbExclamation
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False
+
+    Dim snapByID As Object, snapByName As Object
+    BuildSnapshotIndex wsSnap, snapByID, snapByName
+
+    Dim idMap As Object
+    Set idMap = BuildIDMap()
+
+    Dim gtWeekCols As Object
+    Set gtWeekCols = BuildWeekColumnMap(wsPT)
+
+    Dim ws As Worksheet
+    Set ws = GetOrCreateSheet(DIAG_SHEET)
+    ws.Cells.Clear
+    ws.Range("A1:F1").Value = Array("GT Player", "GT Row", "GT Player ID", _
+        "WPX Key Used", "Matched By", "Result")
+    ws.Rows(1).Font.Bold = True
+
+    Dim lastRow As Long, r As Long, outRow As Long
+    lastRow = LastPlayerRow(wsPT)
+    outRow = 1
+
+    Dim gtName As String, gtID As String, key As String, snapRow As Long
+    Dim matchedBy As String, filled As Long, k As Variant
+
+    For r = 2 To lastRow
+        gtName = CleanText(wsPT.Cells(r, 1).Value)
+        gtID = NormalizeID(wsPT.Cells(r, PT_ID_COL).Value)
+        If gtName <> "" Or gtID <> "" Then
+            outRow = outRow + 1
+            ws.Cells(outRow, 1).Value = gtName
+            ws.Cells(outRow, 2).Value = r
+            ws.Cells(outRow, 3).Value = gtID
+
+            key = WpxKeyFor(gtID, idMap)
+            ws.Cells(outRow, 4).Value = key
+
+            snapRow = SnapshotRow(key, snapByID, snapByName, matchedBy)
+            ws.Cells(outRow, 5).Value = matchedBy
+
+            If snapRow = 0 Then
+                If gtID = "" Then
+                    ws.Cells(outRow, 6).Value = "No Player ID on the GT row"
+                Else
+                    ws.Cells(outRow, 6).Value = "Not in WPX - add their WPX ID or name to the """ & _
+                                                MAP_SHEET & """ sheet"
+                End If
+            Else
+                filled = 0
+                For Each k In gtWeekCols.Keys
+                    If Not GTPlayedWeek(CStr(gtWeekCols(k)(1))) Then
+                        If HasScore(wsPT.Cells(r, gtWeekCols(k)(0)).Value) Then filled = filled + 1
+                    End If
+                Next k
+                ws.Cells(outRow, 6).Value = "Matched - " & filled & " GT week column(s) filled"
+            End If
+        End If
+    Next r
+
+    ws.Columns("A:F").AutoFit
+    ws.Activate
+
+    Application.ScreenUpdating = True
+    MsgBox "Diagnostics written to the """ & DIAG_SHEET & """ sheet.", vbInformation
+End Sub
+
+' Puts a "Pull WPX Weeks" button on the Player Tracking sheet.
+Public Sub AddWPXTrackingButton()
+    Dim ws As Worksheet
+    Set ws = SheetOrNothing(ThisWorkbook, PT_SHEET)
+    If ws Is Nothing Then
+        MsgBox "Sheet """ & PT_SHEET & """ not found.", vbExclamation
+        Exit Sub
+    End If
+
+    On Error Resume Next
+    ws.Shapes("btnPullWPXTracking").Delete
+    On Error GoTo 0
+
+    Dim shp As Shape
+    Set shp = ws.Shapes.AddShape(msoShapeRoundedRectangle, 8, 8, 150, 28)
+    shp.name = "btnPullWPXTracking"
+    shp.Fill.ForeColor.RGB = RGB(0, 90, 160)
+    shp.Line.ForeColor.RGB = RGB(0, 60, 110)
+    With shp.TextFrame2.TextRange
+        .Text = "Pull WPX Weeks"
+        .Font.Size = 11
+        .Font.Bold = msoTrue
+        .Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
+    End With
+    shp.TextFrame2.VerticalAnchor = msoAnchorMiddle
+    shp.TextFrame2.HorizontalAnchor = msoAnchorCenter
+    shp.OnAction = "RefreshWPXTracking"
+
+    ws.Activate
+    MsgBox "Button added to the " & PT_SHEET & " sheet.", vbInformation
+End Sub
+
+'==============================================================================
+' Snapshot of the WPX Player Tracking sheet
+'==============================================================================
+
+' Rebuilds the hidden snapshot: A = WPX player ID, B = WPX player name, then one
+' column per WPX week, headed with that week's label. Returns week key ->
+' snapshot column letter.
+Private Function BuildSnapshot(wsWpx As Worksheet, wpxWeekCols As Object) As Object
+    Dim ws As Worksheet
+    Set ws = GetOrCreateSheet(SNAP_SHEET)
+    ws.Cells.Clear
+    ws.Range("A1:B1").Value = Array("WPX Player ID", "WPX Player")
+
+    ' Weeks in the order the WPX sheet lists them, so the snapshot reads the
+    ' same way as the source.
+    Dim keys As Collection
+    Set keys = WeekKeysByColumn(wpxWeekCols)
+
+    Dim cols As Object
+    Set cols = CreateObject("Scripting.Dictionary")
+
+    Dim c As Long, k As Variant
+    c = 2
+    For Each k In keys
+        c = c + 1
+        ws.Cells(1, c).Value = wpxWeekCols(k)(1)
+        cols(k) = ColumnLetter(c)
+    Next k
+
+    Dim idCol As Long
+    idCol = FindIDColumn(wsWpx)
+
+    Dim lastRow As Long, r As Long, outRow As Long
+    lastRow = LastPlayerRow(wsWpx)
+    outRow = 1
+
+    Dim id As String, nameVal As String, v As Variant
+    For r = 2 To lastRow
+        id = ""
+        If idCol > 0 Then id = NormalizeID(wsWpx.Cells(r, idCol).Value)
+        nameVal = CleanText(wsWpx.Cells(r, 1).Value)
+        If id <> "" Or nameVal <> "" Then
+            outRow = outRow + 1
+            ws.Cells(outRow, 1).Value = id
+            ws.Cells(outRow, 2).Value = nameVal
+
+            c = 2
+            For Each k In keys
+                c = c + 1
+                v = wsWpx.Cells(r, wpxWeekCols(k)(0)).Value
+                If HasScore(v) Then ws.Cells(outRow, c).Value = CDbl(v)
+            Next k
+        End If
+    Next r
+
+    ws.Rows(1).Font.Bold = True
+    ws.Visible = xlSheetHidden
+
+    Set BuildSnapshot = cols
+End Function
+
+' Snapshot ID -> row and snapshot name key -> row.
+Private Sub BuildSnapshotIndex(ws As Worksheet, ByRef byID As Object, ByRef byName As Object)
+    Set byID = CreateObject("Scripting.Dictionary")
+    Set byName = CreateObject("Scripting.Dictionary")
+
+    Dim lastRow As Long, r As Long, id As String, key As String
+    lastRow = ws.Cells(ws.Rows.count, 1).End(xlUp).row
+    If ws.Cells(ws.Rows.count, 2).End(xlUp).row > lastRow Then
+        lastRow = ws.Cells(ws.Rows.count, 2).End(xlUp).row
+    End If
+
+    For r = 2 To lastRow
+        id = NormalizeID(ws.Cells(r, 1).Value)
+        If id <> "" Then
+            If Not byID.Exists(id) Then byID.Add id, r
+        End If
+        key = NameKey(ws.Cells(r, 2).Value)
+        If key <> "" Then
+            If Not byName.Exists(key) Then byName.Add key, r
+        End If
+    Next r
+End Sub
+
+' The row a WPX key resolves to, by ID first then by player name.
+Private Function SnapshotRow(key As String, byID As Object, byName As Object, _
+    ByRef matchedBy As String) As Long
+
+    matchedBy = ""
+    If key = "" Then Exit Function
+
+    Dim id As String
+    id = NormalizeID(key)
+    If id <> "" Then
+        If byID.Exists(id) Then
+            matchedBy = "Player ID"
+            SnapshotRow = byID(id)
+            Exit Function
+        End If
+    End If
+
+    Dim nk As String
+    nk = NameKey(key)
+    If nk <> "" Then
+        If byName.Exists(nk) Then
+            matchedBy = "WPX player name"
+            SnapshotRow = byName(nk)
+        End If
+    End If
+End Function
+
+'==============================================================================
+' GT ID -> WPX ID crosswalk
+'==============================================================================
+
+' GT ID -> WPX ID or WPX player name, from the crosswalk sheet.
+Private Function BuildIDMap() As Object
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    Dim ws As Worksheet
+    Set ws = SheetOrNothing(ThisWorkbook, MAP_SHEET)
+    If ws Is Nothing Then
+        Set BuildIDMap = dict
+        Exit Function
+    End If
+
+    Dim lastRow As Long, r As Long, gtID As String, wpxKey As String
+    lastRow = ws.Cells(ws.Rows.count, 1).End(xlUp).row
+    For r = 2 To lastRow
+        gtID = NormalizeID(ws.Cells(r, 1).Value)
+        wpxKey = CleanText(ws.Cells(r, 2).Value)
+        If gtID <> "" And wpxKey <> "" Then dict(gtID) = wpxKey
+    Next r
+
+    Set BuildIDMap = dict
+End Function
+
+' The WPX key for a GT row: the crosswalk entry when there is one, else the GT ID.
+Private Function WpxKeyFor(gtID As String, idMap As Object) As String
+    If gtID = "" Then Exit Function
+    If idMap.Exists(gtID) Then
+        WpxKeyFor = CStr(idMap(gtID))
+    Else
+        WpxKeyFor = gtID
+    End If
+End Function
+
+' Players marked as WPX transfers (a note in the "WPX Transfer" column, or an
+' entry already on the crosswalk) that no WPX row can be found for. Each entry is
+' Array(gtName, gtID). Players who were simply never in WPX are not listed:
+' nothing needs mapping for them.
+Private Function ListUnmatchedPlayers(wsPT As Worksheet, lastRow As Long) As Collection
+    Dim coll As New Collection
+
+    Dim wsSnap As Worksheet
+    Set wsSnap = SheetOrNothing(ThisWorkbook, SNAP_SHEET)
+    If wsSnap Is Nothing Then
+        Set ListUnmatchedPlayers = coll
+        Exit Function
+    End If
+
+    Dim byID As Object, byName As Object
+    BuildSnapshotIndex wsSnap, byID, byName
+
+    Dim idMap As Object
+    Set idMap = BuildIDMap()
+
+    Dim r As Long, gtName As String, gtID As String, matchedBy As String
+    For r = 2 To lastRow
+        gtName = CleanText(wsPT.Cells(r, 1).Value)
+        gtID = NormalizeID(wsPT.Cells(r, PT_ID_COL).Value)
+        If gtName <> "" And IsTransfer(wsPT, r, gtID, idMap) Then
+            If SnapshotRow(WpxKeyFor(gtID, idMap), byID, byName, matchedBy) = 0 Then
+                coll.Add Array(gtName, gtID)
+            End If
+        End If
+    Next r
+
+    Set ListUnmatchedPlayers = coll
+End Function
+
+' True when the row is flagged as a WPX transfer or is already on the crosswalk.
+Private Function IsTransfer(wsPT As Worksheet, r As Long, gtID As String, _
+    idMap As Object) As Boolean
+
+    If CleanText(wsPT.Cells(r, TRANSFER_COL).Value) <> "" Then
+        IsTransfer = True
+        Exit Function
+    End If
+
+    If gtID <> "" Then IsTransfer = idMap.Exists(gtID)
+End Function
+
+' Creates the crosswalk sheet when missing and lists every unmatched player on
+' it, so the only manual step is typing their WPX ID or name in column B.
+' Returns how many rows were added.
+Private Function EnsureIDMap(unmatched As Collection) As Long
+    Dim ws As Worksheet
+    Set ws = SheetOrNothing(ThisWorkbook, MAP_SHEET)
+
+    If ws Is Nothing Then
+        Set ws = GetOrCreateSheet(MAP_SHEET)
+        ws.Range("A1:D1").Value = Array("GT Player ID", "WPX Player ID or Name", _
+            "GT Player", "Note")
+        ws.Rows(1).Font.Bold = True
+        ws.Columns("A:D").ColumnWidth = 22
+    End If
+
+    Dim listed As Object
+    Set listed = CreateObject("Scripting.Dictionary")
+
+    Dim lastRow As Long, r As Long, id As String
+    lastRow = ws.Cells(ws.Rows.count, 1).End(xlUp).row
+    For r = 2 To lastRow
+        id = NormalizeID(ws.Cells(r, 1).Value)
+        If id <> "" Then listed(id) = True
+    Next r
+
+    Dim added As Long, e As Variant
+    For Each e In unmatched
+        id = CStr(e(1))
+        If id <> "" Then
+            If Not listed.Exists(id) Then
+                listed(id) = True
+                lastRow = lastRow + 1
+                ws.Cells(lastRow, 1).Value = id
+                ws.Cells(lastRow, 3).Value = e(0)
+                ws.Cells(lastRow, 4).Value = "Not found in WPX - put their WPX player ID or name in column B"
+                added = added + 1
+            End If
+        End If
+    Next e
+
+    EnsureIDMap = added
+End Function
+
+'==============================================================================
+' Formulas on Player Tracking
+'==============================================================================
+
+' The hidden helper column: the WPX key for the row, mapped through the
+' crosswalk when it has an entry.
+Private Sub WriteHelperColumn(wsPT As Worksheet, lastRow As Long)
+    Dim col As Long
+    col = wsPT.Range(HELPER_COL & "1").Column
+    wsPT.Cells(1, col).Value = "WPX Key (auto)"
+
+    Dim lookup As String
+    lookup = "VLOOKUP($" & PT_ID_COL & "2,'" & MAP_SHEET & "'!$A:$B,2,FALSE)"
+
+    Dim f As String
+    f = "=IF($" & PT_ID_COL & "2=" & Q2 & "," & Q2 & _
+        ",IF(IFERROR(" & lookup & ",0)=0,$" & PT_ID_COL & "2," & lookup & "))"
+
+    With wsPT.Range(wsPT.Cells(2, col), wsPT.Cells(lastRow, col))
+        .ClearContents
+        .Formula = f
+    End With
+    wsPT.Columns(col).Hidden = True
+End Sub
+
+' Adds a "Weekly Total (...)" / "Weekly Rank (...)" header pair for every WPX
+' week the GT sheet has no column for, appended after the last existing week
+' column so nothing shifts. Returns how many pairs were added; stops short if
+' there is not enough room before the Player ID column.
+Private Function EnsureWeekColumns(wsPT As Worksheet, gtWeekCols As Object, _
+    wpxWeekCols As Object) As Long
+
+    Dim keys As Collection
+    Set keys = WeekKeysByColumn(wpxWeekCols)
+
+    Dim nextCol As Long, idCol As Long
+    nextCol = LastWeekColumn(gtWeekCols) + 1
+    idCol = wsPT.Range(PT_ID_COL & "1").Column
+    If nextCol < 2 Then Exit Function
+
+    Dim k As Variant, added As Long
+    For Each k In keys
+        If Not gtWeekCols.Exists(k) Then
+            If nextCol + 1 >= idCol Then Exit For
+            If CleanText(wsPT.Cells(1, nextCol).Value) <> "" Then Exit For
+            If CleanText(wsPT.Cells(1, nextCol + 1).Value) <> "" Then Exit For
+
+            wsPT.Cells(1, nextCol).Value = "Weekly Total (" & wpxWeekCols(k)(1) & ")"
+            wsPT.Cells(1, nextCol + 1).Value = "Weekly Rank (" & wpxWeekCols(k)(1) & ")"
+            nextCol = nextCol + 2
+            added = added + 1
+        End If
+    Next k
+
+    EnsureWeekColumns = added
+End Function
+
+Private Function LastWeekColumn(weekCols As Object) As Long
+    Dim k As Variant, c As Long
+    For Each k In weekCols.Keys
+        c = weekCols(k)(0)
+        If weekCols(k)(2) > c Then c = weekCols(k)(2)
+        If c > LastWeekColumn Then LastWeekColumn = c
+    Next k
+End Function
+
+' Fills the GT weekly columns for weeks GT never played, plus their rank
+' columns. Returns how many columns were written.
+Private Function WriteGTWeekFormulas(wsPT As Worksheet, gtWeekCols As Object, _
+    snapCols As Object, lastRow As Long) As Long
+
+    Dim k As Variant, totalCol As Long, rankCol As Long, written As Long
+    For Each k In gtWeekCols.Keys
+        If snapCols.Exists(k) Then
+            If Not GTPlayedWeek(CStr(gtWeekCols(k)(1))) Then
+                totalCol = gtWeekCols(k)(0)
+                rankCol = gtWeekCols(k)(2)
+                WriteLookupColumn wsPT, totalCol, CStr(snapCols(k)), lastRow
+                If rankCol > 0 Then WriteRankColumn wsPT, totalCol, rankCol, lastRow
+                written = written + 1
+            End If
+        End If
+    Next k
+
+    WriteGTWeekFormulas = written
+End Function
+
+' Rebuilds the "WPX Weekly ..." block from CV: overall total, weeks played,
+' weekly average, then a total/rank pair per WPX week. Returns how many WPX
+' weeks have no GT column of their own.
+Private Function WriteWpxBlock(wsPT As Worksheet, wsWpx As Worksheet, _
+    wpxWeekCols As Object, snapCols As Object, lastRow As Long) As Long
+
+    Dim firstCol As Long, lastCol As Long
+    firstCol = wsPT.Range(WPX_BLOCK_COL & "1").Column
+    lastCol = wsPT.Cells(1, wsPT.Columns.count).End(xlToLeft).Column
+    If lastCol < firstCol Then lastCol = firstCol
+    wsPT.Range(wsPT.Cells(1, firstCol), wsPT.Cells(LAST_PT_ROW, lastCol)).ClearContents
+
+    Dim gtWeekCols As Object
+    Set gtWeekCols = BuildWeekColumnMap(wsPT)
+
+    Dim keys As Collection
+    Set keys = WeekKeysByColumn(wpxWeekCols)
+
+    wsPT.Cells(1, firstCol).Value = "WPX Overall Total"
+    wsPT.Cells(1, firstCol + 1).Value = "WPX Weeks Played"
+    wsPT.Cells(1, firstCol + 2).Value = "WPX Weekly Average"
+
+    Dim totalList As String, c As Long, k As Variant, missing As Long
+    c = firstCol + 2
+    For Each k In keys
+        c = c + 1
+        wsPT.Cells(1, c).Value = "WPX Weekly Total (" & wpxWeekCols(k)(1) & ")"
+        wsPT.Cells(1, c + 1).Value = "WPX Weekly Rank (" & wpxWeekCols(k)(1) & ")"
+        WriteLookupColumn wsPT, c, CStr(snapCols(k)), lastRow
+        WriteRankColumn wsPT, c, c + 1, lastRow
+
+        If totalList <> "" Then totalList = totalList & ","
+        totalList = totalList & ColumnLetter(c) & "2"
+
+        If Not gtWeekCols.Exists(k) Then missing = missing + 1
+        c = c + 1
+    Next k
+
+    If totalList <> "" Then
+        Dim totalLetter As String, countLetter As String
+        totalLetter = ColumnLetter(firstCol)
+        countLetter = ColumnLetter(firstCol + 1)
+
+        FillFormula wsPT, firstCol, lastRow, _
+            "=IF(COUNT(" & totalList & ")=0," & Q2 & ",SUM(" & totalList & "))"
+        FillFormula wsPT, firstCol + 1, lastRow, "=COUNT(" & totalList & ")"
+        FillFormula wsPT, firstCol + 2, lastRow, _
+            "=IF(" & countLetter & "2=0," & Q2 & "," & totalLetter & "2/" & countLetter & "2)"
+    End If
+
+    wsPT.Rows(1).WrapText = True
+    WriteWpxBlock = missing
+End Function
+
+' One snapshot column, looked up by the helper key: its ID first, then its
+' player name, so a crosswalk entry can name the player instead of their ID.
+Private Sub WriteLookupColumn(wsPT As Worksheet, col As Long, snapCol As String, _
+    lastRow As Long)
+
+    Dim byID As String, byName As String, v As String
+    byID = "INDEX('" & SNAP_SHEET & "'!$" & snapCol & ":$" & snapCol & _
+           ",MATCH($" & HELPER_COL & "2,'" & SNAP_SHEET & "'!$A:$A,0))"
+    byName = "INDEX('" & SNAP_SHEET & "'!$" & snapCol & ":$" & snapCol & _
+             ",MATCH($" & HELPER_COL & "2,'" & SNAP_SHEET & "'!$B:$B,0))"
+    v = "IFERROR(" & byID & "," & byName & ")"
+
+    FillFormula wsPT, col, lastRow, _
+        "=IF($" & HELPER_COL & "2=" & Q2 & "," & Q2 & _
+        ",IFERROR(IF(" & v & "=" & Q2 & "," & Q2 & "," & v & ")," & Q2 & "))"
+End Sub
+
+' Highest score = rank 1, over the rows that have a score. Text and blanks are
+' ignored by RANK, so the "" a lookup formula leaves behind does not count.
+Private Sub WriteRankColumn(wsPT As Worksheet, totalCol As Long, rankCol As Long, _
+    lastRow As Long)
+
+    Dim letter As String
+    letter = ColumnLetter(totalCol)
+
+    FillFormula wsPT, rankCol, lastRow, _
+        "=IF(" & letter & "2=" & Q2 & "," & Q2 & ",RANK(" & letter & "2," & _
+        letter & "$2:" & letter & "$" & LAST_PT_ROW & ",0))"
+End Sub
+
+Private Sub FillFormula(ws As Worksheet, col As Long, lastRow As Long, f As String)
+    With ws.Range(ws.Cells(2, col), ws.Cells(lastRow, col))
+        .ClearContents
+        .Formula = f
+    End With
+End Sub
+
+Private Sub ClearColumnBody(ws As Worksheet, col As Long)
+    If col <= 0 Then Exit Sub
+    ws.Range(ws.Cells(2, col), ws.Cells(LAST_PT_ROW, col)).ClearContents
+End Sub
+
+' Overall Total (C), Overall Rank (E) and Overall Weekly Average (G), now that
+' the WPX weeks are part of the row. Pushing figures stay as the GT macro left
+' them - those weeks are GT-season only. These stay values because the GT
+' refresh rewrites them.
+Private Sub RecalcOverall(ws As Worksheet, weekCols As Object, lastRow As Long)
+    Dim r As Long, k As Variant, v As Variant
+    Dim totalSum As Double, weekCount As Long
+
+    For r = 2 To lastRow
+        totalSum = 0
+        weekCount = 0
+
+        For Each k In weekCols.Keys
+            v = ws.Cells(r, weekCols(k)(0)).Value
+            If HasScore(v) Then
+                totalSum = totalSum + CDbl(v)
+                weekCount = weekCount + 1
+            End If
+        Next k
+
+        If weekCount > 0 Then
+            ws.Cells(r, "C").Value = totalSum
+            ws.Cells(r, "G").Value = totalSum / weekCount
+        End If
+    Next r
+
+    FillRankValues ws, 3, 5, lastRow
+End Sub
+
+Private Sub FillRankValues(ws As Worksheet, valueCol As Long, rankCol As Long, _
+    lastRow As Long)
+
+    Dim rng As Range
+    Set rng = ws.Range(ws.Cells(2, valueCol), ws.Cells(lastRow, valueCol))
+
+    Dim scored As Long
+    scored = Application.WorksheetFunction.count(rng)
+
+    Dim r As Long, v As Variant
+    For r = 2 To lastRow
+        v = ws.Cells(r, valueCol).Value
+        If scored > 0 And HasScore(v) Then
+            ws.Cells(r, rankCol).Value = Application.WorksheetFunction.rank(v, rng, 0)
+        Else
+            ws.Cells(r, rankCol).ClearContents
+        End If
+    Next r
+End Sub
+
+'==============================================================================
+' Week headers
+'==============================================================================
+
+' Week start date -> Array(total column, week label, rank column), read from the
+' "Weekly Total (...)" headers in row 1. The "WPX Weekly ..." block is skipped
+' so the block this macro writes is never mistaken for a GT week.
+Private Function BuildWeekColumnMap(ws As Worksheet) As Object
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    Dim lastCol As Long
+    lastCol = ws.Cells(1, ws.Columns.count).End(xlToLeft).Column
+
+    Dim c As Long, header As String, label As String, key As String
+    For c = 1 To lastCol
+        header = CleanText(ws.Cells(1, c).Value)
+        If InStr(1, header, "WPX", vbTextCompare) <> 1 Then
+            label = WeekLabelFromHeader(header)
+            If label <> "" Then
+                key = WeekKey(label)
+                If key <> "" Then
+                    If Not dict.Exists(key) Then
+                        dict.Add key, Array(c, label, RankColumnFor(ws, c, label, lastCol))
+                    End If
+                End If
+            End If
+        End If
+    Next c
+
+    Set BuildWeekColumnMap = dict
+End Function
+
+' Week keys in the order their columns appear on the sheet.
+Private Function WeekKeysByColumn(weekCols As Object) As Collection
+    Dim keys As New Collection
+
+    Dim k As Variant, i As Long, inserted As Boolean
+    For Each k In weekCols.Keys
+        inserted = False
+        For i = 1 To keys.count
+            If weekCols(k)(0) < weekCols(keys(i))(0) Then
+                keys.Add k, , i
+                inserted = True
+                Exit For
+            End If
+        Next i
+        If Not inserted Then keys.Add k
+    Next k
+
+    Set WeekKeysByColumn = keys
+End Function
+
+' True when GT played the week itself, i.e. the workbook has a weekly sheet of
+' that name. Those columns belong to the GT refresh and are never touched.
+Private Function GTPlayedWeek(label As String) As Boolean
+    Dim ws As Worksheet
+    For Each ws In ThisWorkbook.Worksheets
+        If StrComp(WeekKey(ws.name), WeekKey(label), vbTextCompare) = 0 Then
+            If WeekKey(ws.name) <> "" And InStr(ws.name, " - ") > 0 Then
+                GTPlayedWeek = True
+                Exit Function
+            End If
+        End If
+    Next ws
+End Function
+
+' The rank column that goes with a weekly total column: the next column when it
+' is that week's "Weekly Rank (...)" header, otherwise none (0).
+Private Function RankColumnFor(ws As Worksheet, totalCol As Long, _
+    label As String, lastCol As Long) As Long
+
+    If totalCol >= lastCol Then Exit Function
+
+    Dim header As String
+    header = CleanText(ws.Cells(1, totalCol + 1).Value)
+    If InStr(1, header, "Weekly Rank", vbTextCompare) = 1 Then
+        If StrComp(WeekLabelFromHeader(header), label, vbTextCompare) = 0 Then
+            RankColumnFor = totalCol + 1
+        End If
+    End If
+End Function
+
+' "Weekly Total (Jul 13 - Jul 19)" -> "Jul 13 - Jul 19"
+Private Function WeekLabelFromHeader(ByVal header As String) As String
+    Dim openPos As Long, closePos As Long
+
+    If InStr(1, header, "Weekly Total", vbTextCompare) <> 1 Then
+        If InStr(1, header, "Weekly Rank", vbTextCompare) <> 1 Then Exit Function
+    End If
+
+    openPos = InStr(header, "(")
+    closePos = InStrRev(header, ")")
+    If openPos = 0 Or closePos <= openPos + 1 Then Exit Function
+
+    WeekLabelFromHeader = Trim$(Mid$(header, openPos + 1, closePos - openPos - 1))
+End Function
+
+' Week labels carry no year and the two workbooks may end their weeks on
+' different days, so weeks are keyed on their start day/month where it parses.
+' The year is dropped deliberately: the sheet names never carry one.
+Private Function WeekKey(ByVal label As String) As String
+    Dim startText As String, d As Date
+
+    startText = label
+    If InStr(1, label, " - ") > 0 Then startText = Trim$(Split(label, " - ")(0))
+
+    On Error Resume Next
+    d = DateValue(startText & ", " & Year(Date))
+    If Err.Number <> 0 Then
+        Err.Clear
+        On Error GoTo 0
+        WeekKey = UCase$(Trim$(label))
+        Exit Function
+    End If
+    On Error GoTo 0
+
+    If d > Date + 3 Then d = DateSerial(Year(d) - 1, Month(d), Day(d))
+    WeekKey = Format$(d, "mm-dd")
+End Function
+
+'==============================================================================
+' Small helpers
+'==============================================================================
+
+' Two double-quote characters, i.e. an empty string inside a formula.
+Private Function Q2() As String
+    Q2 = Chr(34) & Chr(34)
+End Function
+
+Private Function ColumnLetter(ByVal col As Long) As String
+    Dim n As Long
+    n = col
+    Do While n > 0
+        ColumnLetter = Chr(65 + ((n - 1) Mod 26)) & ColumnLetter
+        n = (n - 1) \ 26
+    Loop
+End Function
+
+Private Function LastPlayerRow(ws As Worksheet) As Long
+    LastPlayerRow = ws.Cells(ws.Rows.count, "A").End(xlUp).row
+End Function
+
+Private Function SheetOrNothing(wb As Workbook, sheetName As String) As Worksheet
+    On Error Resume Next
+    Set SheetOrNothing = wb.Worksheets(sheetName)
+    On Error GoTo 0
+End Function
+
+Private Function GetOrCreateSheet(sheetName As String) As Worksheet
+    Dim ws As Worksheet
+    Set ws = SheetOrNothing(ThisWorkbook, sheetName)
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.count))
+        ws.name = sheetName
+    End If
+    ws.Visible = xlSheetVisible
+    Set GetOrCreateSheet = ws
+End Function
+
+' CL when any row of it holds an ID, otherwise the first "Player ID" header.
+Private Function FindIDColumn(ws As Worksheet) As Long
+    Dim clCol As Long
+    clCol = ws.Range(PT_ID_COL & "1").Column
+    If ColumnHasID(ws, clCol) Then
+        FindIDColumn = clCol
+        Exit Function
+    End If
+
+    Dim lastCol As Long, c As Long, header As String
+    lastCol = ws.Cells(1, ws.Columns.count).End(xlToLeft).Column
+    For c = 1 To lastCol
+        header = LCase$(CleanText(ws.Cells(1, c).Value))
+        If header = "player id" Or header = "id" Then
+            FindIDColumn = c
+            Exit Function
+        End If
+    Next c
+
+    FindIDColumn = clCol
+End Function
+
+' True when the column holds an ID somewhere, so a blank leading row does not
+' make the column look empty.
+Private Function ColumnHasID(ws As Worksheet, col As Long) As Boolean
+    Dim lastRow As Long, r As Long
+    lastRow = ws.Cells(ws.Rows.count, col).End(xlUp).row
+    For r = 2 To lastRow
+        If NormalizeID(ws.Cells(r, col).Value) <> "" Then
+            ColumnHasID = True
+            Exit Function
+        End If
+    Next r
+End Function
+
+Private Function HasScore(ByVal v As Variant) As Boolean
+    If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
+    If Not IsNumeric(v) Then Exit Function
+    If CStr(v) = "" Then Exit Function
+    HasScore = True
+End Function
+
+' Trims a cell to plain text, dropping the non-breaking and zero-width spaces
+' that come along when names are pasted in from the game.
+Private Function CleanText(ByVal v As Variant) As String
+    If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
+
+    Dim s As String
+    s = CStr(v)
+    s = Replace(s, Chr(160), " ")
+    s = Replace(s, ChrW(8203), "")
+    s = Replace(s, ChrW(65279), "")
+    s = Replace(s, vbTab, " ")
+    s = Replace(s, vbLf, " ")
+    s = Replace(s, vbCr, " ")
+    CleanText = Trim$(s)
+End Function
+
+' Case- and punctuation-insensitive key for player names.
+Private Function NameKey(ByVal v As Variant) As String
+    Dim s As String, out As String, i As Long, ch As String
+    s = UCase$(CleanText(v))
+    For i = 1 To Len(s)
+        ch = Mid$(s, i, 1)
+        If (ch >= "A" And ch <= "Z") Or (ch >= "0" And ch <= "9") Then out = out & ch
+    Next i
+    NameKey = out
+End Function
+
+' Roster IDs arrive as numbers, as text with commas or spaces, and sometimes in
+' scientific notation, so they are reduced to a digits-only key. They are kept
+' as text so IDs longer than a Long cannot overflow. A non-numeric value is not
+' an ID and comes back empty, so it can be treated as a player name instead.
+Private Function NormalizeID(ByVal v As Variant) As String
+    If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
+
+    Dim txt As String
+    txt = CleanText(v)
+    txt = Replace(txt, " ", "")
+    txt = Replace(txt, ",", "")
+    If txt = "" Then Exit Function
+
+    If IsNumeric(txt) Then
+        If InStr(1, txt, "E", vbTextCompare) > 0 Then txt = Format$(CDbl(txt), "0")
+    Else
+        Exit Function
+    End If
+
+    Dim digits As String, i As Long, ch As String
+    For i = 1 To Len(txt)
+        ch = Mid$(txt, i, 1)
+        If ch >= "0" And ch <= "9" Then digits = digits & ch
+    Next i
+
+    Do While Len(digits) > 1 And Left$(digits, 1) = "0"
+        digits = Mid$(digits, 2)
+    Loop
+
+    If digits = "0" Then Exit Function
+    NormalizeID = digits
+End Function
+
+'==============================================================================
+' WPX workbook, and the optional Workbook_Open hook
+'==============================================================================
+
+' Opens the WPX workbook, or returns it if already open. Prompts only when the
+' file is not sitting next to GTStatsFINAL.xlsm.
+Private Function OpenWpxWorkbook(ByRef opened As Boolean) As Workbook
+    Dim wb As Workbook
+    On Error Resume Next
+    Set wb = Workbooks(WPX_FILE)
+    On Error GoTo 0
+    If Not wb Is Nothing Then
+        Set OpenWpxWorkbook = wb
+        Exit Function
+    End If
+
+    Dim f As Variant, samePath As String
+    samePath = ThisWorkbook.Path & Application.PathSeparator & WPX_FILE
+    If Dir(samePath) <> "" Then
+        f = samePath
+    ElseIf m_silent Then
+        ' Opening the workbook must not stall on a file picker.
+        Exit Function
+    Else
+        f = Application.GetOpenFilename( _
+            "Excel Macro-Enabled Workbook (*.xlsm), *.xlsm", , "Select " & WPX_FILE)
+        If VarType(f) = vbBoolean Then Exit Function
+        If CStr(f) = "False" Then Exit Function
+    End If
+
+    Set OpenWpxWorkbook = Workbooks.Open(CStr(f), ReadOnly:=True)
+    opened = True
+End Function
+
+' MsgBox, unless we are running from Workbook_Open.
+Private Sub Notify(ByVal msg As String, ByVal style As VbMsgBoxStyle, _
+    Optional ByVal title As String = "WPX Merge")
+
+    If m_silent Then Exit Sub
+    MsgBox msg, style, title
+End Sub
+
+' Writes the Workbook_Open handler into ThisWorkbook so the refresh runs on every
 ' open. Needs "Trust access to the VBA project object model"; without it the
 ' handler is shown for pasting in by hand.
 Public Sub InstallWPXAutoRun()
@@ -118,7 +1191,7 @@ Public Sub InstallWPXAutoRun()
     End If
 
     cm.AddFromString code
-    MsgBox "WPX auto-run installed - the merge now runs when " & ThisWorkbook.name & _
+    MsgBox "WPX auto-run installed - the refresh now runs when " & ThisWorkbook.name & _
            " opens. Save the workbook to keep it.", vbInformation, "WPX auto-run"
 End Sub
 
@@ -167,700 +1240,4 @@ Private Function HasWorkbookOpen(cm As Object) As Boolean
             Exit Function
         End If
     Next i
-End Function
-
-' Puts a "Pull WPX Weeks" button on the Player Tracking sheet.
-Public Sub AddWPXTrackingButton()
-    Dim ws As Worksheet
-    On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(PT_SHEET)
-    On Error GoTo 0
-    If ws Is Nothing Then
-        MsgBox "Sheet """ & PT_SHEET & """ not found.", vbExclamation
-        Exit Sub
-    End If
-
-    On Error Resume Next
-    ws.Shapes("btnPullWPXTracking").Delete
-    On Error GoTo 0
-
-    Dim shp As Shape
-    Set shp = ws.Shapes.AddShape(msoShapeRoundedRectangle, 8, 8, 150, 28)
-    shp.name = "btnPullWPXTracking"
-    shp.Fill.ForeColor.RGB = RGB(0, 90, 160)
-    shp.Line.ForeColor.RGB = RGB(0, 60, 110)
-    With shp.TextFrame2.TextRange
-        .Text = "Pull WPX Weeks"
-        .Font.Size = 11
-        .Font.Bold = msoTrue
-        .Font.Fill.ForeColor.RGB = RGB(255, 255, 255)
-    End With
-    shp.TextFrame2.VerticalAnchor = msoAnchorMiddle
-    shp.TextFrame2.HorizontalAnchor = msoAnchorCenter
-    shp.OnAction = "MergeWPXTrackingIntoPlayerTracking"
-
-    ws.Activate
-    MsgBox "Button added to the " & PT_SHEET & " sheet.", vbInformation
-End Sub
-
-' Copies each player's WPX weekly totals into the matching GT week columns.
-Public Sub MergeWPXTrackingIntoPlayerTracking()
-
-    Dim wsPT As Worksheet, wsWpx As Worksheet
-    Dim wbWpx As Workbook
-    Dim oldCalc As XlCalculation
-    Dim opened As Boolean
-    Dim filledCells As Long, matchedPlayers As Long
-    Dim unmatchedPlayers As Long, unmatchedWeeks As Long
-    Dim missingWeekList As String
-
-    On Error GoTo SafeExit
-
-    On Error Resume Next
-    Set wsPT = ThisWorkbook.Worksheets(PT_SHEET)
-    On Error GoTo SafeExit
-    If wsPT Is Nothing Then
-        Notify "Sheet """ & PT_SHEET & """ not found.", vbExclamation
-        Exit Sub
-    End If
-
-    Set wbWpx = OpenWpxWorkbook(opened)
-    If wbWpx Is Nothing Then Exit Sub
-
-    On Error Resume Next
-    Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
-    On Error GoTo SafeExit
-    If wsWpx Is Nothing Then
-        Notify "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
-        GoTo SafeExit
-    End If
-
-    oldCalc = Application.Calculation
-    Application.ScreenUpdating = False
-    Application.EnableEvents = False
-    Application.Calculation = xlCalculationManual
-
-    ' Week key -> column, for both sheets. The key is the week's start date, so
-    ' "Jul 13 - Jul 19" and "Jul 13 - Jul 17" still pair up.
-    Dim gtWeekCols As Object, wpxWeekCols As Object
-    Set gtWeekCols = BuildWeekColumnMap(wsPT)
-    Set wpxWeekCols = BuildWeekColumnMap(wsWpx)
-
-    If gtWeekCols.count = 0 Then
-        Notify "No ""Weekly Total (...)"" headers found on " & PT_SHEET & _
-               ". Run the GT Player Tracking refresh first.", vbExclamation
-        GoTo SafeExit
-    End If
-    If wpxWeekCols.count = 0 Then
-        Notify "No ""Weekly Total (...)"" headers found on the WPX " & _
-               WPX_PT_SHEET & " sheet.", vbExclamation
-        GoTo SafeExit
-    End If
-
-    ' Weeks the player was in WPX that the GT sheet has no column for.
-    Dim k As Variant
-    For Each k In wpxWeekCols.Keys
-        If Not gtWeekCols.Exists(k) Then
-            unmatchedWeeks = unmatchedWeeks + 1
-            If Len(missingWeekList) < 200 Then
-                missingWeekList = missingWeekList & vbCrLf & "  " & wpxWeekCols(k)(1)
-            End If
-        End If
-    Next k
-
-    Dim wpxRowByID As Object, wpxRowByName As Object
-    Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx)
-    Set wpxRowByName = BuildWpxRowByName(wsWpx)
-
-    Dim gtIDCol As Long
-    gtIDCol = FindIDColumn(wsPT)
-
-    Dim firstRow As Long, lastRow As Long
-    firstRow = 2
-    lastRow = wsPT.Cells(wsPT.Rows.count, "A").End(xlUp).row
-    If lastRow < firstRow Then GoTo SafeExit
-
-    Dim touched As Object
-    Set touched = CreateObject("Scripting.Dictionary")
-
-    Dim r As Long, playerID As String, wpxRow As Long
-    Dim gtCol As Long, wpxCol As Long, v As Variant, gtVal As Variant
-    Dim playerFilled As Long
-
-    For r = firstRow To lastRow
-        playerID = ""
-        If gtIDCol > 0 Then playerID = WpxNormalizeID(wsPT.Cells(r, gtIDCol).Value)
-        If playerID <> "" Or MATCH_BY_NAME Then
-            wpxRow = ResolveWpxRow(playerID, wsPT.Cells(r, 1).Value, wpxRowByID, wpxRowByName)
-            If wpxRow > 0 Then
-                playerFilled = 0
-
-                For Each k In gtWeekCols.Keys
-                    If wpxWeekCols.Exists(k) Then
-                        gtCol = gtWeekCols(k)(0)
-                        wpxCol = wpxWeekCols(k)(0)
-                        gtVal = wsPT.Cells(r, gtCol).Value
-
-                        If (Not FILL_ONLY_BLANKS) Or Not HasScore(gtVal) Then
-                            v = wsWpx.Cells(wpxRow, wpxCol).Value
-                            If HasScore(v) Then
-                                wsPT.Cells(r, gtCol).Value = CDbl(v)
-                                touched(gtCol) = gtWeekCols(k)(2)
-                                playerFilled = playerFilled + 1
-                            End If
-                        End If
-                    End If
-                Next k
-
-                If playerFilled > 0 Then
-                    matchedPlayers = matchedPlayers + 1
-                    filledCells = filledCells + playerFilled
-                End If
-            ElseIf playerID <> "" Then
-                unmatchedPlayers = unmatchedPlayers + 1
-            End If
-        End If
-    Next r
-
-    If filledCells > 0 Then
-        For Each k In touched.Keys
-            FillRankColumn wsPT, CLng(k), CLng(touched(k)), firstRow, lastRow
-        Next k
-        RecalcOverall wsPT, gtWeekCols, firstRow, lastRow
-    End If
-
-SafeExit:
-    If Not wbWpx Is Nothing Then
-        If opened Then wbWpx.Close SaveChanges:=False
-    End If
-
-    Application.Calculation = oldCalc
-    Application.EnableEvents = True
-    Application.ScreenUpdating = True
-
-    If Err.Number <> 0 Then
-        Notify "MergeWPXTrackingIntoPlayerTracking error " & Err.Number & ": " & _
-               Err.Description, vbExclamation
-    ElseIf Not wsWpx Is Nothing Then
-        Notify "WPX weeks pulled into " & PT_SHEET & "." & vbCrLf & _
-               "Players filled: " & matchedPlayers & vbCrLf & _
-               "Week cells filled: " & filledCells & vbCrLf & _
-               "Players with an ID but no WPX row: " & unmatchedPlayers & vbCrLf & _
-               "WPX weeks with no GT column: " & unmatchedWeeks & missingWeekList & vbCrLf & vbCrLf & _
-               "Players missing? Run DiagnoseWPXTrackingMerge for a per-player reason.", _
-               vbInformation, "Done"
-    End If
-
-End Sub
-
-' Reports, per GT Player Tracking row, whether a WPX row was found, how it was
-' matched, and how many WPX weeks were usable. Writes the "WPX Merge
-' Diagnostics" sheet and changes no data.
-Public Sub DiagnoseWPXTrackingMerge()
-    Dim wsPT As Worksheet, wsWpx As Worksheet
-    Dim wbWpx As Workbook
-    Dim opened As Boolean
-
-    On Error Resume Next
-    Set wsPT = ThisWorkbook.Worksheets(PT_SHEET)
-    On Error GoTo 0
-    If wsPT Is Nothing Then
-        MsgBox "Sheet """ & PT_SHEET & """ not found.", vbExclamation
-        Exit Sub
-    End If
-
-    Set wbWpx = OpenWpxWorkbook(opened)
-    If wbWpx Is Nothing Then Exit Sub
-
-    On Error Resume Next
-    Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
-    On Error GoTo 0
-    If wsWpx Is Nothing Then
-        MsgBox "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
-        If opened Then wbWpx.Close SaveChanges:=False
-        Exit Sub
-    End If
-
-    Application.ScreenUpdating = False
-
-    Dim gtWeekCols As Object, wpxWeekCols As Object
-    Set gtWeekCols = BuildWeekColumnMap(wsPT)
-    Set wpxWeekCols = BuildWeekColumnMap(wsWpx)
-
-    Dim wpxRowByID As Object, wpxRowByName As Object
-    Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx)
-    Set wpxRowByName = BuildWpxRowByName(wsWpx)
-
-    Dim gtIDCol As Long
-    gtIDCol = FindIDColumn(wsPT)
-
-    Dim ws As Worksheet
-    Set ws = GetOrCreateDiagSheet("WPX Merge Diagnostics")
-    ws.Cells.Clear
-    ws.Range("A1:G1").Value = Array("GT Player", "GT Row", "GT Player ID", "WPX Row", _
-        "Matched By", "WPX Weeks With A Shared GT Column", "Result")
-    ws.Rows(1).Font.Bold = True
-
-    Dim lastRow As Long, r As Long, outRow As Long
-    lastRow = wsPT.Cells(wsPT.Rows.count, "A").End(xlUp).row
-    outRow = 1
-
-    Dim gtName As String, playerID As String, wpxRow As Long
-    Dim k As Variant, usable As Long, blocked As Long
-
-    For r = 2 To lastRow
-        gtName = Trim$(CStr(wsPT.Cells(r, 1).Value))
-        playerID = ""
-        If gtIDCol > 0 Then playerID = WpxNormalizeID(wsPT.Cells(r, gtIDCol).Value)
-        If gtName <> "" Or playerID <> "" Then
-            outRow = outRow + 1
-            ws.Cells(outRow, 1).Value = gtName
-            ws.Cells(outRow, 2).Value = r
-            ws.Cells(outRow, 3).Value = playerID
-
-            wpxRow = 0
-            If playerID <> "" Then
-                If wpxRowByID.Exists(playerID) Then
-                    wpxRow = wpxRowByID(playerID)
-                    ws.Cells(outRow, 5).Value = "Player ID"
-                End If
-            End If
-            If wpxRow = 0 And MATCH_BY_NAME Then
-                Dim nk As String
-                nk = WpxNameKey(gtName)
-                If nk <> "" Then
-                    If wpxRowByName.Exists(nk) Then
-                        wpxRow = wpxRowByName(nk)
-                        ws.Cells(outRow, 5).Value = "Name"
-                    End If
-                End If
-            End If
-
-            If wpxRow = 0 Then
-                If playerID = "" Then
-                    ws.Cells(outRow, 7).Value = "Skipped - no Player ID on the GT row and no WPX row with that name"
-                Else
-                    ws.Cells(outRow, 7).Value = "Skipped - ID not found on the WPX Player Tracking sheet"
-                End If
-            Else
-                ws.Cells(outRow, 4).Value = wpxRow
-                usable = 0
-                blocked = 0
-                For Each k In gtWeekCols.Keys
-                    If wpxWeekCols.Exists(k) Then
-                        If HasScore(wsWpx.Cells(wpxRow, wpxWeekCols(k)(0)).Value) Then
-                            If FILL_ONLY_BLANKS And HasScore(wsPT.Cells(r, gtWeekCols(k)(0)).Value) Then
-                                blocked = blocked + 1
-                            Else
-                                usable = usable + 1
-                            End If
-                        End If
-                    End If
-                Next k
-                ws.Cells(outRow, 6).Value = usable
-                If usable > 0 Then
-                    ws.Cells(outRow, 7).Value = "Matched - " & usable & " week(s) filled"
-                ElseIf blocked > 0 Then
-                    ws.Cells(outRow, 7).Value = "Matched - nothing filled, GT already has a score in all " & _
-                                                blocked & " shared week(s)"
-                Else
-                    ws.Cells(outRow, 7).Value = "Matched - no WPX week lines up with a GT week column"
-                End If
-            End If
-        End If
-    Next r
-
-    ws.Columns("A:G").AutoFit
-    ws.Activate
-
-    If opened Then wbWpx.Close SaveChanges:=False
-    Application.ScreenUpdating = True
-
-    MsgBox "Diagnostics written to the ""WPX Merge Diagnostics"" sheet.", vbInformation
-End Sub
-
-Private Function GetOrCreateDiagSheet(sheetName As String) As Worksheet
-    Dim ws As Worksheet
-    On Error Resume Next
-    Set ws = ThisWorkbook.Worksheets(sheetName)
-    On Error GoTo 0
-    If ws Is Nothing Then
-        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.count))
-        ws.name = sheetName
-    End If
-    Set GetOrCreateDiagSheet = ws
-End Function
-
-' The WPX row for a player: by ID first, then by name when MATCH_BY_NAME is on,
-' so a missing or mistyped ID in either workbook still matches.
-Private Function ResolveWpxRow(playerID As String, gtName As Variant, _
-    wpxRowByID As Object, wpxRowByName As Object) As Long
-
-    If playerID <> "" Then
-        If wpxRowByID.Exists(playerID) Then
-            ResolveWpxRow = wpxRowByID(playerID)
-            Exit Function
-        End If
-    End If
-
-    If Not MATCH_BY_NAME Then Exit Function
-
-    Dim key As String
-    key = WpxNameKey(gtName)
-    If key = "" Then Exit Function
-    If wpxRowByName.Exists(key) Then ResolveWpxRow = wpxRowByName(key)
-End Function
-
-' Player name -> row on a Player Tracking sheet, names in column A.
-Private Function BuildWpxRowByName(ws As Worksheet) As Object
-    Dim dict As Object
-    Set dict = CreateObject("Scripting.Dictionary")
-
-    Dim lastRow As Long, r As Long, key As String
-    lastRow = ws.Cells(ws.Rows.count, "A").End(xlUp).row
-    For r = 2 To lastRow
-        key = WpxNameKey(ws.Cells(r, 1).Value)
-        If key <> "" Then
-            If Not dict.Exists(key) Then dict.Add key, r
-        End If
-    Next r
-
-    Set BuildWpxRowByName = dict
-End Function
-
-' MsgBox, unless we are running from Workbook_Open.
-Private Sub Notify(ByVal msg As String, ByVal style As VbMsgBoxStyle, _
-    Optional ByVal title As String = "WPX Merge")
-
-    If m_silent Then Exit Sub
-    MsgBox msg, style, title
-End Sub
-
-' Week start date -> Array(total column, week label, rank column), read from the
-' "Weekly Total (...)" headers in row 1.
-Private Function BuildWeekColumnMap(ws As Worksheet) As Object
-    Dim dict As Object
-    Set dict = CreateObject("Scripting.Dictionary")
-
-    Dim lastCol As Long
-    lastCol = ws.Cells(1, ws.Columns.count).End(xlToLeft).Column
-
-    Dim c As Long, header As String, label As String, key As String
-    For c = 1 To lastCol
-        header = Trim$(CStr(ws.Cells(1, c).Value))
-        label = WeekLabelFromHeader(header)
-        If label <> "" Then
-            key = WeekKey(label)
-            If key <> "" Then
-                If Not dict.Exists(key) Then
-                    dict.Add key, Array(c, label, RankColumnFor(ws, c, label, lastCol))
-                End If
-            End If
-        End If
-    Next c
-
-    Set BuildWeekColumnMap = dict
-End Function
-
-' The rank column that goes with a weekly total column: the next column when it
-' is that week's "Weekly Rank (...)" header, otherwise none (0).
-Private Function RankColumnFor(ws As Worksheet, totalCol As Long, _
-    label As String, lastCol As Long) As Long
-
-    If totalCol >= lastCol Then Exit Function
-
-    Dim header As String
-    header = Trim$(CStr(ws.Cells(1, totalCol + 1).Value))
-    If InStr(1, header, "Weekly Rank", vbTextCompare) = 1 Then
-        If StrComp(WeekLabelFromHeader(header), label, vbTextCompare) = 0 Then
-            RankColumnFor = totalCol + 1
-        End If
-    End If
-End Function
-
-' "Weekly Total (Jul 13 - Jul 19)" -> "Jul 13 - Jul 19"
-Private Function WeekLabelFromHeader(ByVal header As String) As String
-    Dim openPos As Long, closePos As Long
-
-    If InStr(1, header, "Weekly Total", vbTextCompare) <> 1 Then
-        If InStr(1, header, "Weekly Rank", vbTextCompare) <> 1 Then Exit Function
-    End If
-
-    openPos = InStr(header, "(")
-    closePos = InStrRev(header, ")")
-    If openPos = 0 Or closePos <= openPos + 1 Then Exit Function
-
-    WeekLabelFromHeader = Trim$(Mid$(header, openPos + 1, closePos - openPos - 1))
-End Function
-
-' Week labels carry no year and the two workbooks may end their weeks on
-' different days, so weeks are keyed on their start day/month where it parses.
-' The year is dropped deliberately: the sheet names never carry one.
-Private Function WeekKey(ByVal label As String) As String
-    Dim startText As String, d As Date
-
-    startText = label
-    If InStr(1, label, " - ") > 0 Then startText = Trim$(Split(label, " - ")(0))
-
-    On Error Resume Next
-    d = DateValue(startText & ", " & Year(Date))
-    If Err.Number <> 0 Then
-        Err.Clear
-        On Error GoTo 0
-        WeekKey = UCase$(Trim$(label))
-        Exit Function
-    End If
-    On Error GoTo 0
-
-    If d > Date + 3 Then d = DateSerial(Year(d) - 1, Month(d), Day(d))
-    WeekKey = Format$(d, "mm-dd")
-End Function
-
-' Player ID -> row on the WPX Player Tracking sheet. IDs live in CL there too;
-' when that column is empty the ID column is found by header, and rows with no
-' ID at all are resolved through the WPX roster by name.
-Private Function BuildWpxRowMap(ws As Worksheet, wb As Workbook) As Object
-    Dim dict As Object
-    Set dict = CreateObject("Scripting.Dictionary")
-
-    Dim idCol As Long
-    idCol = FindIDColumn(ws)
-
-    Dim nameToID As Object
-    Set nameToID = BuildWpxNameToID(wb)
-
-    Dim lastRow As Long
-    lastRow = ws.Cells(ws.Rows.count, "A").End(xlUp).row
-    If idCol > 0 Then
-        If ws.Cells(ws.Rows.count, idCol).End(xlUp).row > lastRow Then
-            lastRow = ws.Cells(ws.Rows.count, idCol).End(xlUp).row
-        End If
-    End If
-
-    Dim r As Long, playerID As String, nameKey As String
-    For r = 2 To lastRow
-        playerID = ""
-        If idCol > 0 Then playerID = WpxNormalizeID(ws.Cells(r, idCol).Value)
-
-        If playerID = "" Then
-            nameKey = WpxNameKey(ws.Cells(r, 1).Value)
-            If nameKey <> "" Then
-                If nameToID.Exists(nameKey) Then playerID = CStr(nameToID(nameKey))
-            End If
-        End If
-
-        If playerID <> "" Then
-            If Not dict.Exists(playerID) Then dict.Add playerID, r
-        End If
-    Next r
-
-    Set BuildWpxRowMap = dict
-End Function
-
-' CL when any row of it holds an ID, otherwise the first "Player ID" header.
-Private Function FindIDColumn(ws As Worksheet) As Long
-    Dim clCol As Long
-    clCol = ws.Range(PT_ID_COL & "1").Column
-    If ColumnHasID(ws, clCol) Then
-        FindIDColumn = clCol
-        Exit Function
-    End If
-
-    Dim lastCol As Long, c As Long, header As String
-    lastCol = ws.Cells(1, ws.Columns.count).End(xlToLeft).Column
-    For c = 1 To lastCol
-        header = LCase$(Trim$(CStr(ws.Cells(1, c).Value)))
-        If header = "player id" Or header = "id" Then
-            FindIDColumn = c
-            Exit Function
-        End If
-    Next c
-
-    FindIDColumn = clCol
-End Function
-
-' True when the column holds an ID somewhere in its first rows, so a blank
-' leading row does not make the column look empty.
-Private Function ColumnHasID(ws As Worksheet, col As Long) As Boolean
-    Dim lastRow As Long, r As Long
-    lastRow = ws.Cells(ws.Rows.count, col).End(xlUp).row
-    For r = 2 To lastRow
-        If WpxNormalizeID(ws.Cells(r, col).Value) <> "" Then
-            ColumnHasID = True
-            Exit Function
-        End If
-    Next r
-End Function
-
-' Player name -> ID from the WPX Roster, using the same four ID/name blocks as
-' the GT roster (A/B, E/F, I/J, M/N).
-Private Function BuildWpxNameToID(wb As Workbook) As Object
-    Dim dict As Object
-    Set dict = CreateObject("Scripting.Dictionary")
-
-    Dim ws As Worksheet
-    On Error Resume Next
-    Set ws = wb.Worksheets("Roster")
-    On Error GoTo 0
-    If ws Is Nothing Then
-        Set BuildWpxNameToID = dict
-        Exit Function
-    End If
-
-    Dim blocks As Variant, b As Long, r As Long
-    Dim id As String, nameKey As String
-    blocks = Array(Array(1, 2), Array(5, 6), Array(9, 10), Array(13, 14))
-
-    For b = LBound(blocks) To UBound(blocks)
-        For r = 2 To ws.Cells(ws.Rows.count, blocks(b)(1)).End(xlUp).row
-            id = WpxNormalizeID(ws.Cells(r, blocks(b)(0)).Value)
-            nameKey = WpxNameKey(ws.Cells(r, blocks(b)(1)).Value)
-            If id <> "" And nameKey <> "" Then
-                If Not dict.Exists(nameKey) Then dict.Add nameKey, id
-            End If
-        Next r
-    Next b
-
-    Set BuildWpxNameToID = dict
-End Function
-
-' Overall Total (C), Overall Rank (E) and Overall Weekly Average (G), now that
-' the WPX weeks are part of the row. Pushing figures stay as the GT macro left
-' them - those weeks are GT-season only.
-Private Sub RecalcOverall(ws As Worksheet, weekCols As Object, _
-    firstRow As Long, lastRow As Long)
-
-    Dim r As Long, k As Variant, v As Variant
-    Dim totalSum As Double, weekCount As Long
-
-    For r = firstRow To lastRow
-        totalSum = 0
-        weekCount = 0
-
-        For Each k In weekCols.Keys
-            v = ws.Cells(r, weekCols(k)(0)).Value
-            If HasScore(v) Then
-                totalSum = totalSum + CDbl(v)
-                weekCount = weekCount + 1
-            End If
-        Next k
-
-        If weekCount > 0 Then
-            ws.Cells(r, "C").Value = totalSum
-            ws.Cells(r, "G").Value = totalSum / weekCount
-        End If
-    Next r
-
-    FillRankColumn ws, 3, 5, firstRow, lastRow
-End Sub
-
-' Highest score = rank 1, over the players who have a score in valueCol.
-Private Sub FillRankColumn(ws As Worksheet, valueCol As Long, rankCol As Long, _
-    firstRow As Long, lastRow As Long)
-
-    If rankCol = 0 Then Exit Sub
-
-    Dim rng As Range
-    Set rng = ws.Range(ws.Cells(firstRow, valueCol), ws.Cells(lastRow, valueCol))
-
-    Dim count As Long
-    count = Application.WorksheetFunction.count(rng)
-
-    Dim r As Long, v As Variant
-    For r = firstRow To lastRow
-        v = ws.Cells(r, valueCol).Value
-        If count > 0 And HasScore(v) Then
-            ws.Cells(r, rankCol).Value = Application.WorksheetFunction.rank(v, rng, 0)
-        Else
-            ws.Cells(r, rankCol).ClearContents
-        End If
-    Next r
-End Sub
-
-Private Function HasScore(ByVal v As Variant) As Boolean
-    If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
-    If Not IsNumeric(v) Then Exit Function
-    If CStr(v) = "" Then Exit Function
-    HasScore = True
-End Function
-
-' Case- and punctuation-insensitive key for player names.
-Private Function WpxNameKey(ByVal v As Variant) As String
-    If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
-
-    Dim s As String, out As String, i As Long, ch As String
-    s = UCase$(Trim$(Replace(CStr(v), Chr(160), " ")))
-    For i = 1 To Len(s)
-        ch = Mid$(s, i, 1)
-        If (ch >= "A" And ch <= "Z") Or (ch >= "0" And ch <= "9") Then out = out & ch
-    Next i
-    WpxNameKey = out
-End Function
-
-' Roster IDs arrive as numbers, as text with commas or spaces, and sometimes in
-' scientific notation, so they are reduced to a digits-only key. IDs are kept as
-' text so values longer than a Long cannot overflow. Non-numeric IDs fall back
-' to their uppercased text.
-Private Function WpxNormalizeID(ByVal v As Variant) As String
-    If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
-
-    Dim txt As String
-    txt = Trim$(CStr(v))
-    txt = Replace(txt, Chr(160), "")
-    txt = Replace(txt, ChrW(8203), "")
-    txt = Replace(txt, ChrW(65279), "")
-    txt = Replace(txt, " ", "")
-    txt = Replace(txt, ",", "")
-
-    If IsNumeric(txt) Then
-        If InStr(1, txt, "E", vbTextCompare) > 0 Then txt = Format$(CDbl(txt), "0")
-    End If
-
-    Dim digits As String, i As Long, ch As String
-    For i = 1 To Len(txt)
-        ch = Mid$(txt, i, 1)
-        If ch >= "0" And ch <= "9" Then digits = digits & ch
-    Next i
-
-    If digits = "" Then
-        WpxNormalizeID = UCase$(txt)
-        Exit Function
-    End If
-
-    Do While Len(digits) > 1 And Left$(digits, 1) = "0"
-        digits = Mid$(digits, 2)
-    Loop
-
-    If digits = "0" Then Exit Function
-    WpxNormalizeID = digits
-End Function
-
-' Opens the WPX workbook, or returns it if already open. Prompts only when the
-' file is not sitting next to GTStatsFINAL.xlsm.
-Private Function OpenWpxWorkbook(ByRef opened As Boolean) As Workbook
-    Dim wb As Workbook
-    On Error Resume Next
-    Set wb = Workbooks(WPX_FILE)
-    On Error GoTo 0
-    If Not wb Is Nothing Then
-        Set OpenWpxWorkbook = wb
-        Exit Function
-    End If
-
-    Dim f As Variant, samePath As String
-    samePath = ThisWorkbook.Path & Application.PathSeparator & WPX_FILE
-    If Dir(samePath) <> "" Then
-        f = samePath
-    ElseIf m_silent Then
-        ' Opening the workbook must not stall on a file picker.
-        Exit Function
-    Else
-        f = Application.GetOpenFilename( _
-            "Excel Macro-Enabled Workbook (*.xlsm), *.xlsm", , "Select " & WPX_FILE)
-        If VarType(f) = vbBoolean Then Exit Function
-        If CStr(f) = "False" Then Exit Function
-    End If
-
-    Set OpenWpxWorkbook = Workbooks.Open(CStr(f), ReadOnly:=True)
-    opened = True
 End Function
