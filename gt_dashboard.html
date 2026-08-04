@@ -187,6 +187,11 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 </div>
 <div class="chart-wrap" style="height:260px;"><canvas id="dailyChart"></canvas></div>
 </div>
+<div class="chart-card full" style="margin-bottom:28px;">
+<div class="chart-title">Daily Averages (Mon–Fri)</div>
+<table class="week-table"><thead><tr><th>Day</th><th>Average Score</th><th>Daily Goal</th></tr></thead>
+<tbody id="dailyAvgTableBody"></tbody></table>
+</div>
 <div class="chart-card" style="margin-bottom:28px;">
 <div class="chart-title">Weekly Breakdown</div>
 <table class="week-table"><thead><tr><th>Week</th><th>Score</th><th>Rank</th><th>Daily Goals</th><th>20M Goal</th></tr></thead>
@@ -483,6 +488,7 @@ function loadPlayer(name) {
   document.getElementById('shFootnote').style.display = hasSH ? '' : 'none';
 
   renderDailyChart(name, selectedDay);
+  renderDailyAverages(name);
 }
 
 function selectDay(day) {
@@ -579,6 +585,21 @@ async function init() {
       '<div class="error-msg">Failed to load data: ' + e.message + '</div>';
     document.getElementById('lastUpdated').textContent = 'Error loading data';
   }
+}
+
+function renderDailyAverages(playerName) {
+  var tbody = document.getElementById('dailyAvgTableBody');
+  if (!dailyData || !dailyData.players[playerName]) {
+    tbody.innerHTML = '<tr><td colspan="3">No daily data</td></tr>';
+    return;
+  }
+  var days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  tbody.innerHTML = days.map(function(day) {
+    var scores = dailyData.players[playerName][day] || [];
+    var nonzero = scores.filter(function(s) { return s > 0; });
+    var avg = nonzero.length ? (nonzero.reduce(function(a,b){return a+b;},0) / nonzero.length) : 0;
+    return '<tr><td>' + day + '</td><td class="week-score">' + (avg ? Math.round(avg).toLocaleString() : '-') + '</td><td>' + (DAILY_GOALS[day] / 1000000).toFixed(1) + 'M</td></tr>';
+  }).join('');
 }
 
 window.addEventListener('DOMContentLoaded', init);
