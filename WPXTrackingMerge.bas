@@ -40,6 +40,16 @@ Attribute VB_Name = "WPXTrackingMerge"
 ' The auto-run is silent: no popups, and if WPXStatsFinal.xlsm is not open and
 ' not sitting next to GTStatsFINAL.xlsm it is skipped rather than prompting for
 ' the file and stalling the open.
+'
+' IDs are compared as digits only, so an ID typed with commas or spaces, stored
+' in scientific notation, or padded with leading zeros still matches. Players
+' whose ID is missing or mistyped in one of the workbooks fall back to matching
+' on player name (set MATCH_BY_NAME to False for ID-only matching).
+'
+' If players are missing from the result, run DiagnoseWPXTrackingMerge(). It
+' builds a "WPX Merge Diagnostics" sheet listing every GT Player Tracking row
+' with its ID, the WPX row it matched, how it matched, and the reason nothing
+' was filled (no WPX row, no shared week column, or GT already has a score).
 
 Option Explicit
 
@@ -51,6 +61,10 @@ Private Const WPX_FILE      As String = "WPXStatsFinal.xlsm"
 ' A GT cell holding a real score is left alone; set this to False to let WPX
 ' numbers overwrite whatever the GT refresh wrote.
 Private Const FILL_ONLY_BLANKS As Boolean = True
+
+' Players whose ID is missing or mistyped in one of the workbooks are matched on
+' player name instead. Set to False for ID-only matching.
+Private Const MATCH_BY_NAME As Boolean = True
 
 Private Const AUTORUN_TAG As String = "' --- WPX auto-run (WPXTrackingMerge) ---"
 
@@ -254,8 +268,12 @@ Public Sub MergeWPXTrackingIntoPlayerTracking()
         End If
     Next k
 
-    Dim wpxRowByID As Object
+    Dim wpxRowByID As Object, wpxRowByName As Object
     Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx)
+    Set wpxRowByName = BuildWpxRowByName(wsWpx)
+
+    Dim gtIDCol As Long
+    gtIDCol = FindIDColumn(wsPT)
 
     Dim firstRow As Long, lastRow As Long
     firstRow = 2
@@ -270,10 +288,11 @@ Public Sub MergeWPXTrackingIntoPlayerTracking()
     Dim playerFilled As Long
 
     For r = firstRow To lastRow
-        playerID = WpxNormalizeID(wsPT.Cells(r, PT_ID_COL).Value)
-        If playerID <> "" Then
-            If wpxRowByID.Exists(playerID) Then
-                wpxRow = wpxRowByID(playerID)
+        playerID = ""
+        If gtIDCol > 0 Then playerID = WpxNormalizeID(wsPT.Cells(r, gtIDCol).Value)
+        If playerID <> "" Or MATCH_BY_NAME Then
+            wpxRow = ResolveWpxRow(playerID, wsPT.Cells(r, 1).Value, wpxRowByID, wpxRowByName)
+            If wpxRow > 0 Then
                 playerFilled = 0
 
                 For Each k In gtWeekCols.Keys
@@ -297,7 +316,7 @@ Public Sub MergeWPXTrackingIntoPlayerTracking()
                     matchedPlayers = matchedPlayers + 1
                     filledCells = filledCells + playerFilled
                 End If
-            Else
+            ElseIf playerID <> "" Then
                 unmatchedPlayers = unmatchedPlayers + 1
             End If
         End If
@@ -327,11 +346,187 @@ SafeExit:
                "Players filled: " & matchedPlayers & vbCrLf & _
                "Week cells filled: " & filledCells & vbCrLf & _
                "Players with an ID but no WPX row: " & unmatchedPlayers & vbCrLf & _
-               "WPX weeks with no GT column: " & unmatchedWeeks & missingWeekList, _
+               "WPX weeks with no GT column: " & unmatchedWeeks & missingWeekList & vbCrLf & vbCrLf & _
+               "Players missing? Run DiagnoseWPXTrackingMerge for a per-player reason.", _
                vbInformation, "Done"
     End If
 
 End Sub
+
+' Reports, per GT Player Tracking row, whether a WPX row was found, how it was
+' matched, and how many WPX weeks were usable. Writes the "WPX Merge
+' Diagnostics" sheet and changes no data.
+Public Sub DiagnoseWPXTrackingMerge()
+    Dim wsPT As Worksheet, wsWpx As Worksheet
+    Dim wbWpx As Workbook
+    Dim opened As Boolean
+
+    On Error Resume Next
+    Set wsPT = ThisWorkbook.Worksheets(PT_SHEET)
+    On Error GoTo 0
+    If wsPT Is Nothing Then
+        MsgBox "Sheet """ & PT_SHEET & """ not found.", vbExclamation
+        Exit Sub
+    End If
+
+    Set wbWpx = OpenWpxWorkbook(opened)
+    If wbWpx Is Nothing Then Exit Sub
+
+    On Error Resume Next
+    Set wsWpx = wbWpx.Worksheets(WPX_PT_SHEET)
+    On Error GoTo 0
+    If wsWpx Is Nothing Then
+        MsgBox "Sheet """ & WPX_PT_SHEET & """ not found in " & wbWpx.name & ".", vbExclamation
+        If opened Then wbWpx.Close SaveChanges:=False
+        Exit Sub
+    End If
+
+    Application.ScreenUpdating = False
+
+    Dim gtWeekCols As Object, wpxWeekCols As Object
+    Set gtWeekCols = BuildWeekColumnMap(wsPT)
+    Set wpxWeekCols = BuildWeekColumnMap(wsWpx)
+
+    Dim wpxRowByID As Object, wpxRowByName As Object
+    Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx)
+    Set wpxRowByName = BuildWpxRowByName(wsWpx)
+
+    Dim gtIDCol As Long
+    gtIDCol = FindIDColumn(wsPT)
+
+    Dim ws As Worksheet
+    Set ws = GetOrCreateDiagSheet("WPX Merge Diagnostics")
+    ws.Cells.Clear
+    ws.Range("A1:G1").Value = Array("GT Player", "GT Row", "GT Player ID", "WPX Row", _
+        "Matched By", "WPX Weeks With A Shared GT Column", "Result")
+    ws.Rows(1).Font.Bold = True
+
+    Dim lastRow As Long, r As Long, outRow As Long
+    lastRow = wsPT.Cells(wsPT.Rows.count, "A").End(xlUp).row
+    outRow = 1
+
+    Dim gtName As String, playerID As String, wpxRow As Long
+    Dim k As Variant, usable As Long, blocked As Long
+
+    For r = 2 To lastRow
+        gtName = Trim$(CStr(wsPT.Cells(r, 1).Value))
+        playerID = ""
+        If gtIDCol > 0 Then playerID = WpxNormalizeID(wsPT.Cells(r, gtIDCol).Value)
+        If gtName <> "" Or playerID <> "" Then
+            outRow = outRow + 1
+            ws.Cells(outRow, 1).Value = gtName
+            ws.Cells(outRow, 2).Value = r
+            ws.Cells(outRow, 3).Value = playerID
+
+            wpxRow = 0
+            If playerID <> "" Then
+                If wpxRowByID.Exists(playerID) Then
+                    wpxRow = wpxRowByID(playerID)
+                    ws.Cells(outRow, 5).Value = "Player ID"
+                End If
+            End If
+            If wpxRow = 0 And MATCH_BY_NAME Then
+                Dim nk As String
+                nk = WpxNameKey(gtName)
+                If nk <> "" Then
+                    If wpxRowByName.Exists(nk) Then
+                        wpxRow = wpxRowByName(nk)
+                        ws.Cells(outRow, 5).Value = "Name"
+                    End If
+                End If
+            End If
+
+            If wpxRow = 0 Then
+                If playerID = "" Then
+                    ws.Cells(outRow, 7).Value = "Skipped - no Player ID on the GT row and no WPX row with that name"
+                Else
+                    ws.Cells(outRow, 7).Value = "Skipped - ID not found on the WPX Player Tracking sheet"
+                End If
+            Else
+                ws.Cells(outRow, 4).Value = wpxRow
+                usable = 0
+                blocked = 0
+                For Each k In gtWeekCols.Keys
+                    If wpxWeekCols.Exists(k) Then
+                        If HasScore(wsWpx.Cells(wpxRow, wpxWeekCols(k)(0)).Value) Then
+                            If FILL_ONLY_BLANKS And HasScore(wsPT.Cells(r, gtWeekCols(k)(0)).Value) Then
+                                blocked = blocked + 1
+                            Else
+                                usable = usable + 1
+                            End If
+                        End If
+                    End If
+                Next k
+                ws.Cells(outRow, 6).Value = usable
+                If usable > 0 Then
+                    ws.Cells(outRow, 7).Value = "Matched - " & usable & " week(s) filled"
+                ElseIf blocked > 0 Then
+                    ws.Cells(outRow, 7).Value = "Matched - nothing filled, GT already has a score in all " & _
+                                                blocked & " shared week(s)"
+                Else
+                    ws.Cells(outRow, 7).Value = "Matched - no WPX week lines up with a GT week column"
+                End If
+            End If
+        End If
+    Next r
+
+    ws.Columns("A:G").AutoFit
+    ws.Activate
+
+    If opened Then wbWpx.Close SaveChanges:=False
+    Application.ScreenUpdating = True
+
+    MsgBox "Diagnostics written to the ""WPX Merge Diagnostics"" sheet.", vbInformation
+End Sub
+
+Private Function GetOrCreateDiagSheet(sheetName As String) As Worksheet
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets(sheetName)
+    On Error GoTo 0
+    If ws Is Nothing Then
+        Set ws = ThisWorkbook.Worksheets.Add(After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.count))
+        ws.name = sheetName
+    End If
+    Set GetOrCreateDiagSheet = ws
+End Function
+
+' The WPX row for a player: by ID first, then by name when MATCH_BY_NAME is on,
+' so a missing or mistyped ID in either workbook still matches.
+Private Function ResolveWpxRow(playerID As String, gtName As Variant, _
+    wpxRowByID As Object, wpxRowByName As Object) As Long
+
+    If playerID <> "" Then
+        If wpxRowByID.Exists(playerID) Then
+            ResolveWpxRow = wpxRowByID(playerID)
+            Exit Function
+        End If
+    End If
+
+    If Not MATCH_BY_NAME Then Exit Function
+
+    Dim key As String
+    key = WpxNameKey(gtName)
+    If key = "" Then Exit Function
+    If wpxRowByName.Exists(key) Then ResolveWpxRow = wpxRowByName(key)
+End Function
+
+' Player name -> row on a Player Tracking sheet, names in column A.
+Private Function BuildWpxRowByName(ws As Worksheet) As Object
+    Dim dict As Object
+    Set dict = CreateObject("Scripting.Dictionary")
+
+    Dim lastRow As Long, r As Long, key As String
+    lastRow = ws.Cells(ws.Rows.count, "A").End(xlUp).row
+    For r = 2 To lastRow
+        key = WpxNameKey(ws.Cells(r, 1).Value)
+        If key <> "" Then
+            If Not dict.Exists(key) Then dict.Add key, r
+        End If
+    Next r
+
+    Set BuildWpxRowByName = dict
+End Function
 
 ' MsgBox, unless we are running from Workbook_Open.
 Private Sub Notify(ByVal msg As String, ByVal style As VbMsgBoxStyle, _
@@ -429,7 +624,7 @@ Private Function BuildWpxRowMap(ws As Worksheet, wb As Workbook) As Object
     Set dict = CreateObject("Scripting.Dictionary")
 
     Dim idCol As Long
-    idCol = FindWpxIDColumn(ws)
+    idCol = FindIDColumn(ws)
 
     Dim nameToID As Object
     Set nameToID = BuildWpxNameToID(wb)
@@ -462,10 +657,12 @@ Private Function BuildWpxRowMap(ws As Worksheet, wb As Workbook) As Object
     Set BuildWpxRowMap = dict
 End Function
 
-' CL when it holds IDs, otherwise the first "Player ID" header.
-Private Function FindWpxIDColumn(ws As Worksheet) As Long
-    If WpxNormalizeID(ws.Cells(2, PT_ID_COL).Value) <> "" Then
-        FindWpxIDColumn = ws.Range(PT_ID_COL & "1").Column
+' CL when any row of it holds an ID, otherwise the first "Player ID" header.
+Private Function FindIDColumn(ws As Worksheet) As Long
+    Dim clCol As Long
+    clCol = ws.Range(PT_ID_COL & "1").Column
+    If ColumnHasID(ws, clCol) Then
+        FindIDColumn = clCol
         Exit Function
     End If
 
@@ -474,12 +671,25 @@ Private Function FindWpxIDColumn(ws As Worksheet) As Long
     For c = 1 To lastCol
         header = LCase$(Trim$(CStr(ws.Cells(1, c).Value)))
         If header = "player id" Or header = "id" Then
-            FindWpxIDColumn = c
+            FindIDColumn = c
             Exit Function
         End If
     Next c
 
-    FindWpxIDColumn = ws.Range(PT_ID_COL & "1").Column
+    FindIDColumn = clCol
+End Function
+
+' True when the column holds an ID somewhere in its first rows, so a blank
+' leading row does not make the column look empty.
+Private Function ColumnHasID(ws As Worksheet, col As Long) As Boolean
+    Dim lastRow As Long, r As Long
+    lastRow = ws.Cells(ws.Rows.count, col).End(xlUp).row
+    For r = 2 To lastRow
+        If WpxNormalizeID(ws.Cells(r, col).Value) <> "" Then
+            ColumnHasID = True
+            Exit Function
+        End If
+    Next r
 End Function
 
 ' Player name -> ID from the WPX Roster, using the same four ID/name blocks as
@@ -587,16 +797,42 @@ Private Function WpxNameKey(ByVal v As Variant) As String
     WpxNameKey = out
 End Function
 
-' Same ID normalisation the Player Tracking module uses, kept local so this
-' module also works on its own.
+' Roster IDs arrive as numbers, as text with commas or spaces, and sometimes in
+' scientific notation, so they are reduced to a digits-only key. IDs are kept as
+' text so values longer than a Long cannot overflow. Non-numeric IDs fall back
+' to their uppercased text.
 Private Function WpxNormalizeID(ByVal v As Variant) As String
     If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
 
     Dim txt As String
     txt = Trim$(CStr(v))
     txt = Replace(txt, Chr(160), "")
+    txt = Replace(txt, ChrW(8203), "")
+    txt = Replace(txt, ChrW(65279), "")
     txt = Replace(txt, " ", "")
-    WpxNormalizeID = UCase$(txt)
+    txt = Replace(txt, ",", "")
+
+    If IsNumeric(txt) Then
+        If InStr(1, txt, "E", vbTextCompare) > 0 Then txt = Format$(CDbl(txt), "0")
+    End If
+
+    Dim digits As String, i As Long, ch As String
+    For i = 1 To Len(txt)
+        ch = Mid$(txt, i, 1)
+        If ch >= "0" And ch <= "9" Then digits = digits & ch
+    Next i
+
+    If digits = "" Then
+        WpxNormalizeID = UCase$(txt)
+        Exit Function
+    End If
+
+    Do While Len(digits) > 1 And Left$(digits, 1) = "0"
+        digits = Mid$(digits, 2)
+    Loop
+
+    If digits = "0" Then Exit Function
+    WpxNormalizeID = digits
 End Function
 
 ' Opens the WPX workbook, or returns it if already open. Prompts only when the
