@@ -96,6 +96,9 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .wpx-dates{font-size:0.65rem;color:var(--dim);letter-spacing:0.5px;}
 .wpx-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 @media(max-width:600px){.wpx-grid{grid-template-columns:1fr;}}
+#wpxStatsGrid{grid-template-columns:repeat(4,1fr);}
+@media(max-width:900px){#wpxStatsGrid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:600px){#wpxStatsGrid{grid-template-columns:1fr;}}
 .wpx-stat{background:var(--panel2);border-radius:10px;padding:14px 12px;border-left:3px solid var(--gold);}
 .wpx-label{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:10px;}
 .wpx-row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:4px;}
@@ -159,6 +162,11 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <div id="playerNameDisplay" class="player-name-display"></div>
 <div id="joinDateDisplay" class="join-date-display"></div>
 <div id="statsGrid" class="stats-grid"></div>
+<!-- WPX career totals, kept out of the GT stats above and the rankings -->
+<div id="wpxStatsCard" class="wpx-history-card" style="display:none;">
+  <div class="wpx-header"><span class="wpx-title">Before GT &mdash; WPX Career</span><span class="wpx-dates">Ranked against WPX players only</span></div>
+  <div class="wpx-grid" id="wpxStatsGrid"></div>
+</div>
 <!-- Growth Since Joining -->
 <div id="growthCard" class="growth-card" style="display:none;">
   <div class="chart-title">Growth Since Joining</div>
@@ -351,6 +359,31 @@ function renderGrowthCard(p) {
     '</div>';
 }
 
+// WPX career totals, below the GT stats. Deliberately separate: the GT cards and
+// every rank on this site count GT weeks only.
+function renderWpxStatsCard(p) {
+  var card = document.getElementById('wpxStatsCard');
+  var grid = document.getElementById('wpxStatsGrid');
+  if (!card || !grid) return;
+
+  var s = p.wpxStats;
+  if (!s) { card.style.display = 'none'; return; }
+
+  var cell = function (label, value) {
+    return '<div class="wpx-stat">' +
+      '<div class="wpx-label">' + label + '</div>' +
+      '<div class="wpx-row"><span class="wpx-val amber">' + value + '</span></div>' +
+    '</div>';
+  };
+
+  grid.innerHTML =
+    cell('WPX Rank', s.overallRank || '-') +
+    cell('WPX Total Score', fmt(s.totalScore)) +
+    cell('WPX Weekly Avg', s.weeklyAvg ? fmt(Math.round(s.weeklyAvg)) : '-') +
+    cell('WPX Weeks Played', s.weeksPlayed || '-');
+  card.style.display = 'block';
+}
+
 function renderWpxHistoryCard(p) {
   var card = document.getElementById('wpxHistoryCard');
   var grid = document.getElementById('wpxGrid');
@@ -420,6 +453,7 @@ function loadPlayer(name) {
     '<div class="stat-card c6"><div class="stat-label">Missed Weekly</div><div class="stat-value red">' + p.missedWeekly + '</div></div>' +
     '<div class="stat-card c7"><div class="stat-label">20M Weeks</div><div class="stat-value accent">' + p.weeks.filter(function (w) { return w.score >= 20000000; }).length + '</div></div>';
 
+  renderWpxStatsCard(p);
   renderGrowthCard(p);
   renderWpxHistoryCard(p);
 

@@ -37,10 +37,11 @@ Attribute VB_Name = "WPXTrackingMerge"
 ' pasting into the same columns is how the numbers drifted onto the wrong players
 ' in the first place.
 '
-' After filling, Overall Total (C), Overall Rank (E) and Overall Weekly Average
-' (G) are recalculated so they include the WPX weeks. Pushing Total (D), Pushing
-' Rank (F) and the missed-goal counts (H, I) are GT-season figures and are left
-' as the GT macro wrote them.
+' The overall figures in C-I are left exactly as the GT refresh wrote them, so
+' every ranking on the sheet and on the dashboard stays GT-season only. The WPX
+' side gets its own summary in the CV block - "WPX Overall Total", "WPX Weeks
+' Played", "WPX Weekly Average" and "WPX Overall Rank", the last two ranking WPX
+' players against each other.
 '
 ' To use:
 '   1. Open GTStatsFINAL.xlsm.
@@ -174,8 +175,6 @@ Public Sub RefreshWPXTracking()
     Application.Calculation = xlCalculationAutomatic
     Application.Calculate
     Application.Calculation = xlCalculationManual
-
-    RecalcOverall wsPT, gtWeekCols, lastRow
 
 SafeExit:
     Dim errNum As Long, errText As String
@@ -773,9 +772,10 @@ Private Function WriteWpxBlock(wsPT As Worksheet, wsWpx As Worksheet, _
     wsPT.Cells(1, firstCol).Value = "WPX Overall Total"
     wsPT.Cells(1, firstCol + 1).Value = "WPX Weeks Played"
     wsPT.Cells(1, firstCol + 2).Value = "WPX Weekly Average"
+    wsPT.Cells(1, firstCol + 3).Value = "WPX Overall Rank"
 
     Dim totalList As String, c As Long, k As Variant, missing As Long
-    c = firstCol + 2
+    c = firstCol + 3
     For Each k In keys
         c = c + 1
         wsPT.Cells(1, c).Value = "WPX Weekly Total (" & wpxWeekCols(k)(1) & ")"
@@ -800,6 +800,7 @@ Private Function WriteWpxBlock(wsPT As Worksheet, wsWpx As Worksheet, _
         FillFormula wsPT, firstCol + 1, lastRow, "=COUNT(" & totalList & ")"
         FillFormula wsPT, firstCol + 2, lastRow, _
             "=IF(" & countLetter & "2=0," & Q2 & "," & totalLetter & "2/" & countLetter & "2)"
+        WriteRankColumn wsPT, firstCol, firstCol + 3, lastRow
     End If
 
     wsPT.Rows(1).WrapText = True
@@ -846,55 +847,6 @@ End Sub
 Private Sub ClearColumnBody(ws As Worksheet, col As Long)
     If col <= 0 Then Exit Sub
     ws.Range(ws.Cells(2, col), ws.Cells(LAST_PT_ROW, col)).ClearContents
-End Sub
-
-' Overall Total (C), Overall Rank (E) and Overall Weekly Average (G), now that
-' the WPX weeks are part of the row. Pushing figures stay as the GT macro left
-' them - those weeks are GT-season only. These stay values because the GT
-' refresh rewrites them.
-Private Sub RecalcOverall(ws As Worksheet, weekCols As Object, lastRow As Long)
-    Dim r As Long, k As Variant, v As Variant
-    Dim totalSum As Double, weekCount As Long
-
-    For r = 2 To lastRow
-        totalSum = 0
-        weekCount = 0
-
-        For Each k In weekCols.Keys
-            v = ws.Cells(r, weekCols(k)(0)).Value
-            If HasScore(v) Then
-                totalSum = totalSum + CDbl(v)
-                weekCount = weekCount + 1
-            End If
-        Next k
-
-        If weekCount > 0 Then
-            ws.Cells(r, "C").Value = totalSum
-            ws.Cells(r, "G").Value = totalSum / weekCount
-        End If
-    Next r
-
-    FillRankValues ws, 3, 5, lastRow
-End Sub
-
-Private Sub FillRankValues(ws As Worksheet, valueCol As Long, rankCol As Long, _
-    lastRow As Long)
-
-    Dim rng As Range
-    Set rng = ws.Range(ws.Cells(2, valueCol), ws.Cells(lastRow, valueCol))
-
-    Dim scored As Long
-    scored = Application.WorksheetFunction.count(rng)
-
-    Dim r As Long, v As Variant
-    For r = 2 To lastRow
-        v = ws.Cells(r, valueCol).Value
-        If scored > 0 And HasScore(v) Then
-            ws.Cells(r, rankCol).Value = Application.WorksheetFunction.rank(v, rng, 0)
-        Else
-            ws.Cells(r, rankCol).ClearContents
-        End If
-    Next r
 End Sub
 
 '==============================================================================
