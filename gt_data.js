@@ -435,6 +435,15 @@ async function loadGTData() {
   const COL_MISS_DAILY  = colOf("Overall Missed Daily Goals");
   const COL_MISS_WEEKLY = colOf("Overall Missed Weekly Goals");
 
+  // Legacy WPX career figures, written by the WPXTrackingMerge macro. Kept apart
+  // from the GT columns above so every ranking on this site stays GT-only.
+  const COL_WPX_TOTAL = colOf("WPX Overall Total");
+  const COL_WPX_WEEKS = colOf("WPX Weeks Played");
+  const COL_WPX_AVG   = colOf("WPX Weekly Average");
+  const COL_WPX_RANK  = colOf("WPX Overall Rank");
+
+  const numOrNull = (v) => (typeof v === "number" && isFinite(v) ? v : null);
+
   const players = {};
 
   for (let r = 1; r < ptRows.length; r++) {
@@ -469,6 +478,17 @@ async function loadGTData() {
         rank:       row[weekRankCols[i]] || null,
         inProgress: weekLabels[i] === currentWeekLabel
       })),
+      // WPX career, or null for players who were never in WPX
+      wpxStats: (() => {
+        const total = COL_WPX_TOTAL >= 0 ? numOrNull(row[COL_WPX_TOTAL]) : null;
+        if (!total) return null;
+        return {
+          totalScore: total,
+          weeksPlayed: COL_WPX_WEEKS >= 0 ? numOrNull(row[COL_WPX_WEEKS]) : null,
+          weeklyAvg:   COL_WPX_AVG   >= 0 ? numOrNull(row[COL_WPX_AVG])   : null,
+          overallRank: COL_WPX_RANK  >= 0 ? numOrNull(row[COL_WPX_RANK])  : null
+        };
+      })(),
       // growth populated below from Arena Power sheet
       growth: null
     };
