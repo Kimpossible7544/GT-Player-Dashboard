@@ -434,10 +434,146 @@ Private Function BuildSnapshot(wsWpx As Worksheet, wpxWeekCols As Object) As Obj
         End If
     Next r
 
+    AddWeeklySheetScores wsWpx.Parent, ws, keys, wpxWeekCols, cols, outRow
+
     ws.Rows(1).Font.Bold = True
     ws.Visible = xlSheetHidden
 
     Set BuildSnapshot = cols
+End Function
+
+' Fills the snapshot from the WPX weekly sheets: the per-week sum of Monday to
+' Friday, which is exactly what the WPX Player Tracking week column holds.
+'
+' Player Tracking only carries the players still on the WPX roster, so a player
+' who left WPX before transferring is not on it at all and would otherwise come
+' back empty - their scores only survive on the weekly sheets. A blank week on a
+' player who *is* on Player Tracking is filled from here too, which covers a week
+' WPX never rolled up.
+Private Sub AddWeeklySheetScores(wbWpx As Workbook, wsSnap As Worksheet, _
+    keys As Collection, wpxWeekCols As Object, cols As Object, ByRef outRow As Long)
+
+    Dim byID As Object, byName As Object
+    BuildSnapshotIndex wsSnap, byID, byName
+
+    Dim rosterIDs As Object
+    Set rosterIDs = BuildWpxNameToID(wbWpx)
+
+    Dim k As Variant, wsWeek As Worksheet, label As String
+    For Each k In keys
+        label = CStr(wpxWeekCols(k)(1))
+        Set wsWeek = SheetOrNothing(wbWpx, label)
+        If Not wsWeek Is Nothing Then
+            AddOneWeeklySheet wsWeek, wsSnap, CStr(cols(k)), byName, rosterIDs, outRow
+        End If
+    Next k
+End Sub
+
+Private Sub AddOneWeeklySheet(wsWeek As Worksheet, wsSnap As Worksheet, _
+    snapCol As String, byName As Object, rosterIDs As Object, ByRef outRow As Long)
+
+    Dim dayCols As Collection, headerRow As Long
+    Set dayCols = FindDayColumns(wsWeek, headerRow)
+    If dayCols.count = 0 Then Exit Sub
+
+    Dim col As Long
+    col = wsSnap.Range(snapCol & "1").Column
+
+    Dim lastRow As Long, r As Long, nameVal As String, key As String
+    Dim total As Double, scored As Boolean, dc As Variant, v As Variant
+    Dim row As Long
+
+    lastRow = wsWeek.Cells(wsWeek.Rows.count, "A").End(xlUp).row
+
+    For r = headerRow + 1 To lastRow
+        nameVal = CleanText(wsWeek.Cells(r, 1).Value)
+        key = NameKey(nameVal)
+        If key <> "" Then
+            total = 0
+            scored = False
+            For Each dc In dayCols
+                v = wsWeek.Cells(r, CLng(dc)).Value
+                If HasScore(v) Then
+                    total = total + CDbl(v)
+                    scored = True
+                End If
+            Next dc
+
+            If scored Then
+                If byName.Exists(key) Then
+                    row = byName(key)
+                Else
+                    outRow = outRow + 1
+                    row = outRow
+                    wsSnap.Cells(row, 2).Value = nameVal
+                    If rosterIDs.Exists(key) Then wsSnap.Cells(row, 1).Value = rosterIDs(key)
+                    byName.Add key, row
+                End If
+
+                ' Player Tracking wins where it has a figure; this only fills gaps.
+                If Not HasScore(wsSnap.Cells(row, col).Value) Then
+                    wsSnap.Cells(row, col).Value = total
+                End If
+            End If
+        End If
+    Next r
+End Sub
+
+' Columns of the Monday..Friday headers on a WPX weekly sheet, plus the row they
+' sit on.
+Private Function FindDayColumns(ws As Worksheet, ByRef headerRow As Long) As Collection
+    Dim found As New Collection
+    Dim days As Variant
+    days = Array("MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY")
+
+    Dim r As Long, c As Long, h As String, d As Variant
+    For r = 1 To 5
+        Set found = New Collection
+        For c = 1 To 30
+            h = UCase$(CleanText(ws.Cells(r, c).Value))
+            For Each d In days
+                If h = d Then found.Add c
+            Next d
+        Next c
+        If found.count >= 3 Then
+            headerRow = r
+            Set FindDayColumns = found
+            Exit Function
+        End If
+    Next r
+
+    Set FindDayColumns = New Collection
+End Function
+
+' WPX player name key -> player ID, from the Roster and Archived Players sheets,
+' so a player harvested off a weekly sheet still gets an ID where WPX kept one.
+Private Function BuildWpxNameToID(wbWpx As Workbook) As Object
+    Dim map As Object
+    Set map = CreateObject("Scripting.Dictionary")
+
+    Dim names As Variant, n As Variant
+    names = Array("Roster", "Archived Players")
+
+    Dim ws As Worksheet, idCol As Long, lastRow As Long, r As Long
+    Dim key As String, id As String
+    For Each n In names
+        Set ws = SheetOrNothing(wbWpx, CStr(n))
+        If Not ws Is Nothing Then
+            idCol = FindIDColumn(ws)
+            If idCol > 0 Then
+                lastRow = ws.Cells(ws.Rows.count, "A").End(xlUp).row
+                For r = 2 To lastRow
+                    key = NameKey(ws.Cells(r, 1).Value)
+                    id = NormalizeID(ws.Cells(r, idCol).Value)
+                    If key <> "" And id <> "" Then
+                        If Not map.Exists(key) Then map.Add key, id
+                    End If
+                Next r
+            End If
+        End If
+    Next n
+
+    Set BuildWpxNameToID = map
 End Function
 
 ' Snapshot ID -> row and snapshot name key -> row.

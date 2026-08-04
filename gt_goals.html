@@ -260,6 +260,7 @@ function calcStreak(name){
   var timeline = [];
   dd.weekOrder.forEach(function(wk, wIdx){
     if (np.has(wk)) return;
+    if (!joinedByWeek(name, wk)) return;
     DAYS.forEach(function(day){
       if (!dayHasData(wk, day)) return;
       timeline.push({ score: (pd[day] && pd[day][wIdx]) || 0, goal: getDailyGoal(day, wk, gtData.currentWeekLabel) });
@@ -300,12 +301,27 @@ function suggestRank(currentRank, hitDays, recordedDays){
   return { rank: targetRank, action: tIdx > cIdx ? 'up' : 'down' };
 }
 
+// True when the player was in the alliance for any part of the week. Someone who
+// joined later has no scores that week and would otherwise be listed with an
+// all-zero row and counted as a failed week.
+function joinedByWeek(name, weekLabel){
+  var p = gtData.players[name];
+  if (!p || !p.joinDate) return true;
+  var joined = parseDateMMDDYYYY(p.joinDate);
+  var weekStart = parseWeekStartDate(weekLabel);
+  if (!joined || !weekStart) return true;
+  var weekEnd = new Date(weekStart);
+  weekEnd.setDate(weekEnd.getDate() + 6);
+  return joined <= weekEnd;
+}
+
 function buildWeekRows(weekLabel){
   var wIdx = weekIdxOf(weekLabel);
   var rows = [];
   Object.keys(gtData.players).forEach(function(name){
     var pd = gtData.dailyData.players[name];
     if (!pd) return;
+    if (!joinedByWeek(name, weekLabel)) return;
     var dayScores = {};
     var total = 0;
     DAYS.forEach(function(day){
