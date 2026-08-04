@@ -289,17 +289,11 @@ function suggestRank(currentRank, hitDays, recordedDays){
   // R4/R5 players (including separate R4/R5 entries) are above the active tiers and always hold.
   if (TOP_RANKS.indexOf(String(currentRank || '').trim().toUpperCase()) >= 0) return { rank: currentRank, action: 'hold' };
   var cIdx = rankIndex(currentRank);
-  // At most one miss (with at least one day recorded) keeps the player at R3.
-  var metThreshold = recordedDays > 1 ? recordedDays - 1 : 1;
-  var targetRank;
-  if (hitDays >= metThreshold){
-    targetRank = 'R3';
-  } else {
-    // Otherwise demote one tier (but not below R1).
-    if (cIdx < 0) targetRank = 'R2';
-    else if (cIdx === 0) targetRank = 'R1';
-    else targetRank = RANK_ORDER[cIdx - 1];
-  }
+  // Hitting 3 of 5 daily goals earns R3, scaled to the days actually recorded.
+  var metThreshold = Math.max(1, Math.ceil(recordedDays * 3 / 5));
+  // R1 is reserved for brand new and inactive players, so missing goals never
+  // takes anyone below R2.
+  var targetRank = hitDays >= metThreshold ? 'R3' : 'R2';
   if (targetRank === currentRank) return { rank: targetRank, action: 'hold' };
   var tIdx = rankIndex(targetRank);
   if (cIdx < 0) return { rank: targetRank, action: 'assign' };
@@ -397,7 +391,7 @@ function renderWeek(weekLabel){
     (np.has(weekLabel) ? ' <span style="color:var(--accent3)">(resting week — goals informational only)</span>' : '');
 
   document.getElementById('content').innerHTML =
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: all but one of them hit → R3; more than one miss → demote one rank. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: hitting 3 of 5 daily goals (scaled to the days recorded) → R3, below that → R2. R1 is for brand new and inactive players only, so nobody is demoted past R2. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
     '<div class="summary-grid">' + sumCards + '</div>' +
     '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
     '<div id="rankShiftsFull"></div>' +
