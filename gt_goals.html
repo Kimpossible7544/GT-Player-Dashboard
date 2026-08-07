@@ -314,11 +314,20 @@ function rankIndex(rank){
 }
 
 function suggestRank(currentRank, hitDays, recordedDays, zeroStreak){
-  if (recordedDays === 0) return { rank: currentRank || '\u2014', action: 'hold' };
   // R4/R5 players (including separate R4/R5 entries) are above the active tiers and always hold.
   if (TOP_RANKS.indexOf(String(currentRank || '').trim().toUpperCase()) >= 0) return { rank: currentRank, action: 'hold' };
   var normCurrent = String(currentRank || '').trim().toUpperCase();
   var cIdx = rankIndex(currentRank);
+  // Sustained inactivity always suggests demotion one tier down, regardless of
+  // rank or this week's hit/recorded numbers \u2014 it overrides the normal weekly
+  // threshold check below. R1 has nowhere lower to go, so it just holds there,
+  // still carrying the Inactive flag (set separately by the caller).
+  if ((zeroStreak || 0) >= 5) {
+    if (normCurrent === 'R3') return { rank: 'R2', action: 'down' };
+    if (normCurrent === 'R2') return { rank: 'R1', action: 'down' };
+    if (normCurrent === 'R1') return { rank: 'R1', action: 'hold' };
+  }
+  if (recordedDays === 0) return { rank: currentRank || '\u2014', action: 'hold' };
   // Hitting 3 of 5 daily goals earns R3, scaled to the days actually recorded.
   var metThreshold = Math.max(1, Math.ceil(recordedDays * 3 / 5));
   // R1 is reserved for brand new and inactive players, so missing goals never
@@ -330,13 +339,6 @@ function suggestRank(currentRank, hitDays, recordedDays, zeroStreak){
   // being the floor for brand new/inactive players.
   if (normCurrent === 'R1' && hitDays < metThreshold) {
     return { rank: 'R1', action: 'hold' };
-  }
-  // An R2 player who is merely missing goals still holds at R2 \u2014 demotion to
-  // R1 only kicks in once they've gone 5 consecutive recorded days at a zero
-  // score, which is what actually signals inactivity rather than a slow week.
-  if (normCurrent === 'R2' && targetRank === 'R2') {
-    if ((zeroStreak || 0) >= 5) return { rank: 'R1', action: 'down' };
-    return { rank: 'R2', action: 'hold' };
   }
   if (targetRank === currentRank) return { rank: targetRank, action: 'hold' };
   var tIdx = rankIndex(targetRank);
@@ -450,7 +452,7 @@ function renderWeek(weekLabel){
     (np.has(weekLabel) ? ' <span style="color:var(--accent3)">(resting week — goals informational only)</span>' : '');
 
   document.getElementById('content').innerHTML =
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: hitting 3 of 5 daily goals (scaled to the days recorded) → R3, below that → R2. R1 is for brand new and inactive players only — an R1 player is only suggested for promotion once they meet that same 3-of-5 threshold, and an R2 player isn’t suggested for demotion until they’ve put up a zero score for 5 consecutive recorded days. Any R1, R2, or R3 player with a 5-day zero-score streak is flagged <b style="color:#842029;background:#f8d7da;padding:1px 6px;border-radius:999px;">Inactive</b> alongside their normal suggestion. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: hitting 3 of 5 daily goals (scaled to the days recorded) → R3, below that → R2. R1 is for brand new and inactive players only — an R1 player is only suggested for promotion once they meet that same 3-of-5 threshold. Any R1, R2, or R3 player who puts up a zero score for 5 consecutive recorded days is flagged <b style="color:#842029;background:#f8d7da;padding:1px 6px;border-radius:999px;">Inactive</b> and suggested for demotion one tier down (R1 just holds, having nowhere lower to go). R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
     '<div class="summary-grid">' + sumCards + '</div>' +
     '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
     '<div id="rankShiftsFull"></div>' +
