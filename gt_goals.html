@@ -324,6 +324,13 @@ function suggestRank(currentRank, hitDays, recordedDays, zeroStreak){
   // R1 is reserved for brand new and inactive players, so missing goals never
   // takes anyone below R2 on its own.
   var targetRank = hitDays >= metThreshold ? 'R3' : 'R2';
+  // An R1 player is only suggested for promotion once they actually meet that
+  // same threshold \u2014 otherwise every R1 with at least one recorded day would
+  // auto-promote to R2 regardless of performance, defeating the point of R1
+  // being the floor for brand new/inactive players.
+  if (normCurrent === 'R1' && hitDays < metThreshold) {
+    return { rank: 'R1', action: 'hold' };
+  }
   // An R2 player who is merely missing goals still holds at R2 \u2014 demotion to
   // R1 only kicks in once they've gone 5 consecutive recorded days at a zero
   // score, which is what actually signals inactivity rather than a slow week.
@@ -443,7 +450,7 @@ function renderWeek(weekLabel){
     (np.has(weekLabel) ? ' <span style="color:var(--accent3)">(resting week — goals informational only)</span>' : '');
 
   document.getElementById('content').innerHTML =
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: hitting 3 of 5 daily goals (scaled to the days recorded) → R3, below that → R2. R1 is for brand new and inactive players only — an R2 player isn’t suggested for demotion until they’ve put up a zero score for 5 consecutive recorded days. Any R1, R2, or R3 player with a 5-day zero-score streak is flagged <b style="color:#842029;background:#f8d7da;padding:1px 6px;border-radius:999px;">Inactive</b> alongside their normal suggestion. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: hitting 3 of 5 daily goals (scaled to the days recorded) → R3, below that → R2. R1 is for brand new and inactive players only — an R1 player is only suggested for promotion once they meet that same 3-of-5 threshold, and an R2 player isn’t suggested for demotion until they’ve put up a zero score for 5 consecutive recorded days. Any R1, R2, or R3 player with a 5-day zero-score streak is flagged <b style="color:#842029;background:#f8d7da;padding:1px 6px;border-radius:999px;">Inactive</b> alongside their normal suggestion. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
     '<div class="summary-grid">' + sumCards + '</div>' +
     '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
     '<div id="rankShiftsFull"></div>' +
