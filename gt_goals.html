@@ -360,8 +360,13 @@ function joinedByWeek(name, weekLabel){
   return joined <= weekEnd;
 }
 
+function inactiveBadge(s){
+  return s.inactive ? ' <span class="inactive-badge">Inactive</span>' : '';
+}
+
 function buildWeekRows(weekLabel){
   var wIdx = weekIdxOf(weekLabel);
+  var rosterRanks = gtData.rosterRanks || {};
   var rows = [];
   Object.keys(gtData.players).forEach(function(name){
     var pd = gtData.dailyData.players[name];
@@ -378,7 +383,11 @@ function buildWeekRows(weekLabel){
       // only judge clutch on days whose scores are in (fair to in-progress weeks)
       return !dayHasData(weekLabel, day) || dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel);
     }) && CLUTCH_DAYS.some(function(day){ return dayHasData(weekLabel, day) && dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel); });
-    rows.push({ name: name, days: dayScores, total: total, clutch: clutch, streak: calcStreak(name) });
+    // Same Inactive rule as the Rank Shift table: R1-R3 only, 5+ day zero streak.
+    var currentRank = (pd.rank ? pd.rank[wIdx] : null) || rosterRanks[name] || 'Unknown';
+    var cRankIdx = rankIndex(currentRank);
+    var inactive = calcZeroStreak(name) >= 5 && cRankIdx >= 0 && cRankIdx <= 2;
+    rows.push({ name: name, days: dayScores, total: total, clutch: clutch, streak: calcStreak(name), inactive: inactive });
   });
   return rows;
 }
@@ -439,7 +448,7 @@ function renderWeek(weekLabel){
     var enc = encodeURIComponent(r.name);
     var totalCls = isInProgress ? '' : (r.total >= WEEKLY_GOAL ? ' hit' : ' miss');
     return '<tr>' +
-      '<td class="pname"><a href="gt_dashboard.html?player=' + enc + '">' + r.name + '</a></td>' +
+      '<td class="pname"><a href="gt_dashboard.html?player=' + enc + '">' + r.name + '</a>' + inactiveBadge(r) + '</td>' +
       DAYS.map(function(day){ return cellHtml(weekLabel, day, r.days[day]); }).join('') +
       '<td><span class="wk-total' + totalCls + '">' + fmtScore(r.total) + '</span></td>' +
       '<td><span class="streak' + (r.streak >= 5 ? ' fire' : '') + '">' + r.streak + (r.streak >= 5 ? ' \uD83D\uDD25' : '') + '</span></td>' +
@@ -566,10 +575,6 @@ function renderRankShifts(weekLabel, rows){
     if (ai !== bi) return bi - ai; // R4/R5 first, then R3, R2, R1
     return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
   });
-
-  function inactiveBadge(s){
-    return s.inactive ? ' <span class="inactive-badge">Inactive</span>' : '';
-  }
 
   function rowHtml(s){
     var cls, actionText;
