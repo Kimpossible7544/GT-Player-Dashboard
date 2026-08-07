@@ -577,7 +577,7 @@ function renderRankShifts(weekLabel, rows){
     else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
     else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
     else { cls = 'rank-up'; actionText = 'Set'; }
-    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.recorded + '</td><td class="' + cls + '">' + actionText + inactiveBadge(s) + '</td></tr>';
+    return '<tr><td class="pname">' + s.name + inactiveBadge(s) + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.recorded + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
   }
 
   function summaryActionText(s){
