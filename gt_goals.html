@@ -65,6 +65,7 @@ td.pname a:hover{color:var(--accent);}
 .streak{font-family:'Courier New',monospace;font-weight:900;color:var(--accent2);}
 .streak.fire{color:var(--gold);}
 .clutch-badge{display:inline-block;font-size:0.65rem;font-weight:900;letter-spacing:1px;color:var(--gold);background:rgba(255,200,0,0.12);border:1px solid rgba(255,200,0,0.4);padding:2px 8px;border-radius:10px;}
+.inactive-badge{display:inline-block;font-size:0.7rem;font-weight:700;color:#842029;background:#f8d7da;padding:3px 12px;border-radius:999px;margin-left:6px;}
 .legend{display:flex;flex-wrap:wrap;gap:16px;margin:16px 4px 40px;color:var(--dim);font-size:0.72rem;letter-spacing:0.5px;}
 .legend span b{font-weight:900;}
 .in-progress-label{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--accent);background:rgba(0,255,180,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
@@ -442,7 +443,7 @@ function renderWeek(weekLabel){
     (np.has(weekLabel) ? ' <span style="color:var(--accent3)">(resting week — goals informational only)</span>' : '');
 
   document.getElementById('content').innerHTML =
-    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: hitting 3 of 5 daily goals (scaled to the days recorded) → R3, below that → R2. R1 is for brand new and inactive players only — an R2 player isn’t suggested for demotion until they’ve put up a zero score for 5 consecutive recorded days. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
+    '<div class="rank-shifts-wrap"><h2>Rank Shift Suggestions</h2><p class="sub">R1 is the lowest rank, R4/R5 is the highest. Only days with scores entered are counted: hitting 3 of 5 daily goals (scaled to the days recorded) → R3, below that → R2. R1 is for brand new and inactive players only — an R2 player isn’t suggested for demotion until they’ve put up a zero score for 5 consecutive recorded days. Any R1, R2, or R3 player with a 5-day zero-score streak is flagged <b style="color:#842029;background:#f8d7da;padding:1px 6px;border-radius:999px;">Inactive</b> alongside their normal suggestion. R4, R5, and R4/R5 players are not included in promote/demote suggestions.</p><div id="rankShifts"><div class="rank-empty">Loading rank shifts…</div></div></div>' +
     '<div class="summary-grid">' + sumCards + '</div>' +
     '<div class="table-card"><table><thead><tr>' + ths + '</tr></thead><tbody>' + trs + '</tbody></table></div>' +
     '<div id="rankShiftsFull"></div>' +
@@ -528,7 +529,13 @@ function renderRankShifts(weekLabel, rows){
         dayIcons += '<span class="day-icon day-miss">✕</span>';
       }
     });
-    var suggestion = suggestRank(currentRank, hit, recorded, calcZeroStreak(r.name));
+    var zeroStreak = calcZeroStreak(r.name);
+    var suggestion = suggestRank(currentRank, hit, recorded, zeroStreak);
+    // Inactive is an independent flag on top of whatever the normal
+    // suggestion is (Hold/Promote/Demote) — it only applies to the active
+    // grind tiers (R1-R3); R4/R5 stay excluded from rank suggestions entirely.
+    var cRankIdx = rankIndex(currentRank);
+    var inactive = zeroStreak >= 5 && cRankIdx >= 0 && cRankIdx <= 2;
     shifts.push({
       name: r.name,
       current: currentRank,
@@ -536,7 +543,8 @@ function renderRankShifts(weekLabel, rows){
       hit: hit,
       recorded: recorded,
       dayIcons: dayIcons,
-      action: suggestion.action
+      action: suggestion.action,
+      inactive: inactive
     });
   });
   function rankSortIndex(rank){
@@ -550,13 +558,17 @@ function renderRankShifts(weekLabel, rows){
     return a.name.localeCompare(b.name, undefined, {sensitivity:'base'});
   });
 
+  function inactiveBadge(s){
+    return s.inactive ? ' <span class="inactive-badge">Inactive</span>' : '';
+  }
+
   function rowHtml(s){
     var cls, actionText;
     if (s.action === 'hold') { cls = 'rank-hold'; actionText = 'Hold'; }
     else if (s.action === 'up') { cls = 'rank-up'; actionText = 'Promote'; }
     else if (s.action === 'down') { cls = 'rank-down'; actionText = 'Demote'; }
     else { cls = 'rank-up'; actionText = 'Set'; }
-    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.recorded + '</td><td class="' + cls + '">' + actionText + '</td></tr>';
+    return '<tr><td class="pname">' + s.name + '</td><td class="rank-current">' + s.current + '</td><td class="' + cls + '">' + s.suggested + '</td><td>' + s.hit + '/' + s.recorded + '</td><td class="' + cls + '">' + actionText + inactiveBadge(s) + '</td></tr>';
   }
 
   function summaryActionText(s){
@@ -567,7 +579,7 @@ function renderRankShifts(weekLabel, rows){
   }
 
   function summaryRowHtml(s){
-    return '<tr><td class="pname">' + s.name + '</td><td class="day-icons">' + s.dayIcons + '</td><td>' + s.hit + '/' + s.recorded + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
+    return '<tr><td class="pname">' + s.name + inactiveBadge(s) + '</td><td class="day-icons">' + s.dayIcons + '</td><td>' + s.hit + '/' + s.recorded + '</td><td><input type="checkbox" class="rank-status-check" data-player="' + escAttr(s.name) + '" data-week="' + escAttr(weekLabel) + '" title="Done"></td></tr>';
   }
 
   function summaryTable(title, items, color){
