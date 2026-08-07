@@ -535,6 +535,38 @@ async function loadGTData() {
   });
 
   // =========================================================
+  // NAME ALIAS MAP (from Roster AKA columns)
+  // =========================================================
+  // A player who renames mid-week can end up with two rows in that week's
+  // sheet — one under the old name (days entered before the rename), one
+  // under the new (days entered after) — since each day is filled into
+  // whatever name is in column A at entry time. Resolving both back to the
+  // current Player Tracking name via the Roster's AKA column keeps that
+  // week's daily hit/miss data whole instead of splitting or dropping it.
+  // =========================================================
+  const nameAliasMap = {};
+  if (workbook.SheetNames.includes("Roster")) {
+    const aliasRows = XLSX.utils.sheet_to_json(workbook.Sheets["Roster"], { header: 1, defval: null });
+    const aliasNameCols = [1, 5, 9, 13];
+    const aliasAkaCols  = [3, 7, 11, 15];
+    const normalizeName = (s) => String(s || "").trim().toLowerCase().replace(/\s+/g, " ");
+    for (let s = 0; s < aliasNameCols.length; s++) {
+      for (let r = 1; r < aliasRows.length; r++) {
+        const name = aliasRows[r][aliasNameCols[s]];
+        const aka  = aliasRows[r][aliasAkaCols[s]];
+        if (name && aka) nameAliasMap[normalizeName(aka)] = String(name).trim();
+      }
+    }
+  }
+  function resolvePlayerName(rawName) {
+    if (players[rawName]) return rawName;
+    const trimmed = String(rawName || "").trim();
+    if (players[trimmed]) return trimmed;
+    const alias = nameAliasMap[trimmed.toLowerCase().replace(/\s+/g, " ")];
+    return (alias && players[alias]) ? alias : rawName;
+  }
+
+  // =========================================================
   // BUILD DAILY DATA
   // =========================================================
   const dailyData = { weekOrder: weekLabels, players: {} };
@@ -562,9 +594,10 @@ async function loadGTData() {
     const byPlayer = {};
     for (let r = 1; r < weekRows.length; r++) {
       const row  = weekRows[r];
-      const name = row[0];
-      if (!name) continue;
-      byPlayer[name] = {
+      const rawName = row[0];
+      if (!rawName) continue;
+      const name = resolvePlayerName(rawName);
+      const dayValues = {
         Monday:    (typeof row[2] === 'number' ? row[2] : 0),
         Tuesday:   (typeof row[3] === 'number' ? row[3] : 0),
         Wednesday: (typeof row[4] === 'number' ? row[4] : 0),
@@ -572,6 +605,15 @@ async function loadGTData() {
         Friday:    (typeof row[6] === 'number' ? row[6] : 0),
         rank:      (rankCol >= 0 ? String(row[rankCol] || "").trim() || null : null)
       };
+      const existing = byPlayer[name];
+      if (existing) {
+        // Merge rather than overwrite: a real day's score lands on only one
+        // of the two fragment rows, so keep whichever side has it.
+        DAYS.forEach(day => { existing[day] = dayValues[day] || existing[day]; });
+        existing.rank = dayValues.rank || existing.rank;
+      } else {
+        byPlayer[name] = dayValues;
+      }
     }
 
     Object.keys(players).forEach(name => {
