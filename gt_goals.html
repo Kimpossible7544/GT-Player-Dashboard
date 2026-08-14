@@ -58,7 +58,7 @@ td.pname a:hover{color:var(--accent);}
 .cell-near{color:var(--gold);font-weight:700;}
 .cell-miss{color:var(--red);}
 .cell-zero{color:#3a3a4e;}
-.cell-excused{color:var(--dim);font-weight:700;}
+.cell-excused{color:var(--red);font-weight:900;}
 .cell-score{display:block;font-size:0.62rem;font-family:'Courier New',monospace;color:var(--dim);margin-top:1px;}
 .wk-total{font-family:'Courier New',monospace;font-weight:900;}
 .wk-total.hit{color:var(--accent);}
@@ -106,7 +106,7 @@ td.pname a:hover{color:var(--accent);}
 .day-hit{color:var(--gold);}
 .day-miss{color:#c084fc;}
 .day-future{color:var(--dim);font-size:0.75rem;}
-.day-excused{color:var(--dim);font-size:0.75rem;font-weight:700;}
+.day-excused{color:var(--red);font-size:0.75rem;font-weight:900;}
 .rank-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;}
 .rank-sum-title{font-size:1rem;margin-bottom:8px;}
 .rank-table{width:auto;max-width:100%;margin:0 auto;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
@@ -412,7 +412,7 @@ function cellHtml(weekLabel, day, score, excused){
   var goal = getDailyGoal(day, weekLabel, gtData.currentWeekLabel);
   var hasData = dayHasData(weekLabel, day);
   var mark, cls;
-  if (excused){ return '<td><span class="cell-excused">x</span></td>'; }     // excused — not a miss
+  if (excused){ return '<td><span class="cell-excused">\u25CF</span></td>'; }  // excused — not a miss
   if (!hasData && score === 0){ mark = '\u00b7'; cls = 'cell-zero'; }       // scores not entered yet
   else if (score >= goal){ mark = '\u2713'; cls = 'cell-hit'; }             // hit
   else if (score >= goal * 0.9){ mark = '\u25CB'; cls = 'cell-near'; }      // near miss (90%+)
@@ -489,7 +489,7 @@ function renderWeek(weekLabel){
     '<span><b class="cell-near">\u25CB</b> near miss (90%+)</span>' +
     '<span><b class="cell-miss">\u2717</b> missed</span>' +
     '<span><b class="cell-zero">\u2014</b> no score</span>' +
-    '<span><b class="cell-excused">x</b> excused (not counted)</span>' +
+    '<span><b class="cell-excused">\u25CF</b> excused (not counted)</span>' +
     '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
     '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
     '</div>';
@@ -556,7 +556,7 @@ function renderRankShifts(weekLabel, rows){
     var recorded = 0, hit = 0, dayIcons = '';
     DAYS.forEach(function(day){
       if (r.excused[day]){
-        dayIcons += '<span class="day-icon day-excused">x</span>';
+        dayIcons += '<span class="day-icon day-excused">\u25CF</span>';
         return;
       }
       if (!dayHasData(weekLabel, day)){
