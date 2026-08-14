@@ -716,6 +716,8 @@ async function loadAndRenderMissedGoals() {
       for (const name of Object.keys(data.dailyData.players)) {
         const playerDays = data.dailyData.players[name];
         if (!playerDays || !Array.isArray(playerDays[day])) continue;
+        // an 'x' in the day cell excuses the player from that day's goal
+        if (playerDays.excused && playerDays.excused[day] && playerDays.excused[day][weekIdx]) continue;
         const score = playerDays[day][weekIdx] || 0;
         if (score < DUEL_GOALS[day]) {
           missed[day].push({ name, score });
