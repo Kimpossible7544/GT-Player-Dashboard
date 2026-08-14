@@ -58,6 +58,7 @@ td.pname a:hover{color:var(--accent);}
 .cell-near{color:var(--gold);font-weight:700;}
 .cell-miss{color:var(--red);}
 .cell-zero{color:#3a3a4e;}
+.cell-excused{color:var(--dim);font-weight:700;}
 .cell-score{display:block;font-size:0.62rem;font-family:'Courier New',monospace;color:var(--dim);margin-top:1px;}
 .wk-total{font-family:'Courier New',monospace;font-weight:900;}
 .wk-total.hit{color:var(--accent);}
@@ -105,6 +106,7 @@ td.pname a:hover{color:var(--accent);}
 .day-hit{color:var(--gold);}
 .day-miss{color:#c084fc;}
 .day-future{color:var(--dim);font-size:0.75rem;}
+.day-excused{color:var(--dim);font-size:0.75rem;font-weight:700;}
 .rank-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin-bottom:16px;}
 .rank-sum-title{font-size:1rem;margin-bottom:8px;}
 .rank-table{width:auto;max-width:100%;margin:0 auto;border-collapse:collapse;background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;display:table;}
@@ -252,6 +254,16 @@ function dayHasData(weekLabel, day){
   return has;
 }
 
+// An "x" in a day cell excuses that day: the player was not expected to score,
+// so it counts as neither a hit nor a missed goal.
+function isExcused(name, weekLabel, day){
+  if (!gtData || !gtData.dailyData) return false;
+  var pd = gtData.dailyData.players[name];
+  if (!pd || !pd.excused || !pd.excused[day]) return false;
+  var idx = gtData.dailyData.weekOrder.indexOf(weekLabel);
+  return idx >= 0 && pd.excused[day][idx] === true;
+}
+
 // Current goal-hit streak: consecutive goal-met days across pushing weeks,
 // counting back from the most recent day with data. Resting weeks are
 // skipped (they neither extend nor break the streak). A miss or absence breaks it.
@@ -266,6 +278,7 @@ function calcStreak(name){
     if (!joinedByWeek(name, wk)) return;
     DAYS.forEach(function(day){
       if (!dayHasData(wk, day)) return;
+      if (isExcused(name, wk, day)) return;
       timeline.push({ score: (pd[day] && pd[day][wIdx]) || 0, goal: getDailyGoal(day, wk, gtData.currentWeekLabel) });
     });
   });
@@ -291,6 +304,7 @@ function calcZeroStreak(name){
     if (!joinedByWeek(name, wk)) return;
     DAYS.forEach(function(day){
       if (!dayHasData(wk, day)) return;
+      if (isExcused(name, wk, day)) return;
       timeline.push((pd[day] && pd[day][wIdx]) || 0);
     });
   });
@@ -373,29 +387,32 @@ function buildWeekRows(weekLabel){
     if (!pd) return;
     if (!joinedByWeek(name, weekLabel)) return;
     var dayScores = {};
+    var dayExcused = {};
     var total = 0;
     DAYS.forEach(function(day){
       var s = (pd[day] && pd[day][wIdx]) || 0;
       dayScores[day] = s;
+      dayExcused[day] = isExcused(name, weekLabel, day);
       total += s;
     });
     var clutch = CLUTCH_DAYS.every(function(day){
       // only judge clutch on days whose scores are in (fair to in-progress weeks)
-      return !dayHasData(weekLabel, day) || dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel);
-    }) && CLUTCH_DAYS.some(function(day){ return dayHasData(weekLabel, day) && dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel); });
+      return !dayHasData(weekLabel, day) || dayExcused[day] || dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel);
+    }) && CLUTCH_DAYS.some(function(day){ return dayHasData(weekLabel, day) && !dayExcused[day] && dayScores[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel); });
     // Same Inactive rule as the Rank Shift table: R1-R3 only, 5+ day zero streak.
     var currentRank = (pd.rank ? pd.rank[wIdx] : null) || rosterRanks[name] || 'Unknown';
     var cRankIdx = rankIndex(currentRank);
     var inactive = calcZeroStreak(name) >= 5 && cRankIdx >= 0 && cRankIdx <= 2;
-    rows.push({ name: name, days: dayScores, total: total, clutch: clutch, streak: calcStreak(name), inactive: inactive });
+    rows.push({ name: name, days: dayScores, excused: dayExcused, total: total, clutch: clutch, streak: calcStreak(name), inactive: inactive });
   });
   return rows;
 }
 
-function cellHtml(weekLabel, day, score){
+function cellHtml(weekLabel, day, score, excused){
   var goal = getDailyGoal(day, weekLabel, gtData.currentWeekLabel);
   var hasData = dayHasData(weekLabel, day);
   var mark, cls;
+  if (excused){ return '<td><span class="cell-excused">x</span></td>'; }     // excused — not a miss
   if (!hasData && score === 0){ mark = '\u00b7'; cls = 'cell-zero'; }       // scores not entered yet
   else if (score >= goal){ mark = '\u2713'; cls = 'cell-hit'; }             // hit
   else if (score >= goal * 0.9){ mark = '\u25CB'; cls = 'cell-near'; }      // near miss (90%+)
@@ -417,10 +434,12 @@ function renderWeek(weekLabel){
     if (!dayHasData(weekLabel, day)){
       return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(getDailyGoal(day, weekLabel, gtData.currentWeekLabel)) + '</div><div class="sum-value" style="color:var(--dim)">\u2014</div><div class="sum-count">not yet</div></div>';
     }
-    var hits = activeRows.filter(function(r){ return r.days[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel); }).length;
-    var pct = Math.round(hits / denom * 100);
+    var dayRows = activeRows.filter(function(r){ return !r.excused[day]; });
+    var dayDenom = dayRows.length || 1;
+    var hits = dayRows.filter(function(r){ return r.days[day] >= getDailyGoal(day, weekLabel, gtData.currentWeekLabel); }).length;
+    var pct = Math.round(hits / dayDenom * 100);
     var cls = pct >= 75 ? 'good' : pct >= 50 ? 'mid' : 'bad';
-    return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(getDailyGoal(day, weekLabel, gtData.currentWeekLabel)) + '</div><div class="sum-value ' + cls + '">' + pct + '%</div><div class="sum-count">' + hits + '/' + denom + ' hit</div></div>';
+    return '<div class="sum-card"><div class="sum-label">' + DAY_SHORT[day] + '</div><div class="sum-goal">' + fmtM(getDailyGoal(day, weekLabel, gtData.currentWeekLabel)) + '</div><div class="sum-value ' + cls + '">' + pct + '%</div><div class="sum-count">' + hits + '/' + dayDenom + ' hit</div></div>';
   }).join('');
   var wkHits = activeRows.filter(function(r){ return r.total >= WEEKLY_GOAL; }).length;
   var wkPct = Math.round(wkHits / denom * 100);
@@ -449,7 +468,7 @@ function renderWeek(weekLabel){
     var totalCls = isInProgress ? '' : (r.total >= WEEKLY_GOAL ? ' hit' : ' miss');
     return '<tr>' +
       '<td class="pname"><a href="gt_dashboard.html?player=' + enc + '">' + r.name + '</a>' + inactiveBadge(r) + '</td>' +
-      DAYS.map(function(day){ return cellHtml(weekLabel, day, r.days[day]); }).join('') +
+      DAYS.map(function(day){ return cellHtml(weekLabel, day, r.days[day], r.excused[day]); }).join('') +
       '<td><span class="wk-total' + totalCls + '">' + fmtScore(r.total) + '</span></td>' +
       '<td><span class="streak' + (r.streak >= 5 ? ' fire' : '') + '">' + r.streak + (r.streak >= 5 ? ' \uD83D\uDD25' : '') + '</span></td>' +
       '<td>' + (r.clutch ? '<span class="clutch-badge">\u2605 CLUTCH</span>' : '') + '</td>' +
@@ -470,6 +489,7 @@ function renderWeek(weekLabel){
     '<span><b class="cell-near">\u25CB</b> near miss (90%+)</span>' +
     '<span><b class="cell-miss">\u2717</b> missed</span>' +
     '<span><b class="cell-zero">\u2014</b> no score</span>' +
+    '<span><b class="cell-excused">x</b> excused (not counted)</span>' +
     '<span><b class="streak">Streak</b> consecutive goal days (resting weeks skipped)</span>' +
     '<span><b style="color:var(--gold)">\u2605 Clutch</b> hit every grind-day goal (Tue 3M / Wed 4M / Fri 3M)</span>' +
     '</div>';
@@ -535,6 +555,10 @@ function renderRankShifts(weekLabel, rows){
     var currentRank = weeklyRank || rosterRanks[r.name] || 'Unknown';
     var recorded = 0, hit = 0, dayIcons = '';
     DAYS.forEach(function(day){
+      if (r.excused[day]){
+        dayIcons += '<span class="day-icon day-excused">x</span>';
+        return;
+      }
       if (!dayHasData(weekLabel, day)){
         dayIcons += '<span class="day-icon day-future">–</span>';
         return;

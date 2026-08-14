@@ -571,14 +571,24 @@ async function loadGTData() {
   // =========================================================
   const dailyData = { weekOrder: weekLabels, players: {} };
 
+  // An "x" typed into a day cell marks that day as excused: the player was not
+  // expected to score, so the day is neither a hit nor a missed goal anywhere.
+  const isExcusedCell = (v) => typeof v === "string" && v.trim().toLowerCase() === "x";
+
   Object.keys(players).forEach(name => {
-    dailyData.players[name] = { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], rank: [] };
+    dailyData.players[name] = {
+      Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], rank: [],
+      excused: { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] }
+    };
   });
 
   for (const weekLabel of weekLabels) {
     if (!workbook.SheetNames.includes(weekLabel)) {
       Object.keys(players).forEach(name => {
-        DAYS.forEach(day => dailyData.players[name][day].push(0));
+        DAYS.forEach(day => {
+          dailyData.players[name][day].push(0);
+          dailyData.players[name].excused[day].push(false);
+        });
         dailyData.players[name].rank.push(null);
       });
       continue;
@@ -597,19 +607,24 @@ async function loadGTData() {
       const rawName = row[0];
       if (!rawName) continue;
       const name = resolvePlayerName(rawName);
+      const dayCols = { Monday: 2, Tuesday: 3, Wednesday: 4, Thursday: 5, Friday: 6 };
       const dayValues = {
-        Monday:    (typeof row[2] === 'number' ? row[2] : 0),
-        Tuesday:   (typeof row[3] === 'number' ? row[3] : 0),
-        Wednesday: (typeof row[4] === 'number' ? row[4] : 0),
-        Thursday:  (typeof row[5] === 'number' ? row[5] : 0),
-        Friday:    (typeof row[6] === 'number' ? row[6] : 0),
-        rank:      (rankCol >= 0 ? String(row[rankCol] || "").trim() || null : null)
+        rank: (rankCol >= 0 ? String(row[rankCol] || "").trim() || null : null),
+        excused: {}
       };
+      DAYS.forEach(day => {
+        const raw = row[dayCols[day]];
+        dayValues[day] = (typeof raw === 'number' ? raw : 0);
+        dayValues.excused[day] = isExcusedCell(raw);
+      });
       const existing = byPlayer[name];
       if (existing) {
         // Merge rather than overwrite: a real day's score lands on only one
         // of the two fragment rows, so keep whichever side has it.
-        DAYS.forEach(day => { existing[day] = dayValues[day] || existing[day]; });
+        DAYS.forEach(day => {
+          existing[day] = dayValues[day] || existing[day];
+          existing.excused[day] = existing.excused[day] || dayValues.excused[day];
+        });
         existing.rank = dayValues.rank || existing.rank;
       } else {
         byPlayer[name] = dayValues;
@@ -620,6 +635,7 @@ async function loadGTData() {
       const pd = byPlayer[name];
       DAYS.forEach(day => {
         dailyData.players[name][day].push(pd ? (pd[day] || 0) : 0);
+        dailyData.players[name].excused[day].push(pd ? !!pd.excused[day] : false);
       });
       dailyData.players[name].rank.push(pd ? (pd.rank || null) : null);
     });
@@ -670,6 +686,7 @@ async function loadGTData() {
       const weekIdx = dailyData.weekOrder.indexOf(week.label);
       if (pd && weekIdx >= 0) {
         DAYS.forEach(day => {
+          if (pd.excused && pd.excused[day] && pd.excused[day][weekIdx]) return;
           const dayScore = pd[day][weekIdx];
           if (dayScore > 0 && dayScore < getDailyGoal(day, week.label, currentWeekLabel)) missedDaily++;
         });

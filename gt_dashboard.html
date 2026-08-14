@@ -246,13 +246,17 @@ function daysHitText(p, w) {
   if (!dailyData || !dailyData.players[p.name]) return '-';
   var idx = dailyData.weekOrder.indexOf(w.label);
   if (idx < 0) return '-';
-  var hit = 0;
+  var pd = dailyData.players[p.name];
+  var hit = 0, counted = 0;
   var days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
   days.forEach(function(day) {
-    var s = (dailyData.players[p.name][day] || [])[idx] || 0;
+    // days marked 'x' are excused — they count as neither hit nor miss
+    if (pd.excused && pd.excused[day] && pd.excused[day][idx]) return;
+    counted++;
+    var s = (pd[day] || [])[idx] || 0;
     if (s >= getDailyGoal(day, w.label, currentWeekLabel)) hit++;
   });
-  return hit + '/5';
+  return hit + '/' + counted;
 }
 
 function doLogin() {

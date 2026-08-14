@@ -104,6 +104,8 @@ Public Sub UpdateGoalSymbolsRow(ByVal ws As Worksheet, ByVal r As Long)
 End Sub
 
 ' --- True if any cell in C:G of the row is non-empty -----------
+' An "x" marks an excused day, so it is treated like an empty cell: a row of
+' nothing but excused days is not a missed goal.
 Private Function HasRowData(ByVal ws As Worksheet, ByVal r As Long) As Boolean
     Dim c As Long
     Dim v As Variant
@@ -112,7 +114,7 @@ Private Function HasRowData(ByVal ws As Worksheet, ByVal r As Long) As Boolean
         If IsError(v) Then
             HasRowData = True
             Exit Function
-        ElseIf Trim(CStr(v)) <> "" Then
+        ElseIf Trim(CStr(v)) <> "" And LCase(Trim(CStr(v))) <> "x" Then
             HasRowData = True
             Exit Function
         End If
