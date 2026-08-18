@@ -289,15 +289,14 @@ async function loadGTData() {
     "?rlkey=l0vgltfg8plegl3ui34u5ux47&raw=1";
 
   // Previous team's workbook — used only to pull Arena/HQ power history for
-  // players who were on BOTH teams (matched by roster ID) so their growth
-  // spans both. See CROSS_TEAM_PLAYER_IDS below.
+  // players who were on BOTH teams so their growth spans both.
   const WPX_DROPBOX_URL =
     "https://dl.dropboxusercontent.com/scl/fi/dx7xgqmjshf8hciso3uya/WPXStatsFinal.xlsm" +
     "?rlkey=oyw14lm3fod48uxygykdnixar&raw=1";
 
-  // Roster IDs (stable across teams) whose WPX Arena/HQ power history should be
-  // merged into their GT growth card and shown as a legacy WPX History card.
-  // Leave this array empty to auto-detect every ID that exists in both rosters.
+  // Roster IDs whose WPX Arena/HQ power history should be merged into their GT
+  // growth card and shown as a legacy WPX History card. Leave empty to resolve
+  // all GT roster IDs through the WPX ID Map, roster ID, or AKA name.
   const CROSS_TEAM_PLAYER_IDS = [];
 
   const PLAYER_TRACKING_SHEET = "Player Tracking";
@@ -755,6 +754,16 @@ async function loadGTData() {
   const idToPlayer = {};
   const rosterRanks = {};
   const ROSTER_SHEET = "Roster";
+  const normalizeId = (value) => {
+    if (value === null || value === undefined || value === "") return "";
+    let text = String(value).trim().replace(/[\s,]/g, "");
+    if (!text || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) return "";
+    if (/e/i.test(text)) text = Number(text).toFixed(0);
+    const digits = text.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+    return digits === "0" ? "" : digits;
+  };
+  const gtIdToPlayer = {};
+  const gtIdToAka = {};
 
   if (workbook.SheetNames.includes(ROSTER_SHEET)) {
     const rosterRows = XLSX.utils.sheet_to_json(
@@ -781,11 +790,14 @@ async function loadGTData() {
         const name = row[nameCols[s]];
         const aka  = row[akaCols[s]];
         // Skip header row and non-numeric IDs
-        if (id && name && !isNaN(Number(id))) {
-          idToPlayer[Number(id)] = String(name).trim();
+        const normalizedId = normalizeId(id);
+        if (normalizedId && name) {
+          const playerName = String(name).trim();
+          idToPlayer[normalizedId] = playerName;
+          gtIdToPlayer[normalizedId] = playerName;
+          if (aka) gtIdToAka[normalizedId] = String(aka).trim();
           if (rank) {
-            const n = String(name).trim();
-            rosterRanks[n] = rank;
+            rosterRanks[playerName] = rank;
             if (aka) rosterRanks[String(aka).trim()] = rank;
           }
         }
@@ -798,12 +810,10 @@ async function loadGTData() {
 
   // =========================================================
   // CROSS-TEAM ARENA/HQ POWER MERGE (WPX -> GT)
-  // For players who were on BOTH teams (matched by stable roster ID), pull
-  // their WPX Arena Power + HQ (personal) power history so their growth card
-  // spans both teams. GT's own Arena Power data (once present) stays "current"
-  // and the WPX baseline becomes the "starting" values; deltas are recomputed
-  // across the full span. Auto-detects IDs present in both rosters unless
-  // CROSS_TEAM_PLAYER_IDS is explicitly populated.
+  // Resolve each GT roster ID by WPX ID Map, roster ID, then AKA name; pull
+  // the WPX Arena/HQ history so the growth card spans both teams. GT's own
+  // Arena Power data stays "current" and the WPX baseline becomes "starting";
+  // deltas are recomputed across the full span.
   // =========================================================
   if (WPX_DROPBOX_URL) {
     try {
@@ -811,18 +821,39 @@ async function loadGTData() {
       if (!wpxResp.ok) throw new Error(`WPX Dropbox returned ${wpxResp.status}`);
       const wpxWorkbook = XLSX.read(await wpxResp.arrayBuffer(), { type: "array", cellDates: true });
 
-      // WPX roster: ID -> player name
+      // GT WPX ID Map: GT ID -> WPX ID or player name
+      const gtWpxIdMap = {};
+      const WPX_ID_MAP_SHEET = "WPX ID Map";
+      if (workbook.SheetNames.includes(WPX_ID_MAP_SHEET)) {
+        const mapRows = XLSX.utils.sheet_to_json(
+          workbook.Sheets[WPX_ID_MAP_SHEET],
+          { header: 1, defval: null }
+        );
+        for (let r = 1; r < mapRows.length; r++) {
+          const row = mapRows[r];
+          const gtId = normalizeId(row[0]);
+          const wpxKey = row[1];
+          if (gtId && wpxKey !== null && wpxKey !== undefined && String(wpxKey).trim()) {
+            gtWpxIdMap[gtId] = wpxKey;
+          }
+        }
+      }
+
+      // WPX roster and archived players: ID -> player name
       const wpxIdToPlayer = {};
-      if (wpxWorkbook.SheetNames.includes(ROSTER_SHEET)) {
-        const wr = XLSX.utils.sheet_to_json(wpxWorkbook.Sheets[ROSTER_SHEET], { header: 1, defval: null });
-        const idCols = [0, 4, 8, 12];
-        const nameCols = [1, 5, 9, 13];
-        for (let r = 1; r < wr.length; r++) {
-          const row = wr[r];
-          for (let s = 0; s < idCols.length; s++) {
-            const id = row[idCols[s]];
-            const nm = row[nameCols[s]];
-            if (id && nm && !isNaN(Number(id))) wpxIdToPlayer[Number(id)] = String(nm).trim();
+      const wpxRosterSheets = [ROSTER_SHEET, "Archived Players"];
+      const idCols = [0, 4, 8, 12];
+      const nameCols = [1, 5, 9, 13];
+      for (const sheetName of wpxRosterSheets) {
+        if (wpxWorkbook.SheetNames.includes(sheetName)) {
+          const wr = XLSX.utils.sheet_to_json(wpxWorkbook.Sheets[sheetName], { header: 1, defval: null });
+          for (let r = 1; r < wr.length; r++) {
+            const row = wr[r];
+            for (let s = 0; s < idCols.length; s++) {
+              const id = normalizeId(row[idCols[s]]);
+              const nm = row[nameCols[s]];
+              if (id && nm && !wpxIdToPlayer[id]) wpxIdToPlayer[id] = String(nm).trim();
+            }
           }
         }
       }
@@ -840,14 +871,36 @@ async function loadGTData() {
       const diff = (a, b) => (a !== null && b !== null) ? Math.round((a - b) * 10) / 10 : null;
 
       const crossTeamIds = CROSS_TEAM_PLAYER_IDS.length
-        ? CROSS_TEAM_PLAYER_IDS
-        : Object.keys(wpxIdToPlayer).filter(id => idToPlayer[id]);
+        ? CROSS_TEAM_PLAYER_IDS.map(normalizeId).filter(Boolean)
+        : Object.keys(gtIdToPlayer);
 
-      crossTeamIds.forEach(id => {
-        const gtName = idToPlayer[id];
-        const wpxName = wpxIdToPlayer[id];
+      crossTeamIds.forEach(rawId => {
+        const id = normalizeId(rawId);
+        if (!id) return;
+        const gtName = gtIdToPlayer[id];
+        let wpxName = null;
+        let matchType = null;
+        const mappedKey = gtWpxIdMap[id];
+        if (mappedKey !== undefined) {
+          const mappedId = normalizeId(mappedKey);
+          if (mappedId && wpxIdToPlayer[mappedId]) {
+            wpxName = wpxIdToPlayer[mappedId];
+            matchType = "WPX ID Map";
+          } else if (!mappedId) {
+            wpxName = String(mappedKey).trim();
+            matchType = "WPX ID Map";
+          }
+        }
+        if (!wpxName && wpxIdToPlayer[id]) {
+          wpxName = wpxIdToPlayer[id];
+          matchType = "roster ID";
+        }
+        if (!wpxName && gtIdToAka[id]) {
+          wpxName = gtIdToAka[id];
+          matchType = "AKA name";
+        }
         if (!gtName || !wpxName || !players[gtName]) return;
-        const wpxRow = wpxArenaByName[wpxName.toLowerCase()];
+        const wpxRow = wpxArenaByName[String(wpxName).trim().toLowerCase()];
         if (!wpxRow) return;
 
         const wpxG = parseArenaRow(wpxRow);
@@ -874,7 +927,7 @@ async function loadGTData() {
           crossTeam:         true
         };
         players[gtName].wpxHistory = wpxG;
-        console.log(`[GT] Merged WPX Arena/HQ power for cross-team player ${gtName} (ID ${id}).`);
+        console.log(`[GT] Merged WPX Arena/HQ power for cross-team player ${gtName} (ID ${id}; matched by ${matchType}).`);
       });
     } catch (err) {
       console.warn("[GT] WPX cross-team power merge skipped:", err.message);
