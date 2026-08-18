@@ -668,11 +668,16 @@ async function loadGTData() {
       if (players[name]) {
         players[name].growth = growth;
       } else {
-        // Try case-insensitive match
-        const key = Object.keys(players).find(
-          k => k.toLowerCase() === name.toLowerCase()
-        );
-        if (key) players[key].growth = growth;
+        // Try roster AKA alias, then case-insensitive match
+        const alias = resolvePlayerName(name);
+        if (players[alias]) {
+          players[alias].growth = growth;
+        } else {
+          const key = Object.keys(players).find(
+            k => k.toLowerCase() === name.toLowerCase()
+          );
+          if (key) players[key].growth = growth;
+        }
       }
     }
 
