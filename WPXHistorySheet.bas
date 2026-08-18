@@ -7,9 +7,10 @@ Attribute VB_Name = "WPXHistorySheet"
 '              MATCH(TRIM($B$3),'WPX History'!$B$2:$B$100,0)),"")
 '
 ' resolve for every cross-alliance player instead of only the rows filled in by
-' hand. Players are matched on the ID in the sheet's own ID column, falling back
-' to Player Tracking column CL by name, and existing rows are updated in place
-' so the sheet's row order, notes and any hand-kept columns survive.
+' hand. Players are matched through the GT roster, WPX ID Map, WPX roster/archive
+' ID, and GT roster AKA name; existing rows are updated in place so the sheet's
+' row order, notes and any hand-kept columns survive. Player Name is refreshed
+' to the current GT roster name.
 '
 ' Scores come from the WPX Player Tracking row where the player has one, and
 ' from the WPX weekly sheets (name in A, weekly total in L, ID in V) for any
@@ -263,6 +264,8 @@ Public Sub RefreshWPXHistorySheet()
     ' WPX History without one.
     Dim gtByID As Object, gtIDByName As Object
     BuildGTMaps wsPT, gtByID, gtIDByName
+    Dim gtAKAByID As Object, gtWpxMap As Object
+    BuildGTRosterMaps gtByID, gtIDByName, gtAKAByID, gtWpxMap
 
     Dim wpxWeekCols As Object, weekLabels As Object, sheetWeeks As Object
     Set wpxWeekCols = BuildWpxWeekColumnMap(wsWpx)
@@ -279,6 +282,8 @@ Public Sub RefreshWPXHistorySheet()
 
     Dim wpxRowByID As Object, wpxRowByName As Object
     Set wpxRowByID = BuildWpxRowMap(wsWpx, wbWpx, wpxRowByName)
+    Dim wpxNameToID As Object
+    Set wpxNameToID = BuildWpxNameToID(wbWpx)
 
     ' Existing rows, top of the sheet down to the first blank name - anything
     ' below that (blank spacer, footnotes) is left alone.
@@ -289,7 +294,7 @@ Public Sub RefreshWPXHistorySheet()
     Dim k As Variant, playerID As String, wpxRow As Long, r As Long
     Dim stats As Object
 
-    Dim nameKey As String
+    Dim nameKey As String, wpxID As String, wpxNameKey As String
 
     ' 1) Every row already on the sheet.
     For Each k In rowByID.Keys
@@ -297,9 +302,13 @@ Public Sub RefreshWPXHistorySheet()
         r = rowByID(playerID)
         nameKey = WpxNameKey(wsHist.Cells(r, cols(F_NAME)).Value)
 
-        wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, playerID, nameKey)
+        WpxKeysForGTID playerID, gtWpxMap, gtAKAByID, wpxNameToID, _
+            wpxID, wpxNameKey
+        If wpxID = "" Then wpxID = playerID
+        If wpxNameKey = "" Then wpxNameKey = nameKey
+        wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, wpxID, wpxNameKey)
         Set stats = BuildPlayerStats(wsWpx, wpxRow, wpxWeekCols, sheetWeeks, _
-            weekLabels, playerID, nameKey)
+            weekLabels, wpxID, wpxNameKey)
 
         If stats(F_WEEKS) > 0 Then
             FinishStats stats, playerID, gtByID, wsHist, r, cols
@@ -321,11 +330,15 @@ Public Sub RefreshWPXHistorySheet()
         If playerID <> "" Then
             If Not rowByID.Exists(playerID) Then
                 nameKey = WpxNameKey(wsPT.Cells(r, "A").Value)
-                wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, playerID, nameKey)
+                WpxKeysForGTID playerID, gtWpxMap, gtAKAByID, wpxNameToID, _
+                    wpxID, wpxNameKey
+                If wpxID = "" Then wpxID = playerID
+                If wpxNameKey = "" Then wpxNameKey = nameKey
+                wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, wpxID, wpxNameKey)
 
-                If wpxRow > 0 Or HasSheetWeeks(sheetWeeks, playerID, nameKey) Then
+                If wpxRow > 0 Or HasSheetWeeks(sheetWeeks, wpxID, wpxNameKey) Then
                     Set stats = BuildPlayerStats(wsWpx, wpxRow, wpxWeekCols, sheetWeeks, _
-                        weekLabels, playerID, nameKey)
+                        weekLabels, wpxID, wpxNameKey)
 
                     If stats(F_WEEKS) > 0 Then
                         lastDataRow = lastDataRow + 1
@@ -456,10 +469,11 @@ Private Function ScanExistingRows(ws As Worksheet, cols As Object, _
         nm = Trim$(CStr(ws.Cells(r, nameCol).Value))
 
         playerID = ""
-        If idCol > 0 Then playerID = WpxNormalizeID(ws.Cells(r, idCol).Value)
-        If playerID = "" Then
-            nameKey = WpxNameKey(nm)
-            If gtIDByName.Exists(nameKey) Then playerID = CStr(gtIDByName(nameKey))
+        nameKey = WpxNameKey(nm)
+        If gtIDByName.Exists(nameKey) Then
+            playerID = CStr(gtIDByName(nameKey))
+        ElseIf idCol > 0 Then
+            playerID = WpxNormalizeID(ws.Cells(r, idCol).Value)
         End If
 
         If playerID <> "" Then
@@ -493,6 +507,93 @@ Private Sub BuildGTMaps(wsPT As Worksheet, ByRef gtByID As Object, ByRef gtIDByN
             End If
         End If
     Next r
+End Sub
+
+Private Sub BuildGTRosterMaps(ByRef gtByID As Object, ByRef gtIDByName As Object, _
+    ByRef gtAKAByID As Object, ByRef gtWpxMap As Object)
+
+    Set gtAKAByID = CreateObject("Scripting.Dictionary")
+    Set gtWpxMap = CreateObject("Scripting.Dictionary")
+
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets("Roster")
+    On Error GoTo 0
+
+    If Not ws Is Nothing Then
+        Dim blocks As Variant, b As Long, r As Long, lastRow As Long
+        Dim playerID As String, nameKey As String, akaKey As String
+        Dim gtEntry As Variant, currentName As String
+        blocks = Array(Array(1, 2, 4), Array(5, 6, 8), _
+                       Array(9, 10, 12), Array(13, 14, 16))
+
+        For b = LBound(blocks) To UBound(blocks)
+            lastRow = ws.Cells(ws.Rows.Count, blocks(b)(0)).End(xlUp).Row
+            For r = 2 To lastRow
+                playerID = WpxNormalizeID(ws.Cells(r, blocks(b)(0)).Value)
+                If playerID <> "" Then
+                    nameKey = WpxNameKey(ws.Cells(r, blocks(b)(1)).Value)
+                    If nameKey <> "" Then
+                        If Not gtIDByName.Exists(nameKey) Then gtIDByName.Add nameKey, playerID
+                        currentName = Trim$(CStr(ws.Cells(r, blocks(b)(1)).Value))
+                        If gtByID.Exists(playerID) Then
+                            gtEntry = gtByID(playerID)
+                            gtEntry(0) = currentName
+                            gtByID(playerID) = gtEntry
+                        Else
+                            gtByID.Add playerID, Array(currentName, "")
+                        End If
+                    End If
+                    akaKey = WpxNameKey(ws.Cells(r, blocks(b)(2)).Value)
+                    If akaKey <> "" Then
+                        If Not gtIDByName.Exists(akaKey) Then gtIDByName.Add akaKey, playerID
+                        If Not gtAKAByID.Exists(playerID) Then _
+                            gtAKAByID.Add playerID, Trim$(CStr(ws.Cells(r, blocks(b)(2)).Value))
+                    End If
+                End If
+            Next r
+        Next b
+    End If
+
+    Dim wsMap As Worksheet, lastMapRow As Long, mapped As String
+    On Error Resume Next
+    Set wsMap = ThisWorkbook.Worksheets("WPX ID Map")
+    On Error GoTo 0
+    If Not wsMap Is Nothing Then
+        lastMapRow = wsMap.Cells(wsMap.Rows.Count, 1).End(xlUp).Row
+        For r = 2 To lastMapRow
+            playerID = WpxNormalizeID(wsMap.Cells(r, 1).Value)
+            mapped = Trim$(CStr(wsMap.Cells(r, 2).Value))
+            If playerID <> "" And mapped <> "" Then gtWpxMap(playerID) = mapped
+        Next r
+    End If
+End Sub
+
+Private Sub WpxKeysForGTID(ByVal gtID As String, gtWpxMap As Object, _
+    gtAKAByID As Object, wpxNameToID As Object, _
+    ByRef wpxID As String, ByRef wpxNameKey As String)
+
+    wpxID = ""
+    wpxNameKey = ""
+
+    Dim mapped As String, mappedID As String, aka As String
+    If gtWpxMap.Exists(gtID) Then
+        mapped = Trim$(CStr(gtWpxMap(gtID)))
+        mappedID = WpxNormalizeID(mapped)
+        If mappedID <> "" Then
+            wpxID = mappedID
+        Else
+            wpxNameKey = WpxNameKey(mapped)
+            If wpxNameToID.Exists(wpxNameKey) Then wpxID = CStr(wpxNameToID(wpxNameKey))
+        End If
+        Exit Sub
+    End If
+
+    wpxID = gtID
+    If gtAKAByID.Exists(gtID) Then
+        aka = Trim$(CStr(gtAKAByID(gtID)))
+        wpxNameKey = WpxNameKey(aka)
+    End If
 End Sub
 
 ' WPX numbers for one player: their row on the WPX Player Tracking sheet where
@@ -907,28 +1008,29 @@ Private Function BuildWpxNameToID(wb As Workbook) As Object
     Dim dict As Object
     Set dict = CreateObject("Scripting.Dictionary")
 
-    Dim ws As Worksheet
-    On Error Resume Next
-    Set ws = wb.Worksheets("Roster")
-    On Error GoTo 0
-    If ws Is Nothing Then
-        Set BuildWpxNameToID = dict
-        Exit Function
-    End If
-
+    Dim ws As Worksheet, sheetNames As Variant, sheetName As Variant
+    sheetNames = Array("Roster", "Archived Players")
     Dim blocks As Variant, b As Long, r As Long
     Dim id As String, nameKey As String
     blocks = Array(Array(1, 2), Array(5, 6), Array(9, 10), Array(13, 14))
 
-    For b = LBound(blocks) To UBound(blocks)
-        For r = 2 To ws.Cells(ws.Rows.count, blocks(b)(1)).End(xlUp).row
-            id = WpxNormalizeID(ws.Cells(r, blocks(b)(0)).Value)
-            nameKey = WpxNameKey(ws.Cells(r, blocks(b)(1)).Value)
-            If id <> "" And nameKey <> "" Then
-                If Not dict.Exists(nameKey) Then dict.Add nameKey, id
-            End If
-        Next r
-    Next b
+    For Each sheetName In sheetNames
+        Set ws = Nothing
+        On Error Resume Next
+        Set ws = wb.Worksheets(CStr(sheetName))
+        On Error GoTo 0
+        If Not ws Is Nothing Then
+            For b = LBound(blocks) To UBound(blocks)
+                For r = 2 To ws.Cells(ws.Rows.Count, blocks(b)(1)).End(xlUp).Row
+                    id = WpxNormalizeID(ws.Cells(r, blocks(b)(0)).Value)
+                    nameKey = WpxNameKey(ws.Cells(r, blocks(b)(1)).Value)
+                    If id <> "" And nameKey <> "" Then
+                        If Not dict.Exists(nameKey) Then dict.Add nameKey, id
+                    End If
+                Next r
+            Next b
+        End If
+    Next sheetName
 
     Set BuildWpxNameToID = dict
 End Function
@@ -971,15 +1073,32 @@ Private Function WpxNameKey(ByVal v As Variant) As String
     WpxNameKey = out
 End Function
 
-' Same ID normalisation the Player Tracking module uses.
+' IDs are compared as digits only, including commas, spaces, scientific
+' notation, and leading zeros.
 Private Function WpxNormalizeID(ByVal v As Variant) As String
     If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
 
-    Dim txt As String
+    Dim txt As String, textKey As String, digits As String, i As Long, ch As String
     txt = Trim$(CStr(v))
     txt = Replace(txt, Chr(160), "")
     txt = Replace(txt, " ", "")
-    WpxNormalizeID = UCase$(txt)
+    textKey = txt
+    txt = Replace(txt, ",", "")
+    If txt = "" Then Exit Function
+    If Not IsNumeric(txt) Then
+        WpxNormalizeID = UCase$(textKey)
+        Exit Function
+    End If
+    If InStr(1, txt, "E", vbTextCompare) > 0 Then txt = Format$(CDbl(txt), "0")
+
+    For i = 1 To Len(txt)
+        ch = Mid$(txt, i, 1)
+        If ch >= "0" And ch <= "9" Then digits = digits & ch
+    Next i
+    Do While Len(digits) > 1 And Left$(digits, 1) = "0"
+        digits = Mid$(digits, 2)
+    Loop
+    If digits <> "0" Then WpxNormalizeID = digits
 End Function
 
 ' Opens the WPX workbook, or returns it if already open. Prompts only when the
