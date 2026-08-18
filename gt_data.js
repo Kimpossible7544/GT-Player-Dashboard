@@ -793,16 +793,11 @@ async function loadGTData() {
         const normalizedId = normalizeId(id);
         if (normalizedId && name) {
           const playerName = String(name).trim();
-          const numericId = Number(id);
-          if (!Number.isNaN(numericId)) idToPlayer[numericId] = playerName;
           idToPlayer[normalizedId] = playerName;
-          if (normalizedId) {
-            gtIdToPlayer[normalizedId] = playerName;
-            if (aka) gtIdToAka[normalizedId] = String(aka).trim();
-          }
+          gtIdToPlayer[normalizedId] = playerName;
+          if (aka) gtIdToAka[normalizedId] = String(aka).trim();
           if (rank) {
-            const n = String(name).trim();
-            rosterRanks[n] = rank;
+            rosterRanks[playerName] = rank;
             if (aka) rosterRanks[String(aka).trim()] = rank;
           }
         }
