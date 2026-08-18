@@ -186,6 +186,8 @@ End Sub
 Public Sub ImportWPXData()
     Dim f As Variant
     Dim wbWpx As Workbook
+    Dim wsSource As Worksheet
+    Dim detail As String
 
     f = Application.GetOpenFilename( _
         "Excel Macro-Enabled Workbook (*.xlsm), *.xlsm", , _
@@ -196,44 +198,218 @@ Public Sub ImportWPXData()
     Application.ScreenUpdating = False
     Application.DisplayAlerts = False
 
+    On Error GoTo ImportFailed
     Set wbWpx = Workbooks.Open(CStr(f), ReadOnly:=True)
 
+    Set wsSource = wbWpx.Sheets("Arena Power")
+    If Not CopyWpxSheet(wsSource, "WPX_ArenaPower", detail) Then GoTo ImportFailed
+
+    Set wsSource = wbWpx.Sheets("Roster")
+    If Not CopyWpxSheet(wsSource, "WPX_Roster", detail) Then GoTo ImportFailed
+
+    Set wsSource = Nothing
     On Error Resume Next
-    ThisWorkbook.Sheets("WPX_ArenaPower").Delete
-    ThisWorkbook.Sheets("WPX_Roster").Delete
-    ThisWorkbook.Sheets("WPX_PlayerTracking").Delete
-    ThisWorkbook.Sheets("WPX_Archived").Delete
-    On Error GoTo 0
-
-    wbWpx.Sheets("Arena Power").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
-    ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_ArenaPower"
-    ThisWorkbook.Sheets("WPX_ArenaPower").Visible = xlSheetVeryHidden
-
-    wbWpx.Sheets("Roster").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
-    ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_Roster"
-    ThisWorkbook.Sheets("WPX_Roster").Visible = xlSheetVeryHidden
-
-    On Error Resume Next
-    Err.Clear
-    wbWpx.Sheets("Archived Players").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
-    If Err.Number = 0 Then
-        ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_Archived"
-        ThisWorkbook.Sheets("WPX_Archived").Visible = xlSheetVeryHidden
+    Set wsSource = wbWpx.Sheets("Archived Players")
+    On Error GoTo ImportFailed
+    If Not wsSource Is Nothing Then
+        If Not CopyWpxSheet(wsSource, "WPX_Archived", detail) Then GoTo ImportFailed
     End If
-    Err.Clear
-    On Error GoTo 0
 
-    wbWpx.Sheets("Player Tracking").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
-    ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_PlayerTracking"
-    ThisWorkbook.Sheets("WPX_PlayerTracking").Visible = xlSheetVeryHidden
+    Set wsSource = wbWpx.Sheets("Player Tracking")
+    If Not CopyWpxSheet(wsSource, "WPX_PlayerTracking", detail) Then GoTo ImportFailed
 
     wbWpx.Close SaveChanges:=False
+    Set wbWpx = Nothing
 
     Application.DisplayAlerts = True
     Application.ScreenUpdating = True
 
     MsgBox "WPX data imported. Run ShowWPXHistoryOnDashboard to view a player.", vbInformation
+    Exit Sub
+
+ImportFailed:
+    If Not wbWpx Is Nothing Then wbWpx.Close SaveChanges:=False
+    Application.DisplayAlerts = True
+    Application.ScreenUpdating = True
+    If detail = "" Then detail = "Error " & Err.Number & ": " & Err.Description
+    MsgBox "WPX data import failed. " & detail, vbExclamation
 End Sub
+
+' Repairs copied WPX sheets whose names do not match the names used by the dashboard.
+Public Sub RepairWPXSheetNames()
+    Dim targets As Variant, targetName As Variant
+    targets = Array("WPX_Roster", "WPX_PlayerTracking", _
+                    "WPX_ArenaPower", "WPX_Archived")
+
+    Dim candidates As Object, ws As Worksheet, candidateList As Collection
+    Set candidates = CreateObject("Scripting.Dictionary")
+    For Each ws In ThisWorkbook.Worksheets
+        Dim candidateTarget As String
+        candidateTarget = WpxRepairTarget(ws.Name)
+        If candidateTarget <> "" Then
+            If Not candidates.Exists(candidateTarget) Then
+                Set candidateList = New Collection
+                candidates.Add candidateTarget, candidateList
+            End If
+            Set candidateList = candidates(candidateTarget)
+            candidateList.Add ws
+        End If
+    Next ws
+
+    Dim renamed As String, missing As String, notes As String
+    Dim sourceSheet As Worksheet, targetCandidates As Collection
+    For Each targetName In targets
+        If WpxSheetExists(CStr(targetName)) Then
+            Set ws = ThisWorkbook.Sheets(CStr(targetName))
+            On Error Resume Next
+            ws.Visible = xlSheetVeryHidden
+            If Err.Number <> 0 Then
+                notes = notes & vbCrLf & "Could not hide " & ws.Name & _
+                        ": " & Err.Description
+                Err.Clear
+            End If
+            On Error GoTo 0
+        ElseIf Not candidates.Exists(CStr(targetName)) Then
+            missing = missing & vbCrLf & "  " & CStr(targetName)
+        Else
+            Set targetCandidates = candidates(CStr(targetName))
+            If targetCandidates.Count > 1 Then
+                notes = notes & vbCrLf & "Ambiguous " & CStr(targetName) & _
+                        " candidates; renamed none:"
+                For Each sourceSheet In targetCandidates
+                    notes = notes & vbCrLf & "    " & sourceSheet.Name
+                Next sourceSheet
+                missing = missing & vbCrLf & "  " & CStr(targetName)
+            Else
+                Set sourceSheet = targetCandidates(1)
+                On Error Resume Next
+                Err.Clear
+                sourceSheet.Name = CStr(targetName)
+                If Err.Number = 0 Then
+                    sourceSheet.Visible = xlSheetVeryHidden
+                    If Err.Number = 0 Then
+                        renamed = renamed & vbCrLf & "  " & sourceSheet.Name
+                    Else
+                        notes = notes & vbCrLf & "Renamed " & CStr(targetName) & _
+                                " but could not hide it: " & Err.Description
+                        Err.Clear
+                    End If
+                Else
+                    notes = notes & vbCrLf & "Could not rename " & sourceSheet.Name & _
+                            " to " & CStr(targetName) & ": " & Err.Description
+                    Err.Clear
+                    missing = missing & vbCrLf & "  " & CStr(targetName)
+                End If
+                On Error GoTo 0
+            End If
+        End If
+    Next targetName
+
+    Dim report As String
+    report = "WPX sheet-name repair complete."
+    If renamed <> "" Then
+        report = report & vbCrLf & vbCrLf & "Renamed and hidden:" & renamed
+    Else
+        report = report & vbCrLf & vbCrLf & "Renamed and hidden: none"
+    End If
+    If missing <> "" Then
+        report = report & vbCrLf & vbCrLf & "Expected sheets still missing:" & missing
+    Else
+        report = report & vbCrLf & vbCrLf & "Expected sheets still missing: none"
+    End If
+    If notes <> "" Then report = report & vbCrLf & vbCrLf & "Notes:" & notes
+    MsgBox report, vbInformation
+End Sub
+
+' Copies one WPX source sheet, then renames and hides the direct copy reference.
+Private Function CopyWpxSheet(sourceSheet As Worksheet, targetName As String, _
+    ByRef detail As String) As Boolean
+    Dim copiedSheet As Worksheet
+    Dim copiedName As String
+
+    DeleteWpxTarget targetName
+    On Error GoTo CopyFailed
+    sourceSheet.Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
+    Set copiedSheet = ThisWorkbook.ActiveSheet
+    If copiedSheet Is Nothing Then GoTo CopyFailed
+    copiedName = copiedSheet.Name
+
+    On Error Resume Next
+    Err.Clear
+    copiedSheet.Name = targetName
+    If Err.Number <> 0 Then
+        detail = "Could not rename copied sheet " & copiedName & _
+                 " to " & targetName & ": " & Err.Description
+        Err.Clear
+        copiedSheet.Visible = xlSheetVeryHidden
+        copiedSheet.Delete
+        If Err.Number <> 0 Then Err.Clear
+        On Error GoTo 0
+        Exit Function
+    End If
+    copiedSheet.Visible = xlSheetVeryHidden
+    If Err.Number <> 0 Then
+        detail = "Renamed copied sheet " & targetName & _
+                 " but could not hide it: " & Err.Description
+        Err.Clear
+        On Error GoTo 0
+        Exit Function
+    End If
+    On Error GoTo 0
+
+    CopyWpxSheet = True
+    Exit Function
+
+CopyFailed:
+    If detail = "" Then detail = "Could not copy " & sourceSheet.Name & _
+        " to " & targetName & ": " & Err.Description
+End Function
+
+Private Sub DeleteWpxTarget(targetName As String)
+    On Error Resume Next
+    ThisWorkbook.Sheets(targetName).Delete
+    Err.Clear
+    On Error GoTo 0
+End Sub
+
+Private Function WpxSheetExists(sheetName As String) As Boolean
+    Dim ws As Worksheet
+    On Error Resume Next
+    Set ws = ThisWorkbook.Sheets(sheetName)
+    On Error GoTo 0
+    WpxSheetExists = Not ws Is Nothing
+End Function
+
+Private Function WpxRepairTarget(sheetName As String) As String
+    If WpxRepairPattern(sheetName, "Roster") Then
+        WpxRepairTarget = "WPX_Roster"
+    ElseIf WpxRepairPattern(sheetName, "Player Tracking") Then
+        WpxRepairTarget = "WPX_PlayerTracking"
+    ElseIf WpxRepairPattern(sheetName, "Arena Power") Then
+        WpxRepairTarget = "WPX_ArenaPower"
+    ElseIf WpxRepairPattern(sheetName, "Archived Players") Then
+        WpxRepairTarget = "WPX_Archived"
+    ElseIf StrComp(sheetName, "WPX_Arena Power", vbTextCompare) = 0 Then
+        WpxRepairTarget = "WPX_ArenaPower"
+    ElseIf StrComp(sheetName, "WPX_Player Tracking", vbTextCompare) = 0 Then
+        WpxRepairTarget = "WPX_PlayerTracking"
+    End If
+End Function
+
+Private Function WpxRepairPattern(sheetName As String, baseName As String) As Boolean
+    Dim prefix As String, suffix As String, ch As String, i As Long
+    prefix = baseName & " ("
+    If StrComp(Left$(sheetName, Len(prefix)), prefix, vbTextCompare) <> 0 Then Exit Function
+    suffix = Mid$(sheetName, Len(prefix) + 1)
+    If Right$(suffix, 1) <> ")" Then Exit Function
+    suffix = Left$(suffix, Len(suffix) - 1)
+    If suffix = "" Then Exit Function
+    For i = 1 To Len(suffix)
+        ch = Mid$(suffix, i, 1)
+        If ch < "0" Or ch > "9" Then Exit Function
+    Next i
+    WpxRepairPattern = True
+End Function
 
 ' Clears the WPX History display area on the Player Dashboard.
 Private Sub ClearWPXArea(ws As Worksheet)
