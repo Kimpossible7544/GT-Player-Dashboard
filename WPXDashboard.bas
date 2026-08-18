@@ -1,8 +1,8 @@
 Attribute VB_Name = "WPXDashboard"
 ' WPXDashboard.bas
 ' Adds a visible WPX data row and WPX History section to the existing "Player Dashboard" sheet
-' in GTStatsFINAL.xlsm for the player selected in B3, if that player's roster ID
-' is also in the WPX workbook.
+' in GTStatsFINAL.xlsm for the player selected in B3, resolving WPX identity through
+' the WPX ID Map, WPX roster ID, archived WPX ID, then the GT roster AKA name.
 '
 ' It does NOT overwrite any existing GT data on the dashboard or in Arena Power.
 ' It writes the WPX overall row at A7:F7 and the WPX History section at rows 9-12.
@@ -29,6 +29,7 @@ Public Sub ShowWPXHistoryOnDashboard()
     Dim wsDash As Worksheet
     Dim wsGTRoster As Worksheet
     Dim wsWpxRoster As Worksheet
+    Dim wsWpxArchived As Worksheet
     Dim wsWpxAP As Worksheet
     Dim wsWpxPT As Worksheet
     Dim wbWpx As Workbook
@@ -49,7 +50,7 @@ Public Sub ShowWPXHistoryOnDashboard()
         Exit Sub
     End If
 
-    Dim pID As Long
+    Dim pID As String
     pID = GetRosterID(wsGTRoster, player)
     If pID = 0 Then
         Call ClearWPXArea(wsDash)
@@ -61,6 +62,7 @@ Public Sub ShowWPXHistoryOnDashboard()
     wpxWasOpen = False
     On Error Resume Next
     Set wsWpxRoster = ThisWorkbook.Sheets("WPX_Roster")
+    Set wsWpxArchived = ThisWorkbook.Sheets("WPX_Archived")
     Set wsWpxAP = ThisWorkbook.Sheets("WPX_ArenaPower")
     Set wsWpxPT = ThisWorkbook.Sheets("WPX_PlayerTracking")
     On Error GoTo 0
@@ -75,13 +77,16 @@ Public Sub ShowWPXHistoryOnDashboard()
         Application.ScreenUpdating = False
         Set wbWpx = Workbooks.Open(CStr(f), ReadOnly:=True)
         Set wsWpxRoster = wbWpx.Sheets("Roster")
+        On Error Resume Next
+        Set wsWpxArchived = wbWpx.Sheets("Archived Players")
+        On Error GoTo 0
         Set wsWpxAP = wbWpx.Sheets("Arena Power")
         Set wsWpxPT = wbWpx.Sheets("Player Tracking")
         wpxWasOpen = True
     End If
 
     Dim wpxName As String, wpxRow As Long, wpxPTRow As Long
-    wpxName = GetWpxNameFromID(wsWpxRoster, pID)
+    wpxName = ResolveWpxName(wsGTRoster, wsWpxRoster, wsWpxArchived, pID)
     If wpxName = "" Then
         Call ClearWPXArea(wsDash)
         If wpxWasOpen Then wbWpx.Close SaveChanges:=False
@@ -197,6 +202,7 @@ Public Sub ImportWPXData()
     ThisWorkbook.Sheets("WPX_ArenaPower").Delete
     ThisWorkbook.Sheets("WPX_Roster").Delete
     ThisWorkbook.Sheets("WPX_PlayerTracking").Delete
+    ThisWorkbook.Sheets("WPX_Archived").Delete
     On Error GoTo 0
 
     wbWpx.Sheets("Arena Power").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
@@ -206,6 +212,15 @@ Public Sub ImportWPXData()
     wbWpx.Sheets("Roster").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
     ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_Roster"
     ThisWorkbook.Sheets("WPX_Roster").Visible = xlSheetVeryHidden
+
+    On Error Resume Next
+    wbWpx.Sheets("Archived Players").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
+    If Err.Number = 0 Then
+        ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_Archived"
+        ThisWorkbook.Sheets("WPX_Archived").Visible = xlSheetVeryHidden
+    End If
+    Err.Clear
+    On Error GoTo 0
 
     wbWpx.Sheets("Player Tracking").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
     ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_PlayerTracking"
@@ -259,68 +274,117 @@ Private Sub FindWpxBaseline(ws As Worksheet, r As Long, ByRef baseDate As String
     Next c
 End Sub
 
-Private Function GetRosterID(ws As Worksheet, player As String) As Long
+Private Function GetRosterID(ws As Worksheet, player As String) As String
     Dim lastRow As Long, r As Long
-    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
     For r = 2 To lastRow
-        If IsNumeric(ws.Cells(r, 1).Value) Then
-            If Trim(LCase(CStr(Nz(ws.Cells(r, 2).Value, "")))) = LCase(player) Then
-                GetRosterID = CLng(ws.Cells(r, 1).Value)
-                Exit Function
-            End If
-        End If
-        If IsNumeric(ws.Cells(r, 5).Value) Then
-            If Trim(LCase(CStr(Nz(ws.Cells(r, 6).Value, "")))) = LCase(player) Then
-                GetRosterID = CLng(ws.Cells(r, 5).Value)
-                Exit Function
-            End If
-        End If
-        If IsNumeric(ws.Cells(r, 9).Value) Then
-            If Trim(LCase(CStr(Nz(ws.Cells(r, 10).Value, "")))) = LCase(player) Then
-                GetRosterID = CLng(ws.Cells(r, 9).Value)
-                Exit Function
-            End If
-        End If
-        If IsNumeric(ws.Cells(r, 13).Value) Then
-            If Trim(LCase(CStr(Nz(ws.Cells(r, 14).Value, "")))) = LCase(player) Then
-                GetRosterID = CLng(ws.Cells(r, 13).Value)
-                Exit Function
-            End If
-        End If
+        If RosterNameMatches(ws.Cells(r, 2).Value, ws.Cells(r, 4).Value, player) Then _
+            GetRosterID = NormalizeDashboardID(ws.Cells(r, 1).Value): Exit Function
+        If RosterNameMatches(ws.Cells(r, 6).Value, ws.Cells(r, 8).Value, player) Then _
+            GetRosterID = NormalizeDashboardID(ws.Cells(r, 5).Value): Exit Function
+        If RosterNameMatches(ws.Cells(r, 10).Value, ws.Cells(r, 12).Value, player) Then _
+            GetRosterID = NormalizeDashboardID(ws.Cells(r, 9).Value): Exit Function
+        If RosterNameMatches(ws.Cells(r, 14).Value, ws.Cells(r, 16).Value, player) Then _
+            GetRosterID = NormalizeDashboardID(ws.Cells(r, 13).Value): Exit Function
     Next r
     GetRosterID = 0
 End Function
 
-Private Function GetWpxNameFromID(ws As Worksheet, pID As Long) As String
-    Dim lastRow As Long, r As Long
-    lastRow = ws.Cells(ws.Rows.Count, 2).End(xlUp).Row
+Private Function ResolveWpxName(wsGT As Worksheet, wsRoster As Worksheet, _
+    wsArchived As Worksheet, pID As String) As String
+
+    Dim mapped As String, mappedID As String
+    mapped = WpxMapValue(pID)
+    If mapped <> "" Then
+        mappedID = NormalizeDashboardID(mapped)
+        If mappedID <> "" Then
+            ResolveWpxName = WpxNameFromID(wsRoster, mappedID)
+            If ResolveWpxName = "" Then ResolveWpxName = WpxNameFromID(wsArchived, mappedID)
+        Else
+            ResolveWpxName = Trim$(mapped)
+        End If
+        If ResolveWpxName <> "" Then Exit Function
+    End If
+
+    ResolveWpxName = WpxNameFromID(wsRoster, pID)
+    If ResolveWpxName = "" Then ResolveWpxName = WpxNameFromID(wsArchived, pID)
+    If ResolveWpxName = "" Then ResolveWpxName = RosterAKAFromID(wsGT, pID)
+End Function
+
+Private Function WpxMapValue(pID As String) As String
+    Dim ws As Worksheet, lastRow As Long, r As Long
+    On Error Resume Next
+    Set ws = ThisWorkbook.Worksheets("WPX ID Map")
+    On Error GoTo 0
+    If ws Is Nothing Then Exit Function
+
+    lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).Row
     For r = 2 To lastRow
-        If IsNumeric(ws.Cells(r, 1).Value) Then
-            If CLng(ws.Cells(r, 1).Value) = pID Then
-                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 2).Value, ""))
-                Exit Function
-            End If
-        End If
-        If IsNumeric(ws.Cells(r, 5).Value) Then
-            If CLng(ws.Cells(r, 5).Value) = pID Then
-                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 6).Value, ""))
-                Exit Function
-            End If
-        End If
-        If IsNumeric(ws.Cells(r, 9).Value) Then
-            If CLng(ws.Cells(r, 9).Value) = pID Then
-                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 10).Value, ""))
-                Exit Function
-            End If
-        End If
-        If IsNumeric(ws.Cells(r, 13).Value) Then
-            If CLng(ws.Cells(r, 13).Value) = pID Then
-                GetWpxNameFromID = CStr(Nz(ws.Cells(r, 14).Value, ""))
-                Exit Function
-            End If
+        If NormalizeDashboardID(ws.Cells(r, 1).Value) = pID Then
+            WpxMapValue = Trim$(CStr(Nz(ws.Cells(r, 2).Value, "")))
+            Exit Function
         End If
     Next r
-    GetWpxNameFromID = ""
+End Function
+
+Private Function WpxNameFromID(ws As Worksheet, pID As String) As String
+    If ws Is Nothing Then Exit Function
+
+    Dim blocks As Variant, b As Long, lastRow As Long, r As Long
+    blocks = Array(Array(1, 2), Array(5, 6), Array(9, 10), Array(13, 14))
+    For b = LBound(blocks) To UBound(blocks)
+        lastRow = ws.Cells(ws.Rows.Count, blocks(b)(0)).End(xlUp).Row
+        For r = 2 To lastRow
+            If NormalizeDashboardID(ws.Cells(r, blocks(b)(0)).Value) = pID Then
+                WpxNameFromID = Trim$(CStr(Nz(ws.Cells(r, blocks(b)(1)).Value, "")))
+                Exit Function
+            End If
+        Next r
+    Next b
+End Function
+
+Private Function RosterAKAFromID(ws As Worksheet, pID As String) As String
+    If ws Is Nothing Then Exit Function
+
+    Dim blocks As Variant, b As Long, lastRow As Long, r As Long
+    blocks = Array(Array(1, 2, 4), Array(5, 6, 8), Array(9, 10, 12), Array(13, 14, 16))
+    For b = LBound(blocks) To UBound(blocks)
+        lastRow = ws.Cells(ws.Rows.Count, blocks(b)(0)).End(xlUp).Row
+        For r = 2 To lastRow
+            If NormalizeDashboardID(ws.Cells(r, blocks(b)(0)).Value) = pID Then
+                RosterAKAFromID = Trim$(CStr(Nz(ws.Cells(r, blocks(b)(2)).Value, "")))
+                Exit Function
+            End If
+        Next r
+    Next b
+End Function
+
+Private Function RosterNameMatches(currentName As Variant, aka As Variant, player As String) As Boolean
+    Dim needle As String
+    needle = LCase$(Trim$(player))
+    RosterNameMatches = (LCase$(Trim$(CStr(Nz(currentName, "")))) = needle Or _
+                         LCase$(Trim$(CStr(Nz(aka, "")))) = needle)
+End Function
+
+Private Function NormalizeDashboardID(ByVal v As Variant) As String
+    If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
+
+    Dim txt As String, digits As String, i As Long, ch As String
+    txt = Trim$(CStr(v))
+    txt = Replace(txt, Chr(160), "")
+    txt = Replace(txt, " ", "")
+    txt = Replace(txt, ",", "")
+    If txt = "" Or Not IsNumeric(txt) Then Exit Function
+    If InStr(1, txt, "E", vbTextCompare) > 0 Then txt = Format$(CDbl(txt), "0")
+
+    For i = 1 To Len(txt)
+        ch = Mid$(txt, i, 1)
+        If ch >= "0" And ch <= "9" Then digits = digits & ch
+    Next i
+    Do While Len(digits) > 1 And Left$(digits, 1) = "0"
+        digits = Mid$(digits, 2)
+    Loop
+    If digits <> "0" Then NormalizeDashboardID = digits
 End Function
 
 Private Function FindNameRow(ws As Worksheet, name As String) As Long
