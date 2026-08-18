@@ -98,16 +98,16 @@ Public Sub ListWPXHistoryHeaders()
     lastCol = wsHist.Cells(1, wsHist.Columns.count).End(xlToLeft).Column
     out = 2
 
-    Dim header As String, key As String, weekKey As String, isRank As Boolean
+    Dim header As String, key As String, weekLookupKey As String, isRank As Boolean
     For c = 1 To lastCol
         header = Trim$(CStr(wsHist.Cells(1, c).Value))
         If header <> "" Then
             key = StatKeyForHeader(header)
-            weekKey = WeekKeyFromHeader(header, isRank)
+            weekLookupKey = WeekKeyFromHeader(header, isRank)
 
             wsOut.Cells(out, 1).Value = ColumnLetter(c)
             wsOut.Cells(out, 2).Value = header
-            If weekKey <> "" Then
+            If weekLookupKey <> "" Then
                 wsOut.Cells(out, 3).Value = IIf(isRank, "weekly rank", "weekly total")
                 wsOut.Cells(out, 4).Value = WeekLabelFromHeader(header)
             ElseIf key <> "" Then
@@ -294,7 +294,7 @@ Public Sub RefreshWPXHistorySheet()
     Dim k As Variant, playerID As String, wpxRow As Long, r As Long
     Dim stats As Object
 
-    Dim nameKey As String, wpxID As String, wpxNameKey As String
+    Dim nameKey As String, wpxID As String, wpxLookupName As String
 
     ' 1) Every row already on the sheet.
     For Each k In rowByID.Keys
@@ -303,12 +303,12 @@ Public Sub RefreshWPXHistorySheet()
         nameKey = WpxNameKey(wsHist.Cells(r, cols(F_NAME)).Value)
 
         WpxKeysForGTID playerID, gtWpxMap, gtAKAByID, wpxNameToID, _
-            wpxID, wpxNameKey
+            wpxID, wpxLookupName
         If wpxID = "" Then wpxID = playerID
-        If wpxNameKey = "" Then wpxNameKey = nameKey
-        wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, wpxID, wpxNameKey)
+        If wpxLookupName = "" Then wpxLookupName = nameKey
+        wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, wpxID, wpxLookupName)
         Set stats = BuildPlayerStats(wsWpx, wpxRow, wpxWeekCols, sheetWeeks, _
-            weekLabels, wpxID, wpxNameKey)
+            weekLabels, wpxID, wpxLookupName)
 
         If stats(F_WEEKS) > 0 Then
             FinishStats stats, playerID, gtByID, wsHist, r, cols
@@ -331,14 +331,14 @@ Public Sub RefreshWPXHistorySheet()
             If Not rowByID.Exists(playerID) Then
                 nameKey = WpxNameKey(wsPT.Cells(r, "A").Value)
                 WpxKeysForGTID playerID, gtWpxMap, gtAKAByID, wpxNameToID, _
-                    wpxID, wpxNameKey
+                    wpxID, wpxLookupName
                 If wpxID = "" Then wpxID = playerID
-                If wpxNameKey = "" Then wpxNameKey = nameKey
-                wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, wpxID, wpxNameKey)
+                If wpxLookupName = "" Then wpxLookupName = nameKey
+                wpxRow = WpxRowFor(wpxRowByID, wpxRowByName, wpxID, wpxLookupName)
 
-                If wpxRow > 0 Or HasSheetWeeks(sheetWeeks, wpxID, wpxNameKey) Then
+                If wpxRow > 0 Or HasSheetWeeks(sheetWeeks, wpxID, wpxLookupName) Then
                     Set stats = BuildPlayerStats(wsWpx, wpxRow, wpxWeekCols, sheetWeeks, _
-                        weekLabels, wpxID, wpxNameKey)
+                        weekLabels, wpxID, wpxLookupName)
 
                     If stats(F_WEEKS) > 0 Then
                         lastDataRow = lastDataRow + 1
@@ -386,18 +386,18 @@ Private Sub MapHeaderColumns(ws As Worksheet, cols As Object, _
     Dim lastCol As Long
     lastCol = ws.Cells(1, ws.Columns.count).End(xlToLeft).Column
 
-    Dim c As Long, header As String, key As String, weekKey As String
+    Dim c As Long, header As String, key As String, weekLookupKey As String
     Dim isRank As Boolean
     For c = 1 To lastCol
         header = Trim$(CStr(ws.Cells(1, c).Value))
         If header <> "" Then
-            weekKey = WeekKeyFromHeader(header, isRank)
+            weekLookupKey = WeekKeyFromHeader(header, isRank)
 
-            If weekKey <> "" Then
+            If weekLookupKey <> "" Then
                 If isRank Then
-                    If Not weekRankCols.Exists(weekKey) Then weekRankCols.Add weekKey, c
+                    If Not weekRankCols.Exists(weekLookupKey) Then weekRankCols.Add weekLookupKey, c
                 Else
-                    If Not weekTotalCols.Exists(weekKey) Then weekTotalCols.Add weekKey, c
+                    If Not weekTotalCols.Exists(weekLookupKey) Then weekTotalCols.Add weekLookupKey, c
                 End If
             Else
                 key = StatKeyForHeader(header)
@@ -571,10 +571,10 @@ End Sub
 
 Private Sub WpxKeysForGTID(ByVal gtID As String, gtWpxMap As Object, _
     gtAKAByID As Object, wpxNameToID As Object, _
-    ByRef wpxID As String, ByRef wpxNameKey As String)
+    ByRef wpxID As String, ByRef wpxLookupName As String)
 
     wpxID = ""
-    wpxNameKey = ""
+    wpxLookupName = ""
 
     Dim mapped As String, mappedID As String, aka As String
     If gtWpxMap.Exists(gtID) Then
@@ -583,8 +583,8 @@ Private Sub WpxKeysForGTID(ByVal gtID As String, gtWpxMap As Object, _
         If mappedID <> "" Then
             wpxID = mappedID
         Else
-            wpxNameKey = WpxNameKey(mapped)
-            If wpxNameToID.Exists(wpxNameKey) Then wpxID = CStr(wpxNameToID(wpxNameKey))
+            wpxLookupName = WpxNameKey(mapped)
+            If wpxNameToID.Exists(wpxLookupName) Then wpxID = CStr(wpxNameToID(wpxLookupName))
         End If
         Exit Sub
     End If
@@ -592,7 +592,7 @@ Private Sub WpxKeysForGTID(ByVal gtID As String, gtWpxMap As Object, _
     wpxID = gtID
     If gtAKAByID.Exists(gtID) Then
         aka = Trim$(CStr(gtAKAByID(gtID)))
-        wpxNameKey = WpxNameKey(aka)
+        wpxLookupName = WpxNameKey(aka)
     End If
 End Sub
 
