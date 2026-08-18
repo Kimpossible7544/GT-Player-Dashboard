@@ -70,6 +70,7 @@ The workbook contains a full automation engine handling:
 - **Dashboard refresh** — builds interactive player cards with chart objects (score trend, missed goals, rank trend) styled with a dark command-center aesthetic
 - **ID population** — resolves player names to roster IDs using normalized name matching, alias lookup, and Levenshtein distance fallback
 - **Name normalization** — handles Unicode, Cyrillic, Greek, and special character variants across in-game display names
+- **WPX Arena block** — `RefreshWPXArenaBlock` rebuilds the WPX-start lifetime comparison and WPX history block at column 220+ on `Arena Power`; run `ImportWPXData` first so the hidden `WPX_ArenaPower` copy is available
 
 ---
 
