@@ -540,6 +540,8 @@ Private Sub BuildGTRosterMaps(ByRef gtByID As Object, ByRef gtIDByName As Object
                             gtEntry = gtByID(playerID)
                             gtEntry(0) = currentName
                             gtByID(playerID) = gtEntry
+                        Else
+                            gtByID.Add playerID, Array(currentName, "")
                         End If
                     End If
                     akaKey = WpxNameKey(ws.Cells(r, blocks(b)(2)).Value)
