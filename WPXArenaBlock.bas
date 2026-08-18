@@ -7,6 +7,8 @@ Attribute VB_Name = "WPXArenaBlock"
 ' history remain unchanged. Matching uses the GT name first, then the roster's
 ' current-name/AKA resolution through LookupRosterName.
 '
+' Requires the ArenaPowerMacros module (LookupRosterName, NormalizeArenaName).
+'
 ' USAGE:
 '   1. Run ImportWPXData in WPXDashboard.bas first.
 '   2. Run RefreshWPXArenaBlock after the GT Arena Power sheet is refreshed.
