@@ -1078,12 +1078,17 @@ End Function
 Private Function WpxNormalizeID(ByVal v As Variant) As String
     If IsError(v) Or IsNull(v) Or IsEmpty(v) Then Exit Function
 
-    Dim txt As String, digits As String, i As Long, ch As String
+    Dim txt As String, rawText As String, digits As String, i As Long, ch As String
     txt = Trim$(CStr(v))
+    rawText = txt
     txt = Replace(txt, Chr(160), "")
     txt = Replace(txt, " ", "")
     txt = Replace(txt, ",", "")
-    If txt = "" Or Not IsNumeric(txt) Then Exit Function
+    If txt = "" Then Exit Function
+    If Not IsNumeric(txt) Then
+        WpxNormalizeID = UCase$(rawText)
+        Exit Function
+    End If
     If InStr(1, txt, "E", vbTextCompare) > 0 Then txt = Format$(CDbl(txt), "0")
 
     For i = 1 To Len(txt)

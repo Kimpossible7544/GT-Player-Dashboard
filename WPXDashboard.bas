@@ -52,7 +52,7 @@ Public Sub ShowWPXHistoryOnDashboard()
 
     Dim pID As String
     pID = GetRosterID(wsGTRoster, player)
-    If pID = 0 Then
+    If pID = "" Or pID = "0" Then
         Call ClearWPXArea(wsDash)
         Exit Sub
     End If
@@ -214,6 +214,7 @@ Public Sub ImportWPXData()
     ThisWorkbook.Sheets("WPX_Roster").Visible = xlSheetVeryHidden
 
     On Error Resume Next
+    Err.Clear
     wbWpx.Sheets("Archived Players").Copy After:=ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count)
     If Err.Number = 0 Then
         ThisWorkbook.Sheets(ThisWorkbook.Sheets.Count).Name = "WPX_Archived"
@@ -287,7 +288,7 @@ Private Function GetRosterID(ws As Worksheet, player As String) As String
         If RosterNameMatches(ws.Cells(r, 14).Value, ws.Cells(r, 16).Value, player) Then _
             GetRosterID = NormalizeDashboardID(ws.Cells(r, 13).Value): Exit Function
     Next r
-    GetRosterID = 0
+    GetRosterID = ""
 End Function
 
 Private Function ResolveWpxName(wsGT As Worksheet, wsRoster As Worksheet, _
