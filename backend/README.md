@@ -9,4 +9,4 @@ A small FastAPI backend that stores per-week, per-player `Done` checkbox state f
 - `POST /state` — save a checkbox state (`{ week, player, status }`)
 - `GET /all` — dump all stored states
 
-All mutating requests require the header `X-API-Key: GT2026`.
+All mutating requests require the header `X-API-Key: vaderetro26`.
