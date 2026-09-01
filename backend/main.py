@@ -8,7 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 
-API_KEY = os.environ.get("API_KEY", "GT2026")
+API_KEY = os.environ.get("API_KEY", "vaderetro26")
 _lock = threading.Lock()
 
 
