@@ -121,38 +121,51 @@ function fmtCellDate(v) {
   return String(v);
 }
 
+// True when a cell holds a snapshot date, i.e. marks the start of a history group.
+function isSnapshotDate(v) {
+  if (v instanceof Date) return !isNaN(v.getTime());
+  if (typeof v !== "string") return false;
+  return /^\d{1,4}[-/]\d{1,2}[-/]\d{1,4}/.test(v.trim());
+}
+
 // Parses one Arena Power sheet row into a growth object.
 // Column layout (0-indexed):
 //   0=Name, 1=Date, 2=Level, 3=Arena Power, 4=HQ Power,
 //   5=Δ Arena session, 6=Δ HQ session, 7=Δ Arena overall, 8=Δ HQ overall,
 //   9=Level note
 //   History groups of 4 starting at col 10 (date,level,arena,HQ), oldest furthest right.
+// The history block is contiguous and ends at the first group without a snapshot
+// date; cells beyond that belong to unrelated data the import macros parked far
+// to the right and must not be read as snapshots.
 function parseArenaRow(row) {
   const currentArena = parsePower(row[3]);
   const currentHQ    = parsePower(row[4]);
   const currentLevel = row[2] || null;
 
-  let firstArena = null;
-  let firstHQ    = null;
-  let firstLevel = null;
-  let baselineDate = null;
-
-  for (let c = 12; c < row.length; c += 4) {
-    const v = parsePower(row[c]);
-    if (v !== null) firstArena = v;
-  }
-  for (let c = 13; c < row.length; c += 4) {
-    const v = parsePower(row[c]);
-    if (v !== null) firstHQ = v;
-  }
-  for (let c = 11; c < row.length; c += 4) {
-    const v = row[c];
-    if (v !== null && v !== "") firstLevel = v;
-  }
+  // History, newest first, stopping at the end of the contiguous block.
+  const history = [];
   for (let c = 10; c < row.length; c += 4) {
-    const v = row[c];
-    if (v !== null && v !== "") baselineDate = fmtCellDate(v);
+    if (!isSnapshotDate(row[c])) break;
+    const level = row[c + 1];
+    history.push({
+      date:  fmtCellDate(row[c]),
+      level: (level === null || level === undefined || level === "") ? null : level,
+      arena: parsePower(row[c + 2]),
+      hq:    parsePower(row[c + 3])
+    });
   }
+
+  // Oldest recorded value of each field — the oldest group can have blanks.
+  const oldestOf = (key) => {
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i][key] !== null) return history[i][key];
+    }
+    return null;
+  };
+  let firstArena   = oldestOf("arena");
+  let firstHQ      = oldestOf("hq");
+  let firstLevel   = oldestOf("level");
+  let baselineDate = history.length ? history[history.length - 1].date : null;
 
   // If no history yet, first = current
   if (firstArena === null) firstArena = currentArena;
@@ -161,22 +174,7 @@ function parseArenaRow(row) {
   if (baselineDate === null && row[1]) baselineDate = fmtCellDate(row[1]);
 
   // Full snapshot series, oldest first, with the current snapshot appended last.
-  const arenaSeries = [];
-  for (let c = 10; c < row.length; c += 4) {
-    const rawDate = row[c];
-    const rawLevel = row[c + 1];
-    const arena = parsePower(row[c + 2]);
-    const hq    = parsePower(row[c + 3]);
-    const hasDate = rawDate !== null && rawDate !== undefined && rawDate !== "";
-    if (!hasDate && arena === null && hq === null) continue;
-    arenaSeries.push({
-      date:  hasDate ? fmtCellDate(rawDate) : null,
-      level: (rawLevel === null || rawLevel === undefined || rawLevel === "") ? null : rawLevel,
-      arena,
-      hq
-    });
-  }
-  arenaSeries.reverse();
+  const arenaSeries = history.slice().reverse();
   if (currentArena !== null || currentHQ !== null) {
     arenaSeries.push({
       date:  row[1] ? fmtCellDate(row[1]) : null,
@@ -202,6 +200,34 @@ function parseArenaRow(row) {
     levelNote:          row[9] || null,
     arenaSeries
   };
+}
+
+// Joins a cross-team player's WPX and GT snapshot series into one chronological
+// series, tagging each point with its team and dropping WPX snapshots that the
+// GT series already covers.
+function mergeArenaSeries(wpxSeries, gtSeries) {
+  const stamp = (s) => {
+    const t = s.date ? Date.parse(s.date) : NaN;
+    return isNaN(t) ? null : t;
+  };
+  const gt = (gtSeries || []).map(s => ({ ...s, team: "GT" }));
+  const gtStart = gt.reduce((min, s) => {
+    const t = stamp(s);
+    return (t !== null && (min === null || t < min)) ? t : min;
+  }, null);
+
+  const wpx = (wpxSeries || [])
+    .map(s => ({ ...s, team: "WPX" }))
+    .filter(s => {
+      const t = stamp(s);
+      return gtStart === null || t === null || t < gtStart;
+    });
+
+  return wpx.concat(gt).sort((a, b) => {
+    const ta = stamp(a), tb = stamp(b);
+    if (ta === null || tb === null) return 0;
+    return ta - tb;
+  });
 }
 
 async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 800) {
@@ -678,6 +704,16 @@ async function loadGTData() {
   //     10=date, 11=level, 12=arena, 13=HQ, 14=date, 15=level, 16=arena, 17=HQ ...
   // =========================================================
 
+  // Names typed into the Arena Power sheet drop or add spaces and punctuation
+  // relative to Player Tracking ("RonBurg" vs "Ron Burg"), so keep a lookup
+  // keyed on letters and digits only.
+  const looseName = (s) => String(s || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+  const looseNameIndex = {};
+  Object.keys(players).forEach(k => {
+    const lk = looseName(k);
+    if (lk && !looseNameIndex[lk]) looseNameIndex[lk] = k;
+  });
+
   if (workbook.SheetNames.includes(ARENA_POWER_SHEET)) {
     const apRows = XLSX.utils.sheet_to_json(
       workbook.Sheets[ARENA_POWER_SHEET],
@@ -695,14 +731,15 @@ async function loadGTData() {
       if (players[name]) {
         players[name].growth = growth;
       } else {
-        // Try roster AKA alias, then case-insensitive match
+        // Try roster AKA alias, then case-insensitive, then loose match —
+        // Arena Power names are typed by hand and drop spaces ("RonBurg").
         const alias = resolvePlayerName(name);
         if (players[alias]) {
           players[alias].growth = growth;
         } else {
           const key = Object.keys(players).find(
             k => k.toLowerCase() === name.toLowerCase()
-          );
+          ) || looseNameIndex[looseName(name)];
           if (key) players[key].growth = growth;
         }
       }
@@ -892,8 +929,8 @@ async function loadGTData() {
           deltaArenaOverall: diff(currentArena, wpxG.firstArena),
           deltaHQOverall:    diff(currentHQ, wpxG.firstHQ),
           levelNote:         hasGtCurrent ? gtG.levelNote : wpxG.levelNote,
-          arenaSeries: (wpxG.arenaSeries || []).map(s => ({ ...s, team: "WPX" }))
-            .concat(hasGtCurrent ? (gtG.arenaSeries || []).map(s => ({ ...s, team: "GT" })) : []),
+          currentDate:       hasGtCurrent ? gtG.currentDate : wpxG.currentDate,
+          arenaSeries: mergeArenaSeries(wpxG.arenaSeries, hasGtCurrent ? gtG.arenaSeries : null),
           crossTeam:         true
         };
         players[gtName].wpxHistory = wpxG;
