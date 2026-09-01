@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Arena Power</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;--nav-h:60px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,200,0,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,180,255,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:var(--nav-h);background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;backdrop-filter:blur(10px);}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand img{height:36px;width:36px;object-fit:contain;border-radius:6px;}
+.nav-brand span{font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;}
+.nav-links a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:0.85rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:color 0.2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--accent);}
+.page-wrap{position:relative;z-index:1;padding:24px 20px 40px;}
+.header{margin-bottom:20px;}
+.header h1{font-size:1.8rem;font-weight:900;color:var(--gold);letter-spacing:3px;text-transform:uppercase;}
+.header p{color:var(--dim);margin-top:4px;font-size:0.8rem;letter-spacing:1px;}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
+@media(max-width:900px){.summary{grid-template-columns:repeat(2,1fr);}}
+.summary-card{background:var(--panel);border-radius:10px;padding:14px 12px;border-top:3px solid var(--gold);text-align:center;}
+.summary-label{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:8px;}
+.summary-value{font-size:1.3rem;font-weight:900;color:var(--gold);font-family:'Courier New',monospace;}
+.search-bar{margin-bottom:16px;}
+.search-bar input{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.9rem;width:280px;outline:none;font-family:inherit;transition:border-color 0.2s;}
+.search-bar input:focus{border-color:var(--gold);}
+.search-bar input::placeholder{color:var(--dim);}
+.table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+thead tr{background:var(--panel);}
+th{padding:12px 14px;text-align:left;font-size:0.72rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);border-bottom:2px solid var(--border);white-space:nowrap;cursor:pointer;user-select:none;}
+th:hover{color:var(--text);}
+th.sorted-asc::after{content:' \25B2 ';font-size:0.65rem;}
+th.sorted-desc::after{content:' \25BC ';font-size:0.65rem;}
+th.gold{color:var(--gold);border-bottom-color:var(--gold);}
+th.accent{color:var(--accent);border-bottom-color:var(--accent);}
+td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;}
+tbody tr.player-row{background:var(--panel2);transition:background 0.15s;}
+tbody tr.player-row:nth-of-type(even){background:var(--panel);}
+tbody tr.player-row:hover{background:rgba(255,200,0,0.06);cursor:pointer;}
+.rank-1{color:var(--gold);font-weight:900;font-size:1rem;}
+.rank-2{color:#c0c0c0;font-weight:800;}
+.rank-3{color:#cd7f32;font-weight:800;}
+.player-name{font-weight:700;color:var(--text);}
+.power{font-family:'Courier New',monospace;color:var(--gold);font-weight:600;}
+.level{font-family:'Courier New',monospace;color:var(--accent3);}
+.delta{font-family:'Courier New',monospace;font-weight:700;}
+.delta-pos{color:var(--accent);}
+.delta-neg{color:var(--red);}
+.delta-neu{color:var(--dim);}
+.snap-date{color:var(--dim);font-size:0.78rem;}
+.expander{color:var(--dim);font-size:0.7rem;}
+.chart-row td{background:var(--bg);padding:18px 20px;}
+.chart-title{font-size:0.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;}
+.chart-wrap{position:relative;height:240px;}
+.chart-empty{color:var(--dim);font-size:0.85rem;font-style:italic;}
+.wpx-tag{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);background:rgba(255,200,0,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+.loading{text-align:center;padding:60px 20px;color:var(--dim);font-size:1rem;letter-spacing:1px;}
+.loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
+@media(max-width:768px){.header h1{font-size:1.3rem;}th,td{padding:8px 10px;}.search-bar input{width:100%;}}
+</style>
+</head>
+<body>
+<nav>
+<a class="nav-brand" href="index.html">
+<img src="icon.png" alt="GT Logo" onerror="this.style.display='none'"/>
+<span>GT ALLIANCE</span>
+</a>
+<div class="nav-links">
+<a href="gt_standings.html">Standings</a>
+<a href="gt_dashboard.html">Dashboard</a>
+<a href="gt_power.html" class="active">Power</a>
+<a href="gt_projections.html">Projections</a>
+<a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
+</div>
+</nav>
+<div class="page-wrap">
+<div class="header">
+<h1>Arena Power</h1>
+<p id="lastUpdated">Loading data...</p>
+</div>
+<div class="summary" id="summary" style="display:none;">
+<div class="summary-card"><div class="summary-label">Players Tracked</div><div class="summary-value" id="sumPlayers">&mdash;</div></div>
+<div class="summary-card"><div class="summary-label">Total Arena Power</div><div class="summary-value" id="sumTotal">&mdash;</div></div>
+<div class="summary-card"><div class="summary-label">Average Arena Power</div><div class="summary-value" id="sumAvg">&mdash;</div></div>
+<div class="summary-card"><div class="summary-label">Growth Since Baseline</div><div class="summary-value" id="sumGrowth">&mdash;</div></div>
+</div>
+<div class="search-bar">
+<input type="text" id="search" placeholder="Search players..." onkeyup="filterTable()" />
+</div>
+<div class="table-wrap">
+<table id="power">
+<thead><tr id="headerRow"></tr></thead>
+<tbody id="powerBody">
+<tr><td colspan="7" class="loading"><div class="spinner"></div><br>Loading data from Dropbox...</td></tr>
+</tbody>
+</table>
+</div>
+<p style="color:var(--dim);font-size:0.72rem;margin-top:10px;letter-spacing:0.5px;">Click a player to see their Arena Power over every recorded snapshot. All values in millions.</p>
+</div>
+<script>
+var sortDir = {};
+var rows = [];
+var charts = {};
+
+var COLS = [
+  { label: 'Rank', cls: 'gold' },
+  { label: 'Player', cls: '' },
+  { label: 'Level', cls: '' },
+  { label: 'Arena Power', cls: 'gold' },
+  { label: '\u0394 Last Snapshot', cls: 'accent' },
+  { label: '\u0394 Since Baseline', cls: 'accent' },
+  { label: 'Last Updated', cls: '' }
+];
+
+function fmtPower(n) {
+  if (n === null || n === undefined) return '\u2014';
+  return n.toFixed(2) + ' M';
+}
+
+function deltaCell(n) {
+  if (n === null || n === undefined) return '<td class="delta delta-neu">\u2014</td>';
+  var cls = n > 0 ? 'delta-pos' : n < 0 ? 'delta-neg' : 'delta-neu';
+  var text = (n > 0 ? '+' : '') + n.toFixed(2) + ' M';
+  return '<td class="delta ' + cls + '">' + text + '</td>';
+}
+
+function rankClass(r) {
+  if (r === 1) return 'rank-1';
+  if (r === 2) return 'rank-2';
+  if (r === 3) return 'rank-3';
+  return '';
+}
+
+// Δ between the last two recorded snapshots, falling back to the sheet's session delta.
+function lastSnapshotDelta(g) {
+  var s = g.arenaSeries || [];
+  if (s.length >= 2) {
+    var a = s[s.length - 1].arena, b = s[s.length - 2].arena;
+    if (a !== null && b !== null) return Math.round((a - b) * 100) / 100;
+  }
+  return g.deltaArenaSession;
+}
+
+function buildHeaders() {
+  document.getElementById('headerRow').innerHTML = COLS.map(function (c, i) {
+    return '<th class="' + c.cls + '" onclick="sortTable(' + i + ')">' + c.label + '</th>';
+  }).join('');
+}
+
+function buildRows(players) {
+  rows = Object.keys(players)
+    .map(function (name) { return players[name]; })
+    .filter(function (p) { return p.growth && p.growth.currentArena !== null; })
+    .sort(function (a, b) { return b.growth.currentArena - a.growth.currentArena; })
+    .map(function (p, i) {
+      return {
+        name: p.name,
+        rank: i + 1,
+        growth: p.growth,
+        arena: p.growth.currentArena,
+        lastDelta: lastSnapshotDelta(p.growth),
+        overallDelta: p.growth.deltaArenaOverall
+      };
+    });
+
+  var html = rows.map(function (r, i) {
+    var g = r.growth;
+    var enc = encodeURIComponent(r.name);
+    return '<tr class="player-row" data-idx="' + i + '" onclick="toggleChart(' + i + ')">' +
+      '<td class="' + rankClass(r.rank) + '">' + r.rank + '</td>' +
+      '<td class="player-name"><span class="expander">\u25B8</span> ' + r.name +
+        (g.crossTeam ? '<span class="wpx-tag" title="History spans WPX and GT">WPX+GT</span>' : '') + '</td>' +
+      '<td class="level">' + (g.currentLevel || '\u2014') + '</td>' +
+      '<td class="power">' + fmtPower(r.arena) + '</td>' +
+      deltaCell(r.lastDelta) +
+      deltaCell(r.overallDelta) +
+      '<td class="snap-date">' + (g.currentDate || '\u2014') + '</td>' +
+      '</tr>' +
+      '<tr class="chart-row" id="chartRow' + i + '" style="display:none;"><td colspan="7">' +
+        '<div class="chart-title">' + r.name + ' \u2014 Arena Power Trend</div>' +
+        '<div class="chart-wrap"><canvas id="chart' + i + '"></canvas></div>' +
+        '<div style="margin-top:10px;"><a href="gt_dashboard.html?player=' + enc + '" ' +
+          'style="color:var(--accent2);font-size:0.75rem;text-decoration:none;letter-spacing:1px;">' +
+          'Full dashboard \u2192</a></div>' +
+      '</td></tr>';
+  }).join('');
+
+  document.getElementById('powerBody').innerHTML = html ||
+    '<tr><td colspan="7" class="error-msg">No Arena Power data found.</td></tr>';
+}
+
+function buildSummary() {
+  if (!rows.length) return;
+  var total = rows.reduce(function (s, r) { return s + r.arena; }, 0);
+  var growth = rows.reduce(function (s, r) { return s + (r.overallDelta || 0); }, 0);
+  document.getElementById('sumPlayers').textContent = rows.length;
+  document.getElementById('sumTotal').textContent = fmtPower(total);
+  document.getElementById('sumAvg').textContent = fmtPower(total / rows.length);
+  document.getElementById('sumGrowth').textContent = (growth > 0 ? '+' : '') + growth.toFixed(2) + ' M';
+  document.getElementById('summary').style.display = '';
+}
+
+function toggleChart(idx) {
+  var row = document.getElementById('chartRow' + idx);
+  if (!row) return;
+  var open = row.style.display !== 'none';
+  row.style.display = open ? 'none' : '';
+  var expander = document.querySelector('tr[data-idx="' + idx + '"] .expander');
+  if (expander) expander.textContent = open ? '\u25B8' : '\u25BE';
+  if (open || charts[idx]) return;
+  renderChart(idx);
+}
+
+function renderChart(idx) {
+  var r = rows[idx];
+  var series = (r.growth.arenaSeries || []).filter(function (s) { return s.arena !== null; });
+  var canvas = document.getElementById('chart' + idx);
+  if (!canvas) return;
+
+  if (series.length < 2) {
+    canvas.parentNode.innerHTML =
+      '<div class="chart-empty">Only one Arena Power snapshot recorded so far \u2014 no trend to chart yet.</div>';
+    return;
+  }
+
+  charts[idx] = new Chart(canvas, {
+    type: 'line',
+    data: {
+      labels: series.map(function (s, i) { return s.date || 'Snapshot ' + (i + 1); }),
+      datasets: [{
+        label: 'Arena Power (M)',
+        data: series.map(function (s) { return s.arena; }),
+        borderColor: '#ffc800',
+        backgroundColor: 'rgba(255,200,0,0.12)',
+        pointBackgroundColor: series.map(function (s) {
+          return s.team === 'WPX' ? '#b464ff' : '#ffc800';
+        }),
+        pointRadius: 4,
+        borderWidth: 2,
+        tension: 0.25,
+        fill: true
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            label: function (ctx) {
+              var s = series[ctx.dataIndex];
+              var parts = [ctx.parsed.y.toFixed(2) + ' M'];
+              if (s.level) parts.push('Lv ' + s.level);
+              if (s.team) parts.push(s.team);
+              return parts.join('  \u00b7  ');
+            }
+          }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#6b6b88', font: { size: 10 } }, grid: { color: 'rgba(42,42,58,0.5)' } },
+        y: {
+          ticks: { color: '#6b6b88', font: { size: 10 }, callback: function (v) { return v + ' M'; } },
+          grid: { color: 'rgba(42,42,58,0.5)' }
+        }
+      }
+    }
+  });
+}
+
+function cellValue(cell, col) {
+  var t = cell.textContent.trim().replace(/,/g, '').replace(/ M$/, '').replace('\u25B8', '').replace('\u25BE', '').trim();
+  if (t === '\u2014' || t === '' || t === '-') return null;
+  if (col === 6) {
+    var d = new Date(t);
+    return isNaN(d.getTime()) ? null : d.getTime();
+  }
+  var n = parseFloat(t);
+  return isNaN(n) ? t.toLowerCase() : n;
+}
+
+function sortTable(col) {
+  var tbody = document.getElementById('powerBody');
+  var pairs = Array.from(tbody.querySelectorAll('tr.player-row')).map(function (tr) {
+    return { row: tr, chart: document.getElementById('chartRow' + tr.dataset.idx) };
+  });
+  var asc = sortDir[col] !== true;
+  sortDir[col] = asc;
+  pairs.sort(function (a, b) {
+    var va = cellValue(a.row.cells[col], col), vb = cellValue(b.row.cells[col], col);
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    if (va < vb) return asc ? -1 : 1;
+    if (va > vb) return asc ? 1 : -1;
+    return 0;
+  });
+  pairs.forEach(function (p) {
+    tbody.appendChild(p.row);
+    if (p.chart) tbody.appendChild(p.chart);
+  });
+  document.querySelectorAll('#power thead th').forEach(function (th, i) {
+    th.classList.remove('sorted-asc', 'sorted-desc');
+    if (i === col) th.classList.add(asc ? 'sorted-asc' : 'sorted-desc');
+  });
+}
+
+function filterTable() {
+  var q = document.getElementById('search').value.toLowerCase();
+  document.querySelectorAll('#power tbody tr.player-row').forEach(function (tr) {
+    var match = tr.cells[1].textContent.toLowerCase().includes(q);
+    tr.style.display = match ? '' : 'none';
+    var chart = document.getElementById('chartRow' + tr.dataset.idx);
+    if (chart && !match) {
+      chart.style.display = 'none';
+      var expander = tr.querySelector('.expander');
+      if (expander) expander.textContent = '\u25B8';
+    }
+  });
+}
+
+async function init() {
+  buildHeaders();
+  try {
+    var data = await loadGTData();
+    buildRows(data.players);
+    buildSummary();
+    document.getElementById('lastUpdated').textContent =
+      'Data loaded \u2014 ' + new Date().toLocaleString();
+  } catch (e) {
+    document.getElementById('powerBody').innerHTML =
+      '<tr><td colspan="7" class="error-msg">Failed to load data: ' + e.message + '</td></tr>';
+    document.getElementById('lastUpdated').textContent = 'Error loading data';
+  }
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+<script>
+if (sessionStorage.getItem('gtGoalsAuth') === '1'){
+  var gl = document.getElementById('goalsNavLink');
+  if (gl) gl.style.display = '';
+}
+</script>
+<footer style="text-align:center;padding:12px;font-size:0.65rem;opacity:0.7;color:#c084fc;">Made with Love by Kimpossible7544</footer>
+</body></html>
