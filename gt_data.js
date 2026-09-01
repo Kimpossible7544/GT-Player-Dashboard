@@ -160,6 +160,32 @@ function parseArenaRow(row) {
   if (firstLevel === null) firstLevel = currentLevel;
   if (baselineDate === null && row[1]) baselineDate = fmtCellDate(row[1]);
 
+  // Full snapshot series, oldest first, with the current snapshot appended last.
+  const arenaSeries = [];
+  for (let c = 10; c < row.length; c += 4) {
+    const rawDate = row[c];
+    const rawLevel = row[c + 1];
+    const arena = parsePower(row[c + 2]);
+    const hq    = parsePower(row[c + 3]);
+    const hasDate = rawDate !== null && rawDate !== undefined && rawDate !== "";
+    if (!hasDate && arena === null && hq === null) continue;
+    arenaSeries.push({
+      date:  hasDate ? fmtCellDate(rawDate) : null,
+      level: (rawLevel === null || rawLevel === undefined || rawLevel === "") ? null : rawLevel,
+      arena,
+      hq
+    });
+  }
+  arenaSeries.reverse();
+  if (currentArena !== null || currentHQ !== null) {
+    arenaSeries.push({
+      date:  row[1] ? fmtCellDate(row[1]) : null,
+      level: currentLevel,
+      arena: currentArena,
+      hq:    currentHQ
+    });
+  }
+
   return {
     currentLevel,
     currentArena,
@@ -173,7 +199,8 @@ function parseArenaRow(row) {
     deltaHQSession:     parsePower(row[6]),
     deltaArenaOverall:  parsePower(row[7]),
     deltaHQOverall:     parsePower(row[8]),
-    levelNote:          row[9] || null
+    levelNote:          row[9] || null,
+    arenaSeries
   };
 }
 
@@ -865,6 +892,8 @@ async function loadGTData() {
           deltaArenaOverall: diff(currentArena, wpxG.firstArena),
           deltaHQOverall:    diff(currentHQ, wpxG.firstHQ),
           levelNote:         hasGtCurrent ? gtG.levelNote : wpxG.levelNote,
+          arenaSeries: (wpxG.arenaSeries || []).map(s => ({ ...s, team: "WPX" }))
+            .concat(hasGtCurrent ? (gtG.arenaSeries || []).map(s => ({ ...s, team: "GT" })) : []),
           crossTeam:         true
         };
         players[gtName].wpxHistory = wpxG;
