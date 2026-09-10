@@ -180,15 +180,32 @@ function restrictToRange(data) {
   });
   var kept = new Set(keptLabels);
   var daily = data.dailyData;
+  var thisWeek = kept.has(data.currentWeekLabel) ? data.currentWeekLabel : keptLabels[keptLabels.length - 1];
   var players = {};
   Object.keys(data.players).forEach(function (name) {
     var src = data.players[name];
     var weeks = src.weeks.filter(function (w) { return kept.has(w.label); });
     var total = 0, scored = 0, missedWeekly = 0, missedDaily = 0;
+    var thisWeekMissed = null;
     weeks.forEach(function (w) {
       var s = w.score || 0;
       total += s;
       if (s > 0) scored++;
+      if (w.label === thisWeek && w.pushing) {
+        var tpd = daily && daily.players[name];
+        var tidx = daily ? daily.weekOrder.indexOf(w.label) : -1;
+        if (tpd && tidx >= 0) {
+          thisWeekMissed = { missed: 0, played: 0 };
+          DAYS.forEach(function (day) {
+            if (tpd.excused && tpd.excused[day] && tpd.excused[day][tidx]) return;
+            var ds = tpd[day][tidx];
+            if (ds > 0) {
+              thisWeekMissed.played++;
+              if (ds < getDailyGoal(day, w.label, data.currentWeekLabel)) thisWeekMissed.missed++;
+            }
+          });
+        }
+      }
       if (!w.pushing || w.inProgress || s <= 0) return;
       if (s < GOAL) missedWeekly++;
       var pd = daily && daily.players[name];
@@ -207,6 +224,7 @@ function restrictToRange(data) {
       totalScore: total,
       weeklyAvg: scored ? total / scored : 0,
       missedDaily: missedDaily,
+      thisWeekMissed: thisWeekMissed,
       missedWeekly: missedWeekly,
       overallRank: null
     };
@@ -236,7 +254,8 @@ function buildHeaders(weeks, currentWeekLabel) {
     { label: 'Player', cls: '' },
     { label: 'Total Score', cls: 'accent2' },
     { label: 'Weekly Avg', cls: 'accent3' },
-    { label: 'Missed Daily', cls: '' },
+    { label: 'Missed Daily (Total)', cls: '' },
+    { label: 'Missed This Week', cls: '' },
     { label: 'Missed Weekly', cls: '' }
   ];
   weeks.forEach(function (w) {
@@ -264,6 +283,12 @@ function buildRows(players, weeks) {
     html += '<td class="score">' + fmt(p.totalScore) + '</td>';
     html += '<td class="avg">' + fmt(p.weeklyAvg) + '</td>';
     html += '<td' + (p.missedDaily > 0 ? ' class="missed"' : '') + '>' + p.missedDaily + '</td>';
+    var tw = p.thisWeekMissed;
+    if (tw && tw.played > 0) {
+      html += '<td' + (tw.missed > 0 ? ' class="missed"' : '') + ' title="Missed daily goals / days played this week">' + tw.missed + '/' + tw.played + '</td>';
+    } else {
+      html += '<td class="empty">\u2014</td>';
+    }
     html += '<td' + (p.missedWeekly > 0 ? ' class="missed"' : '') + '>' + p.missedWeekly + '</td>';
     p.weeks.slice().reverse().forEach(function (w) {
       var ipCls = w.inProgress ? ' in-progress' : '';
