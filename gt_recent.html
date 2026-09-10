@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>GT — Player Standings</title>
+<title>GT — Rankings Since Aug 31</title>
 <link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -68,28 +68,49 @@ th.in-progress-col::before{content:'\25CF';color:var(--accent);margin-right:4px;
 .loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
-@media(max-width:768px){.header h1{font-size:1.3rem;}th,td{padding:8px 10px;}.search-bar input{width:100%;}}
+.login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;}
+.login-logo{font-size:1.4rem;font-weight:900;color:var(--accent);letter-spacing:3px;margin-bottom:6px;}
+.login-sub{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:28px;}
+.login-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:12px 16px;border-radius:8px;font-size:1.1rem;font-family:'Courier New',monospace;outline:none;text-align:center;letter-spacing:3px;margin-bottom:12px;transition:border-color 0.2s;}
+.login-input:focus{border-color:var(--gold);}
+.login-btn{width:100%;background:var(--gold);color:var(--bg);border:none;padding:12px;border-radius:8px;font-size:0.9rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
+.login-btn:hover{opacity:0.85;}
+.login-error{color:var(--red);font-size:0.8rem;margin-top:10px;min-height:18px;}
+.range-badge{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:999px;font-size:0.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);border:1px solid rgba(255,200,0,0.4);background:rgba(255,200,0,0.08);}
+@media(max-width:768px){.header h1{font-size:1.3rem;}th,td{padding:8px 10px;}.search-bar input{width:100%;}.login-box{padding:32px 24px;margin:20px;}}
 </style>
 </head>
 <body>
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">⚔ GT ALLIANCE</div>
+    <div class="login-sub">Rankings Since Aug 31</div>
+    <input class="login-input" id="loginInput" type="password" placeholder="Enter code" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="login-btn" onclick="doLogin()">Enter</button>
+    <div class="login-error" id="loginError"></div>
+  </div>
+</div>
+<div id="pageArea" style="display:none;">
 <nav>
 <a class="nav-brand" href="index.html">
 <img src="icon.png" alt="GT Logo" onerror="this.style.display='none'"/>
 <span>GT ALLIANCE</span>
 </a>
 <div class="nav-links">
-<a href="gt_standings.html" class="active">Standings</a>
+<a href="gt_standings.html">Standings</a>
 <a href="gt_dashboard.html">Dashboard</a>
 <a href="gt_power.html">Power</a>
 <a href="gt_projections.html">Projections</a>
 <a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
-<a href="gt_recent.html" id="recentNavLink" style="display:none;">Since Aug 31</a>
+<a href="gt_recent.html" class="active">Since Aug 31</a>
 </div>
 </nav>
 <div class="page-wrap">
 <div class="header">
-<h1>Player Standings</h1>
+<h1>Rankings Since Aug 31</h1>
 <p id="lastUpdated">Loading data...</p>
+<span class="range-badge" id="rangeBadge">Aug 31 &rarr; current</span>
 </div>
 <div class="search-bar">
 <input type="text" id="search" placeholder="Search players..." onkeyup="filterTable()" />
@@ -104,6 +125,7 @@ th.in-progress-col::before{content:'\25CF';color:var(--accent);margin-right:4px;
 </div>
 <div id="npFootnote" style="display:none;color:#ff7832;font-size:0.78rem;margin-top:10px;letter-spacing:0.5px;">* = Not pushing to win this week</div>
 <div id="shFootnote" style="display:none;color:#00e5ff;font-size:0.78rem;margin-top:6px;letter-spacing:0.5px;"><span style="color:#ff3264">&dagger;</span> = Voluntarily helped the server this week (scores may be lower than usual)</div>
+<div style="color:var(--dim);font-size:0.75rem;margin-top:10px;letter-spacing:0.5px;">Rank, totals, averages and missed goals are recomputed from weeks starting on or after Aug 31 only.</div>
 </div>
 <script>
 var sortDir = {};
@@ -113,6 +135,77 @@ var serverHelpers = new Map();
 var GOAL = 22000000;
 var NP_COLOR = '#ff7832';
 var SH_COLOR = '#00e5ff';
+var RANGE_START = new Date('August 31, 2026');
+var ACCESS_CODE = 'vaderetro26';
+var AUTH_KEY = 'gtGoalsAuth';
+
+function doLogin(){
+  var inp = document.getElementById('loginInput');
+  var err = document.getElementById('loginError');
+  err.textContent = '';
+  if (inp.value.trim() === ACCESS_CODE){
+    sessionStorage.setItem(AUTH_KEY, '1');
+    unlockPage();
+  } else {
+    err.textContent = 'Invalid code. Please try again.';
+    inp.value = '';
+    inp.focus();
+  }
+}
+
+function unlockPage(){
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('pageArea').style.display = '';
+  var gl = document.getElementById('goalsNavLink');
+  if (gl) gl.style.display = '';
+}
+
+// Keeps only weeks starting on/after RANGE_START and recomputes every stat
+// from those weeks so nothing from earlier in the season leaks in.
+function restrictToRange(data) {
+  var keptLabels = data.weekLabels.filter(function (label) {
+    var start = parseWeekStartDate(label);
+    return start && start >= RANGE_START;
+  });
+  var kept = new Set(keptLabels);
+  var daily = data.dailyData;
+  var players = {};
+  Object.keys(data.players).forEach(function (name) {
+    var src = data.players[name];
+    var weeks = src.weeks.filter(function (w) { return kept.has(w.label); });
+    var total = 0, scored = 0, missedWeekly = 0, missedDaily = 0;
+    weeks.forEach(function (w) {
+      var s = w.score || 0;
+      total += s;
+      if (s > 0) scored++;
+      if (!w.pushing || w.inProgress || s <= 0) return;
+      if (s < GOAL) missedWeekly++;
+      var pd = daily && daily.players[name];
+      var idx = daily ? daily.weekOrder.indexOf(w.label) : -1;
+      if (pd && idx >= 0) {
+        ['Monday','Tuesday','Wednesday','Thursday','Friday'].forEach(function (day) {
+          if (pd.excused && pd.excused[day] && pd.excused[day][idx]) return;
+          var ds = pd[day][idx];
+          if (ds > 0 && ds < getDailyGoal(day, w.label, data.currentWeekLabel)) missedDaily++;
+        });
+      }
+    });
+    players[name] = {
+      name: name,
+      weeks: weeks,
+      totalScore: total,
+      weeklyAvg: scored ? total / scored : 0,
+      missedDaily: missedDaily,
+      missedWeekly: missedWeekly,
+      overallRank: null
+    };
+  });
+  Object.values(players)
+    .filter(function (p) { return p.totalScore > 0; })
+    .sort(function (a, b) { return b.totalScore - a.totalScore; })
+    .forEach(function (p, i) { p.overallRank = i + 1; });
+  return { weekLabels: keptLabels, players: players };
+}
 
 function fmt(n) {
   return n ? Math.round(n).toLocaleString() : '\u2014';
@@ -222,14 +315,24 @@ function filterTable() {
 async function init() {
   try {
     var data = await loadGTData();
-    weekLabels = data.weekLabels;
+    var scoped = restrictToRange(data);
+    weekLabels = scoped.weekLabels;
+    if (weekLabels.length === 0) {
+      document.getElementById('standingsBody').innerHTML =
+        '<tr><td colspan="12" class="error-msg">No weeks on or after Aug 31 yet.</td></tr>';
+      document.getElementById('lastUpdated').textContent = 'Data loaded \u2014 ' + new Date().toLocaleString();
+      return;
+    }
     notPushingWeeks = data.notPushingWeeks || new Set();
     serverHelpers = data.serverHelpers || new Map();
     var reversedWeeks = weekLabels.slice().reverse();
     buildHeaders(reversedWeeks, data.currentWeekLabel);
-    buildRows(data.players, reversedWeeks);
-    document.getElementById('npFootnote').style.display = notPushingWeeks.size > 0 ? '' : 'none';
-    document.getElementById('shFootnote').style.display = serverHelpers.size > 0 ? '' : 'none';
+    buildRows(scoped.players, reversedWeeks);
+    var anyNP = weekLabels.some(function (w) { return notPushingWeeks.has(w); });
+    var anySH = Object.values(scoped.players).some(function (p) { return p.weeks.some(function (w) { return w.serverHelp; }); });
+    document.getElementById('npFootnote').style.display = anyNP ? '' : 'none';
+    document.getElementById('shFootnote').style.display = anySH ? '' : 'none';
+    document.getElementById('rangeBadge').textContent = weekLabels[0] + ' \u2192 ' + weekLabels[weekLabels.length - 1];
     document.getElementById('lastUpdated').textContent = 'Data loaded \u2014 ' + new Date().toLocaleString();
     sortTable(0);
   } catch (e) {
@@ -241,13 +344,10 @@ async function init() {
 
 window.addEventListener('DOMContentLoaded', init);
 </script>
-</div><script>
-if (sessionStorage.getItem('gtGoalsAuth') === '1'){
-  var gl = document.getElementById('goalsNavLink');
-  if (gl) gl.style.display = '';
-  var rl = document.getElementById('recentNavLink');
-  if (rl) rl.style.display = '';
-}
+</div>
+<script>
+if (sessionStorage.getItem(AUTH_KEY) === '1') unlockPage();
+else document.getElementById('loginInput').focus();
 </script>
 <footer style="text-align:center;padding:12px;font-size:0.65rem;opacity:0.7;color:#c084fc;">Made with Love by DeadPoolSurvivr</footer>
 </body></html>

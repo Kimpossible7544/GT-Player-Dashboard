@@ -28,6 +28,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-training{background:linear-gradient(135deg,rgba(255,68,102,0.15),rgba(255,68,102,0.05));color:var(--accent4);border-color:rgba(255,68,102,0.4);}
 .btn-goals{background:linear-gradient(135deg,rgba(255,200,0,0.15),rgba(255,200,0,0.05));color:#ffc800;border-color:rgba(255,200,0,0.4);}
 .btn-goals:hover{background:linear-gradient(135deg,rgba(255,200,0,0.25),rgba(255,200,0,0.1));border-color:#ffc800;box-shadow:0 8px 30px rgba(255,200,0,0.2);}
+.btn-recent{background:linear-gradient(135deg,rgba(0,229,255,0.15),rgba(0,229,255,0.05));color:#00e5ff;border-color:rgba(0,229,255,0.4);}
+.btn-recent:hover{background:linear-gradient(135deg,rgba(0,229,255,0.25),rgba(0,229,255,0.1));border-color:#00e5ff;box-shadow:0 8px 30px rgba(0,229,255,0.2);}
 .btn-training:hover{background:linear-gradient(135deg,rgba(255,68,102,0.25),rgba(255,68,102,0.1));border-color:var(--accent4);box-shadow:0 8px 30px rgba(255,68,102,0.2);}
 .key-unlock{margin-top:28px;background:none;border:none;color:#2a2a3a;font-size:1.1rem;cursor:pointer;transition:color 0.3s;padding:8px;}
 .key-unlock:hover{color:var(--dim);}
@@ -50,6 +52,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <a href="gt_power.html" class="nav-btn btn-power">Power</a>
 <a href="gt_projections.html" class="nav-btn btn-projections">Projections</a>
 <a href="gt_goals.html" class="nav-btn btn-goals" id="goalsBtn" style="display:none;">Goals</a>
+<a href="gt_recent.html" class="nav-btn btn-recent" id="recentBtn" style="display:none;">Since Aug 31</a>
 <a href="https://kimpossible7544.github.io/GT-Training/" class="nav-btn btn-training" target="_blank" rel="noopener">Training</a>
 
 </div>
@@ -62,6 +65,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <script>
 function showProtected(){
   document.getElementById('goalsBtn').style.display = '';
+  document.getElementById('recentBtn').style.display = '';
   document.getElementById('keyBtn').style.display = 'none';
   document.getElementById('codeRow').classList.remove('open');
 }

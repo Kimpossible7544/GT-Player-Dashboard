@@ -148,6 +148,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <a href="gt_power.html">Power</a>
 <a href="gt_projections.html">Projections</a>
 <a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
+<a href="gt_recent.html" id="recentNavLink" style="display:none;">Since Aug 31</a>
 <button class="logout-btn" onclick="doLogout()">Logout</button>
 </div>
 </nav>
@@ -651,6 +652,8 @@ window.addEventListener('DOMContentLoaded', init);
 if (sessionStorage.getItem('gtGoalsAuth') === '1'){
   var gl = document.getElementById('goalsNavLink');
   if (gl) gl.style.display = '';
+  var rl = document.getElementById('recentNavLink');
+  if (rl) rl.style.display = '';
 }
 </script>
 <footer style="text-align:center;padding:12px;font-size:0.65rem;opacity:0.7;color:#c084fc;">Made with Love by DeadPoolSurvivr</footer>
