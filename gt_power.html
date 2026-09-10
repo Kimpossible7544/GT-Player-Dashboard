@@ -10,7 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
 <style>
-:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;--nav-h:60px;}
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--hi:#00b4ff;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;--nav-h:60px;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
 body::before{content:'';position:fixed;top:0;left:0;right:0;bottom:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,200,0,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,180,255,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
@@ -22,16 +22,16 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px
 .nav-links a:hover,.nav-links a.active{color:var(--accent);}
 .page-wrap{position:relative;z-index:1;padding:24px 20px 40px;}
 .header{margin-bottom:20px;}
-.header h1{font-size:1.8rem;font-weight:900;color:var(--gold);letter-spacing:3px;text-transform:uppercase;}
+.header h1{font-size:1.8rem;font-weight:900;color:var(--hi);letter-spacing:3px;text-transform:uppercase;}
 .header p{color:var(--dim);margin-top:4px;font-size:0.8rem;letter-spacing:1px;}
 .summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;}
 @media(max-width:900px){.summary{grid-template-columns:repeat(2,1fr);}}
-.summary-card{background:var(--panel);border-radius:10px;padding:14px 12px;border-top:3px solid var(--gold);text-align:center;}
+.summary-card{background:var(--panel);border-radius:10px;padding:14px 12px;border-top:3px solid var(--hi);text-align:center;}
 .summary-label{font-size:0.65rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:8px;}
-.summary-value{font-size:1.3rem;font-weight:900;color:var(--gold);font-family:'Courier New',monospace;}
+.summary-value{font-size:1.3rem;font-weight:900;color:var(--hi);font-family:'Courier New',monospace;}
 .search-bar{margin-bottom:16px;}
 .search-bar input{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 16px;border-radius:8px;font-size:0.9rem;width:280px;outline:none;font-family:inherit;transition:border-color 0.2s;}
-.search-bar input:focus{border-color:var(--gold);}
+.search-bar input:focus{border-color:var(--hi);}
 .search-bar input::placeholder{color:var(--dim);}
 .table-wrap{overflow-x:auto;border-radius:12px;border:1px solid var(--border);}
 table{width:100%;border-collapse:collapse;font-size:0.82rem;}
@@ -40,7 +40,7 @@ th{padding:12px 14px;text-align:left;font-size:0.72rem;font-weight:700;letter-sp
 th:hover{color:var(--text);}
 th.sorted-asc::after{content:' \25B2 ';font-size:0.65rem;}
 th.sorted-desc::after{content:' \25BC ';font-size:0.65rem;}
-th.gold{color:var(--gold);border-bottom-color:var(--gold);}
+th.gold{color:var(--hi);border-bottom-color:var(--hi);}
 th.accent{color:var(--accent);border-bottom-color:var(--accent);}
 td{padding:10px 14px;border-bottom:1px solid var(--border);white-space:nowrap;}
 tbody tr.player-row{background:var(--panel2);transition:background 0.15s;}
@@ -50,7 +50,7 @@ tbody tr.player-row:hover{background:rgba(255,200,0,0.06);cursor:pointer;}
 .rank-2{color:#c0c0c0;font-weight:800;}
 .rank-3{color:#cd7f32;font-weight:800;}
 .player-name{font-weight:700;color:var(--text);}
-.power{font-family:'Courier New',monospace;color:var(--gold);font-weight:600;}
+.power{font-family:'Courier New',monospace;color:var(--hi);font-weight:600;}
 .level{font-family:'Courier New',monospace;color:var(--accent3);}
 .delta{font-family:'Courier New',monospace;font-weight:700;}
 .delta-pos{color:var(--accent);}
@@ -62,9 +62,9 @@ tbody tr.player-row:hover{background:rgba(255,200,0,0.06);cursor:pointer;}
 .chart-title{font-size:0.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;}
 .chart-wrap{position:relative;height:240px;}
 .chart-empty{color:var(--dim);font-size:0.85rem;font-style:italic;}
-.wpx-tag{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--gold);background:rgba(255,200,0,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
+.wpx-tag{display:inline-block;font-size:0.6rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--hi);background:rgba(0,180,255,0.12);padding:2px 8px;border-radius:10px;margin-left:8px;vertical-align:middle;}
 .loading{text-align:center;padding:60px 20px;color:var(--dim);font-size:1rem;letter-spacing:1px;}
-.loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--gold);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
+.loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--hi);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
 @media(max-width:768px){.header h1{font-size:1.3rem;}th,td{padding:8px 10px;}.search-bar input{width:100%;}}
@@ -242,10 +242,10 @@ function renderChart(idx) {
       datasets: [{
         label: 'Arena Power (M)',
         data: series.map(function (s) { return s.arena; }),
-        borderColor: '#ffc800',
-        backgroundColor: 'rgba(255,200,0,0.12)',
+        borderColor: '#00b4ff',
+        backgroundColor: 'rgba(0,180,255,0.12)',
         pointBackgroundColor: series.map(function (s) {
-          return s.team === 'WPX' ? '#b464ff' : '#ffc800';
+          return s.team === 'WPX' ? '#b464ff' : '#00b4ff';
         }),
         pointRadius: 4,
         borderWidth: 2,
