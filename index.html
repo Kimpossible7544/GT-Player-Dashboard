@@ -14,7 +14,8 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .landing{position:relative;z-index:1;display:flex;flex-direction:column;align-items:center;text-align:center;padding:40px 20px;}
 .logo{max-width:420px;width:90vw;height:auto;margin-bottom:48px;filter:drop-shadow(0 0 40px rgba(212,160,23,0.35)) drop-shadow(0 0 80px rgba(212,160,23,0.2));animation:float 4s ease-in-out infinite;}
 @keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-10px)}}
-.nav-buttons{display:flex;gap:16px;flex-wrap:wrap;justify-content:center;}
+.nav-buttons{display:none;gap:16px;flex-wrap:wrap;justify-content:center;}
+.nav-buttons.open{display:flex;}
 .nav-btn{display:inline-block;padding:14px 36px;border-radius:10px;font-size:0.95rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;text-decoration:none;transition:all 0.3s;border:1px solid var(--border);}
 .nav-btn:hover{transform:translateY(-2px);box-shadow:0 8px 30px rgba(0,0,0,0.4);}
 .btn-standings{background:linear-gradient(135deg,rgba(0,255,180,0.15),rgba(0,255,180,0.05));color:var(--accent);border-color:rgba(0,255,180,0.4);}
@@ -31,10 +32,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .btn-recent{background:linear-gradient(135deg,rgba(0,229,255,0.15),rgba(0,229,255,0.05));color:#00e5ff;border-color:rgba(0,229,255,0.4);}
 .btn-recent:hover{background:linear-gradient(135deg,rgba(0,229,255,0.25),rgba(0,229,255,0.1));border-color:#00e5ff;box-shadow:0 8px 30px rgba(0,229,255,0.2);}
 .btn-training:hover{background:linear-gradient(135deg,rgba(255,68,102,0.25),rgba(255,68,102,0.1));border-color:var(--accent4);box-shadow:0 8px 30px rgba(255,68,102,0.2);}
-.key-unlock{margin-top:28px;background:none;border:none;color:#2a2a3a;font-size:1.1rem;cursor:pointer;transition:color 0.3s;padding:8px;}
-.key-unlock:hover{color:var(--dim);}
-.code-row{display:none;margin-top:12px;gap:8px;justify-content:center;}
+.code-sub{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:14px;}
+.code-row{gap:8px;justify-content:center;}
+.code-row,.code-sub{display:none;}
 .code-row.open{display:flex;}
+.code-sub.open{display:block;}
 .code-input{background:var(--panel);border:1px solid var(--border);color:var(--text);padding:10px 14px;border-radius:8px;font-size:1rem;font-family:'Courier New',monospace;outline:none;text-align:center;letter-spacing:3px;width:180px;transition:border-color 0.2s;}
 .code-input:focus{border-color:#ffc800;}
 .code-input.shake{animation:shake 0.35s;border-color:#ff4466;}
@@ -46,17 +48,17 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <body>
 <div class="landing">
 <img src="blueGTlogo.png" alt="GT Alliance" class="logo"/>
-<div class="nav-buttons">
+<div class="nav-buttons" id="navButtons">
 <a href="gt_standings.html" class="nav-btn btn-standings">Standings</a>
 <a href="gt_dashboard.html" class="nav-btn btn-dashboard">Dashboard</a>
 <a href="gt_power.html" class="nav-btn btn-power">Power</a>
 <a href="gt_projections.html" class="nav-btn btn-projections">Projections</a>
-<a href="gt_goals.html" class="nav-btn btn-goals" id="goalsBtn" style="display:none;">Goals</a>
-<a href="gt_recent.html" class="nav-btn btn-recent" id="recentBtn" style="display:none;">Since Aug 31</a>
+<a href="gt_goals.html" class="nav-btn btn-goals">Goals</a>
+<a href="gt_recent.html" class="nav-btn btn-recent">Since Aug 31</a>
 <a href="https://kimpossible7544.github.io/GT-Training/" class="nav-btn btn-training" target="_blank" rel="noopener">Training</a>
 
 </div>
-<button class="key-unlock" id="keyBtn" onclick="toggleCode()" title="Member access">🔑</button>
+<div class="code-sub" id="codeSub">Enter the alliance code to continue</div>
 <div class="code-row" id="codeRow">
 <input class="code-input" id="codeInput" type="password" placeholder="code" maxlength="20" onkeydown="if(event.key==='Enter')tryCode()"/>
 <button class="code-go" onclick="tryCode()">Go</button>
@@ -64,19 +66,18 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 </div>
 <script>
 function showProtected(){
-  document.getElementById('goalsBtn').style.display = '';
-  document.getElementById('recentBtn').style.display = '';
-  document.getElementById('keyBtn').style.display = 'none';
+  document.getElementById('navButtons').classList.add('open');
   document.getElementById('codeRow').classList.remove('open');
+  document.getElementById('codeSub').classList.remove('open');
 }
-function toggleCode(){
-  var row = document.getElementById('codeRow');
-  row.classList.toggle('open');
-  if (row.classList.contains('open')) document.getElementById('codeInput').focus();
+function showLogin(){
+  document.getElementById('codeSub').classList.add('open');
+  document.getElementById('codeRow').classList.add('open');
+  document.getElementById('codeInput').focus();
 }
 function tryCode(){
   var inp = document.getElementById('codeInput');
-  if (inp.value.trim() === 'vaderetro26'){
+  if (inp.value.trim() === 'fucknabs'){
     sessionStorage.setItem('gtGoalsAuth', '1');
     showProtected();
   } else {
@@ -88,6 +89,7 @@ function tryCode(){
   }
 }
 if (sessionStorage.getItem('gtGoalsAuth') === '1') showProtected();
+else showLogin();
 </script>
 </body>
 </html>
