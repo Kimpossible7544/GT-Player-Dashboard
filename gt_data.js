@@ -520,12 +520,21 @@ async function loadGTData() {
       }
     }
   }
+  // Loose key: case-insensitive with all whitespace removed ("Ronburg" == "Ron Burg").
+  const looseKey = (s) => String(s || "").toLowerCase().replace(/\s+/g, "");
+  const playersByLooseKey = {};
+  Object.keys(players).forEach(name => {
+    const k = looseKey(name);
+    if (!playersByLooseKey[k]) playersByLooseKey[k] = name;
+  });
   function resolvePlayerName(rawName) {
     if (players[rawName]) return rawName;
     const trimmed = String(rawName || "").trim();
     if (players[trimmed]) return trimmed;
     const alias = nameAliasMap[trimmed.toLowerCase().replace(/\s+/g, " ")];
-    return (alias && players[alias]) ? alias : rawName;
+    if (alias && players[alias]) return alias;
+    const loose = playersByLooseKey[looseKey(trimmed)];
+    return loose || rawName;
   }
 
   // =========================================================
@@ -691,21 +700,9 @@ async function loadGTData() {
 
       const growth = parseArenaRow(row);
 
-      // Merge into player object if name matches
-      if (players[name]) {
-        players[name].growth = growth;
-      } else {
-        // Try roster AKA alias, then case-insensitive match
-        const alias = resolvePlayerName(name);
-        if (players[alias]) {
-          players[alias].growth = growth;
-        } else {
-          const key = Object.keys(players).find(
-            k => k.toLowerCase() === name.toLowerCase()
-          );
-          if (key) players[key].growth = growth;
-        }
-      }
+      // Exact name, roster AKA alias, then case/space-insensitive match
+      const target = resolvePlayerName(name);
+      if (players[target]) players[target].growth = growth;
     }
 
     console.log("[GT] Arena Power sheet parsed.");
