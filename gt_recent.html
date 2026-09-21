@@ -111,7 +111,6 @@ th.in-progress-col::before{content:'\25CF';color:var(--accent);margin-right:4px;
 <a href="gt_dashboard.html">Dashboard</a>
 <a href="gt_power.html">Power</a>
 <a href="gt_projections.html">Projections</a>
-<a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
 <a href="gt_recent.html" class="active">Since Aug 31</a>
 </div>
 </nav>
@@ -167,8 +166,6 @@ function doLogin(){
 function unlockPage(){
   document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('pageArea').style.display = '';
-  var gl = document.getElementById('goalsNavLink');
-  if (gl) gl.style.display = '';
 }
 
 // Keeps only weeks starting on/after RANGE_START and recomputes every stat

@@ -82,7 +82,6 @@ tbody tr.player-row:hover{background:rgba(255,200,0,0.06);cursor:pointer;}
 <a href="gt_dashboard.html">Dashboard</a>
 <a href="gt_power.html" class="active">Power</a>
 <a href="gt_projections.html">Projections</a>
-<a href="gt_goals.html" id="goalsNavLink" style="display:none;">Goals</a>
 <a href="gt_recent.html" id="recentNavLink" style="display:none;">Since Aug 31</a>
 </div>
 </nav>
@@ -351,8 +350,6 @@ window.addEventListener('DOMContentLoaded', init);
 </script>
 <script>
 if (sessionStorage.getItem('gtGoalsAuth') === '1'){
-  var gl = document.getElementById('goalsNavLink');
-  if (gl) gl.style.display = '';
   var rl = document.getElementById('recentNavLink');
   if (rl) rl.style.display = '';
 }

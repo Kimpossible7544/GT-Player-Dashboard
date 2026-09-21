@@ -1,6 +1,6 @@
 // Shared access gate for every GT dashboard page. Include in <head>; the page
 // body is hidden until the alliance code is entered (or already stored for the
-// session under the same key the Goals / Since Aug 31 pages use).
+// session under the same key the Since Aug 31 page uses).
 (function(){
   var ACCESS_CODE = 'fucknabs';
   var AUTH_KEY = 'gtGoalsAuth';
@@ -24,7 +24,7 @@
   document.head.appendChild(style);
 
   function showMemberLinks(){
-    ['goalsNavLink','recentNavLink'].forEach(function(id){
+    ['recentNavLink'].forEach(function(id){
       var el = document.getElementById(id);
       if (el) el.style.display = '';
     });
