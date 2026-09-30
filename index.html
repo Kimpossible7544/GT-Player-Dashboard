@@ -93,7 +93,8 @@ function setMsg(text, isErr){
 function showProtected(user){
   var btns = document.querySelectorAll('#navButtons .nav-btn');
   for (var i = 0; i < btns.length; i++){
-    btns[i].style.display = user.master || btns[i].classList.contains('btn-dashboard') ? '' : 'none';
+    var open = user.master || btns[i].classList.contains('btn-dashboard') || btns[i].classList.contains('btn-training');
+    btns[i].style.display = open ? '' : 'none';
   }
   document.getElementById('navButtons').classList.add('open');
   document.getElementById('codeRow').classList.remove('open');
