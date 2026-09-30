@@ -1,6 +1,6 @@
 // Login log, backed by the Google Apps Script web app in login_log/Code.gs.
 // Leave GT_LOG_URL empty to disable it.
-var GT_LOG_URL = '';
+var GT_LOG_URL = 'https://script.google.com/macros/s/AKfycbxxjEWilEaIGvWP_Pz9BfE9RJH8zjpFZNmB_fyZoNN9mAr7wzY0cvjkhpq7Am75oet_9A/exec';
 
 function gtLogLogin(name, id, access) {
   if (!GT_LOG_URL) return;
