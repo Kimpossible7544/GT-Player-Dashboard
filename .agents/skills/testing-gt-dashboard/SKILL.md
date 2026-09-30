@@ -25,7 +25,7 @@ data from a Dropbox-hosted Excel workbook (`GTStatsFINAL.xlsm`). All data parsin
 
 ## Login (gt_dashboard.html)
 The dashboard is gated by a login overlay (`doLogin()`):
-- **Master password** `fucknabs` → full alliance view, player dropdown VISIBLE.
+- **Master password** `2026GT` → full alliance view, player dropdown VISIBLE.
 - **Individual login** = a player's numeric **roster ID** → dashboard locks to that player,
   dropdown HIDDEN. IDs come from the Roster sheet (`idToPlayer`).
 - Invalid entry → "Invalid ID. Please try again.", overlay stays.
@@ -72,4 +72,15 @@ The dashboard is gated by a login overlay (`doLogin()`):
 
 ## Devin Secrets Needed
 - None. The site is public/static and the Dropbox links are unauthenticated ("anyone with the
-  link"). The master password `fucknabs` and roster IDs are read from the workbook, not secrets.
+  link"). The master password `2026GT` and roster IDs are read from the workbook, not secrets.
+
+## Login Log (gt_logins.html)
+- Hidden page linked from the faint "π" in the landing page's bottom-right corner.
+- Logins are sent to the Google Apps Script in `login_log/Code.gs`; URL is `GT_LOG_URL` in
+  `gt_log.js`. The password (`ADMIN_PASSWORD`, `2026GT`) is checked by the script, not the page.
+- To test without the real script, point `GT_LOG_URL` at a local mock that implements
+  `GET ?action=admin|csv&key=...` (JSON/CSV + `Access-Control-Allow-Origin: *`) and
+  `POST {action:'log',...}`.
+- Master IDs come from column A of the workbook's "Master IDs" sheet (`data.masterIds`). Those
+  roster IDs log into the Dashboard with the full alliance view; logins show as "Master ID".
+  To test without editing the workbook, override `MASTER_IDS` in the console after data loads.

@@ -2,7 +2,7 @@
 // body is hidden until the alliance code is entered (or already stored for the
 // session under the same key the Since Aug 31 page uses).
 (function(){
-  var ACCESS_CODE = 'fucknabs';
+  var ACCESS_CODE = '2026GT';
   var AUTH_KEY = 'gtGoalsAuth';
   var subtitle = (document.currentScript && document.currentScript.getAttribute('data-title')) || document.title;
 
@@ -56,7 +56,11 @@
     var err = document.getElementById('gtLoginError');
     function tryCode(){
       err.textContent = '';
-      if (inp.value.trim() === ACCESS_CODE){ unlock(); return; }
+      if (inp.value.trim() === ACCESS_CODE){
+        if (window.gtLogLogin) gtLogLogin('Alliance code', '', 'Alliance code');
+        unlock();
+        return;
+      }
       err.textContent = 'Invalid code. Please try again.';
       inp.value = '';
       inp.focus();

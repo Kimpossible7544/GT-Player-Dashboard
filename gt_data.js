@@ -774,6 +774,20 @@ async function loadGTData() {
   }
 
   // =========================================================
+  // MASTER IDS — roster IDs in column A of the "Master IDs" sheet get the
+  // full alliance view on the Dashboard.
+  // =========================================================
+  const masterIds = [];
+  if (workbook.SheetNames.includes("Master IDs")) {
+    const masterRows = XLSX.utils.sheet_to_json(workbook.Sheets["Master IDs"], { header: 1, defval: null });
+    masterRows.forEach((row) => {
+      const id = normalizeId(row[0]);
+      if (id && !masterIds.includes(id)) masterIds.push(id);
+    });
+    console.log("[GT] Master IDs loaded:", masterIds.length);
+  }
+
+  // =========================================================
   // CROSS-TEAM ARENA/HQ POWER MERGE (WPX -> GT)
   // Resolve each GT roster ID by WPX ID Map, roster ID, then AKA name; pull
   // the WPX Arena/HQ history so the growth card spans both teams. GT's own
@@ -922,6 +936,7 @@ async function loadGTData() {
     notPushingWeeks,
     serverHelpers,
     idToPlayer,
+    masterIds,
     rosterRanks,
     DAILY_GOALS: DAILY_GOALS_NEW,
     WEEKLY_GOAL

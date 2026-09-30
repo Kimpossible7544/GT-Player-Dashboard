@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex, nofollow">
+<title>GT — Login Log</title>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<script src="gt_log.js"></script>
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--gold:#ffc800;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:60px;background:var(--panel);border-bottom:1px solid var(--border);}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand img{height:36px;width:36px;object-fit:contain;border-radius:6px;}
+.nav-brand span{font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;}
+.btn{background:var(--accent);color:var(--bg);border:none;padding:9px 16px;border-radius:8px;font-weight:800;letter-spacing:1px;cursor:pointer;font-size:0.8rem;text-transform:uppercase;}
+.btn:hover{opacity:0.85;}
+.btn.ghost{background:transparent;color:var(--dim);border:1px solid var(--border);}
+.btn.ghost:hover{color:var(--text);border-color:var(--dim);}
+.page{padding:24px 20px 40px;max-width:1200px;margin:0 auto;}
+h1{font-size:1.8rem;font-weight:900;color:var(--accent);letter-spacing:3px;text-transform:uppercase;}
+.sub{color:var(--dim);margin-top:4px;font-size:0.8rem;letter-spacing:1px;}
+.card{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:18px 20px;margin-top:20px;}
+.card h2{font-size:0.8rem;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px;}
+.card p.hint{color:var(--dim);font-size:0.78rem;margin-bottom:12px;}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+input.txt{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:9px 14px;border-radius:8px;font-size:0.9rem;outline:none;font-family:inherit;}
+input.txt:focus{border-color:var(--accent);}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;}
+.chip{display:flex;align-items:center;gap:10px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:6px 8px 6px 12px;font-size:0.85rem;}
+.chip .cid{color:var(--dim);font-family:'Courier New',monospace;font-size:0.8rem;}
+.msg{font-size:0.8rem;margin-top:8px;min-height:16px;}
+.msg.err{color:var(--red);}
+.stats{display:flex;gap:24px;margin-bottom:12px;color:var(--dim);font-size:0.8rem;}
+.stats b{color:var(--text);font-size:1rem;}
+.table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
+table{width:100%;border-collapse:collapse;font-size:0.82rem;}
+th{padding:10px 12px;text-align:left;font-size:0.7rem;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);border-bottom:2px solid var(--border);background:var(--panel);white-space:nowrap;}
+td{padding:9px 12px;border-bottom:1px solid var(--border);white-space:nowrap;}
+td.dev{color:var(--dim);max-width:280px;overflow:hidden;text-overflow:ellipsis;}
+tr:hover td{background:rgba(255,255,255,0.02);}
+.acc-master{color:var(--gold);}
+.acc-player{color:var(--accent2);}
+.acc-code{color:var(--dim);}
+.empty{color:var(--dim);text-align:center;padding:20px;}
+.login-wrap{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
+.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;}
+.login-logo{font-size:1.4rem;font-weight:900;color:var(--accent);letter-spacing:3px;margin-bottom:6px;}
+.login-sub{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:28px;}
+.login-box input{width:100%;text-align:center;letter-spacing:3px;font-family:'Courier New',monospace;font-size:1.1rem;margin-bottom:12px;}
+.login-box .btn{width:100%;padding:12px;}
+</style>
+</head>
+<body>
+<div class="login-wrap" id="loginWrap">
+  <div class="login-box">
+    <div class="login-logo">⚔ GT ALLIANCE</div>
+    <div class="login-sub">Login Log</div>
+    <input class="txt" id="pwInput" type="password" placeholder="Master password" maxlength="40" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()"/>
+    <button class="btn" id="pwBtn" onclick="doLogin()">Enter</button>
+    <div class="msg err" id="pwError"></div>
+  </div>
+</div>
+
+<div id="pageArea" style="display:none;">
+<nav>
+  <a class="nav-brand" href="index.html"><img src="icon.png" alt="GT" onerror="this.style.display='none'"/><span>GT ALLIANCE</span></a>
+  <div class="row">
+    <button class="btn ghost" onclick="refresh()">Refresh</button>
+    <button class="btn ghost" onclick="doLogout()">Logout</button>
+  </div>
+</nav>
+<div class="page">
+  <h1>Login Log</h1>
+  <p class="sub" id="lastUpdated"></p>
+
+  <div class="card">
+    <h2>All-Players Access</h2>
+    <p class="hint">These roster IDs see every player's data on the Dashboard, the same as the master password. To add or remove one, edit column A of the <b>Master IDs</b> sheet in the workbook.</p>
+    <div class="chips" id="masterList"><span style="color:var(--dim);font-size:0.8rem;">Loading workbook...</span></div>
+  </div>
+
+  <div class="card">
+    <h2>Logins</h2>
+    <div class="stats" id="stats"></div>
+    <div class="row" style="margin-bottom:12px;">
+      <input class="txt" id="filterInput" placeholder="Filter by player, ID, access or page" style="width:320px;" oninput="renderLogins()"/>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Time</th><th>Player</th><th>Roster ID</th><th>Access</th><th>Page</th><th>Device</th></tr></thead>
+        <tbody id="loginBody"><tr><td colspan="6" class="empty">Loading...</td></tr></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+var KEY_STORE = 'gtAdminKey';
+var adminKey = sessionStorage.getItem(KEY_STORE) || '';
+var logins = [];
+var masterIds = [];
+var rosterIdToPlayer = {};
+
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+  });
+}
+
+function applyData(d) {
+  logins = d.logins || [];
+  document.getElementById('lastUpdated').textContent = 'Updated \u2014 ' + new Date().toLocaleString();
+  renderLogins();
+}
+
+function doLogin() {
+  var inp = document.getElementById('pwInput');
+  var err = document.getElementById('pwError');
+  var key = inp.value.trim();
+  if (!key) return;
+  err.textContent = '';
+  document.getElementById('pwBtn').disabled = true;
+  gtLogApi({ action: 'admin', key: key }).then(function (d) {
+    adminKey = key;
+    sessionStorage.setItem(KEY_STORE, key);
+    showPage();
+    applyData(d);
+  }).catch(function (e) {
+    err.textContent = e.message || 'Could not reach the login log.';
+    inp.value = '';
+    inp.focus();
+  }).then(function () {
+    document.getElementById('pwBtn').disabled = false;
+  });
+}
+
+function showPage() {
+  document.getElementById('loginWrap').style.display = 'none';
+  document.getElementById('pageArea').style.display = '';
+}
+
+function doLogout() {
+  adminKey = '';
+  sessionStorage.removeItem(KEY_STORE);
+  document.getElementById('pageArea').style.display = 'none';
+  document.getElementById('loginWrap').style.display = 'flex';
+  document.getElementById('pwInput').value = '';
+  document.getElementById('pwInput').focus();
+}
+
+function refresh() {
+  gtLogApi({ action: 'admin', key: adminKey }).then(applyData).catch(function (e) {
+    document.getElementById('lastUpdated').textContent = 'Error: ' + e.message;
+  });
+}
+
+function renderMasters() {
+  var el = document.getElementById('masterList');
+  if (!masterIds.length) { el.innerHTML = '<span style="color:var(--dim);font-size:0.8rem;">No IDs on the Master IDs sheet.</span>'; return; }
+  el.innerHTML = masterIds.map(function (id) {
+    return '<div class="chip"><span>' + esc(rosterIdToPlayer[id] || 'Not on roster') + '</span><span class="cid">' + esc(id) + '</span></div>';
+  }).join('');
+}
+
+function accessClass(a) {
+  if (a.indexOf('Master') === 0) return 'acc-master';
+  if (a === 'Player ID') return 'acc-player';
+  return 'acc-code';
+}
+
+function renderLogins() {
+  var q = document.getElementById('filterInput').value.trim().toLowerCase();
+  var rows = logins.filter(function (l) {
+    if (!q) return true;
+    return [l.name, l.id, l.access, l.page].join(' ').toLowerCase().indexOf(q) !== -1;
+  });
+  var players = {};
+  logins.forEach(function (l) { if (l.id) players[l.id] = 1; });
+  document.getElementById('stats').innerHTML =
+    '<div><b>' + logins.length + '</b> logins</div>' +
+    '<div><b>' + Object.keys(players).length + '</b> players</div>' +
+    (q ? '<div><b>' + rows.length + '</b> shown</div>' : '');
+  var body = document.getElementById('loginBody');
+  if (!rows.length) { body.innerHTML = '<tr><td colspan="6" class="empty">No logins yet.</td></tr>'; return; }
+  body.innerHTML = rows.map(function (l) {
+    var t = new Date(l.time);
+    return '<tr><td>' + esc(isNaN(t) ? l.time : t.toLocaleString()) + '</td>' +
+      '<td>' + esc(l.name) + '</td><td>' + esc(l.id) + '</td>' +
+      '<td class="' + accessClass(l.access) + '">' + esc(l.access) + '</td>' +
+      '<td>' + esc(l.page.replace(/^.*\//, '') || 'index.html') + '</td>' +
+      '<td class="dev" title="' + esc(l.device) + '">' + esc(l.device) + '</td></tr>';
+  }).join('');
+}
+
+loadGTData().then(function (data) {
+  rosterIdToPlayer = data.idToPlayer || {};
+  masterIds = data.masterIds || [];
+  renderMasters();
+}).catch(function (e) {
+  document.getElementById('masterList').textContent = 'Could not load workbook: ' + e.message;
+});
+
+if (adminKey) {
+  gtLogApi({ action: 'admin', key: adminKey }).then(function (d) { showPage(); applyData(d); })
+    .catch(function () { sessionStorage.removeItem(KEY_STORE); adminKey = ''; document.getElementById('pwInput').focus(); });
+} else {
+  document.getElementById('pwInput').focus();
+}
+</script>
+</body>
+</html>
