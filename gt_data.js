@@ -774,15 +774,20 @@ async function loadGTData() {
   }
 
   // =========================================================
-  // MASTER IDS — roster IDs in column A of the "Master IDs" sheet get the
-  // full alliance view on the Dashboard.
+  // MASTER IDS — "Master IDs" sheet: A = roster ID, B = name, C = Master mark.
+  // Rows whose column C is ticked (TRUE / Yes / Y / X / 1) get the full
+  // alliance view on the Dashboard.
   // =========================================================
+  const isMasterMark = (value) => {
+    if (value === true || value === 1) return true;
+    return ["true", "yes", "y", "x", "1", "\u2713", "\u2714"].includes(String(value ?? "").trim().toLowerCase());
+  };
   const masterIds = [];
   if (workbook.SheetNames.includes("Master IDs")) {
     const masterRows = XLSX.utils.sheet_to_json(workbook.Sheets["Master IDs"], { header: 1, defval: null });
     masterRows.forEach((row) => {
       const id = normalizeId(row[0]);
-      if (id && !masterIds.includes(id)) masterIds.push(id);
+      if (id && isMasterMark(row[2]) && !masterIds.includes(id)) masterIds.push(id);
     });
     console.log("[GT] Master IDs loaded:", masterIds.length);
   }

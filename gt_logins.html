@@ -81,7 +81,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
   <div class="card">
     <h2>All-Players Access</h2>
-    <p class="hint">These roster IDs see every player's data on the Dashboard, the same as the master password. To add or remove one, edit column A of the <b>Master IDs</b> sheet in the workbook.</p>
+    <p class="hint">These roster IDs see every player's data on the Dashboard, the same as the master password. To add or remove one, tick or untick column C (Master) on the <b>Master IDs</b> sheet in the workbook.</p>
     <div class="chips" id="masterList"><span style="color:var(--dim);font-size:0.8rem;">Loading workbook...</span></div>
   </div>
 
@@ -163,7 +163,7 @@ function refresh() {
 
 function renderMasters() {
   var el = document.getElementById('masterList');
-  if (!masterIds.length) { el.innerHTML = '<span style="color:var(--dim);font-size:0.8rem;">No IDs on the Master IDs sheet.</span>'; return; }
+  if (!masterIds.length) { el.innerHTML = '<span style="color:var(--dim);font-size:0.8rem;">No IDs are marked Master on the Master IDs sheet.</span>'; return; }
   el.innerHTML = masterIds.map(function (id) {
     return '<div class="chip"><span>' + esc(rosterIdToPlayer[id] || 'Not on roster') + '</span><span class="cid">' + esc(id) + '</span></div>';
   }).join('');
