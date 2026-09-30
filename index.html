@@ -40,6 +40,11 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 .code-input.shake{animation:shake 0.35s;border-color:#ff4466;}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .code-go{background:#ffc800;color:var(--bg);border:none;padding:10px 18px;border-radius:8px;font-weight:900;letter-spacing:1px;cursor:pointer;}
+.code-msg{font-size:0.8rem;color:var(--dim);margin-top:10px;min-height:18px;}
+.code-msg.err{color:var(--accent4);}
+.who-line{display:none;font-size:0.8rem;color:var(--dim);margin-top:22px;letter-spacing:1px;}
+.who-line.open{display:block;}
+.who-line a{color:var(--dim);margin-left:8px;}
 .log-link{position:fixed;right:10px;bottom:6px;color:var(--dim);opacity:0.25;font-size:0.8rem;text-decoration:none;z-index:2;}
 .log-link:hover{opacity:0.8;}
 @media(max-width:500px){.logo{max-width:300px;margin-bottom:36px;}.nav-btn{padding:12px 28px;font-size:0.85rem;}}
@@ -57,39 +62,92 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
 <a href="https://kimpossible7544.github.io/GT-Training/" class="nav-btn btn-training" target="_blank" rel="noopener">Training</a>
 
 </div>
-<div class="code-sub" id="codeSub">Enter the alliance code to continue</div>
+<div class="who-line" id="whoLine"><span id="whoName"></span><a href="#" onclick="logout();return false;">Log out</a></div>
+<div class="code-sub" id="codeSub">Enter your player ID to continue</div>
 <div class="code-row" id="codeRow">
-<input class="code-input" id="codeInput" type="password" placeholder="code" maxlength="20" onkeydown="if(event.key==='Enter')tryCode()"/>
+<input class="code-input" id="codeInput" type="password" placeholder="ID" maxlength="20" onkeydown="if(event.key==='Enter')tryCode()"/>
 <button class="code-go" onclick="tryCode()">Go</button>
 </div>
+<div class="code-msg" id="codeMsg"></div>
 </div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
 <script src="gt_log.js"></script>
 <script>
-function showProtected(){
+var MASTER_PASSWORD = '2026GT';
+var loginIds = null;
+
+function getLoginIds(){
+  if (!loginIds) loginIds = loadGTLoginIds().catch(function(e){ loginIds = null; throw e; });
+  return loginIds;
+}
+function currentUser(){
+  if (sessionStorage.getItem('gtGoalsAuth') !== '1') return null;
+  try { return JSON.parse(sessionStorage.getItem('gtUser') || 'null'); } catch (e) { return null; }
+}
+function setMsg(text, isErr){
+  var m = document.getElementById('codeMsg');
+  m.textContent = text || '';
+  m.classList.toggle('err', !!isErr);
+}
+function showProtected(user){
   document.getElementById('navButtons').classList.add('open');
   document.getElementById('codeRow').classList.remove('open');
   document.getElementById('codeSub').classList.remove('open');
+  document.getElementById('whoName').textContent = 'Logged in as ' + user.name;
+  document.getElementById('whoLine').classList.add('open');
+  setMsg('');
 }
 function showLogin(){
+  document.getElementById('navButtons').classList.remove('open');
+  document.getElementById('whoLine').classList.remove('open');
   document.getElementById('codeSub').classList.add('open');
   document.getElementById('codeRow').classList.add('open');
   document.getElementById('codeInput').focus();
+  getLoginIds().catch(function(){});
+}
+function logout(){
+  sessionStorage.removeItem('gtGoalsAuth');
+  sessionStorage.removeItem('gtUser');
+  showLogin();
+}
+function login(user, access){
+  sessionStorage.setItem('gtGoalsAuth', '1');
+  sessionStorage.setItem('gtUser', JSON.stringify(user));
+  gtLogLogin(user.name, user.id, access);
+  document.getElementById('codeInput').value = '';
+  showProtected(user);
+}
+function reject(){
+  var inp = document.getElementById('codeInput');
+  inp.value = '';
+  inp.classList.remove('shake');
+  void inp.offsetWidth;
+  inp.classList.add('shake');
+  inp.focus();
+  setMsg('Invalid ID. Please try again.', true);
 }
 function tryCode(){
-  var inp = document.getElementById('codeInput');
-  if (inp.value.trim() === '2026GT'){
-    sessionStorage.setItem('gtGoalsAuth', '1');
-    gtLogLogin('Alliance code', '', 'Alliance code');
-    showProtected();
-  } else {
-    inp.value = '';
-    inp.classList.remove('shake');
-    void inp.offsetWidth;
-    inp.classList.add('shake');
-    inp.focus();
+  var val = document.getElementById('codeInput').value.trim();
+  if (!val) return;
+  if (val === MASTER_PASSWORD){
+    login({ name: 'Master password', id: '', master: true }, 'Master password');
+    return;
   }
+  var id = gtNormalizeId(val);
+  if (!id) { reject(); return; }
+  setMsg('Checking ID...');
+  getLoginIds().then(function(d){
+    var name = d.idToPlayer[id];
+    if (!name) { reject(); return; }
+    var master = d.masterIds.indexOf(id) !== -1;
+    login({ name: name, id: id, master: master }, master ? 'Master ID' : 'Player ID');
+  }).catch(function(e){
+    setMsg('Could not load the roster: ' + e.message, true);
+  });
 }
-if (sessionStorage.getItem('gtGoalsAuth') === '1') showProtected();
+var existingUser = currentUser();
+if (existingUser) showProtected(existingUser);
 else showLogin();
 </script>
 <a href="gt_logins.html" class="log-link" aria-label="Login log">&#960;</a>

@@ -23,17 +23,18 @@ data from a Dropbox-hosted Excel workbook (`GTStatsFINAL.xlsm`). All data parsin
    - `http://localhost:8080/gt_projections.html` — Projections
 4. Hard-refresh (Ctrl+Shift+R) after switching branches so you don't get a cached page/workbook.
 
-## Login (gt_dashboard.html)
-The dashboard is gated by a login overlay (`doLogin()`):
-- **Master password** `2026GT` → full alliance view, player dropdown VISIBLE.
-- **Individual login** = a player's numeric **roster ID** → dashboard locks to that player,
-  dropdown HIDDEN. IDs come from the Roster sheet (`idToPlayer`).
-- Invalid entry → "Invalid ID. Please try again.", overlay stays.
+## Login (index.html only)
+All logins happen on the landing page (`tryCode()` in `index.html`); every other page includes
+`gt_auth.js`, which redirects to `index.html` unless sessionStorage has `gtGoalsAuth='1'` and
+`gtUser = {name, id, master}`. `gtLogout()` clears both.
+- **Master password** `2026GT` or a ticked **Master ID** → Dashboard shows the player dropdown.
+- **Roster ID** → Dashboard locked to that player, dropdown HIDDEN (`?player=` deep links ignored).
+  IDs come from the Roster sheet via `loadGTLoginIds()` (reads only Roster + Master IDs).
+- Invalid entry → "Invalid ID. Please try again." under the input.
 - To find a valid roster ID without asking the user, download the workbook and read the Roster
   sheet: IDs in columns A/E/I/M (0,4,8,12), names in B/F/J/N (1,5,9,13). Known: `1030` =
-  Kimpossible7544.
-- After logout, re-login must restore `contentArea` (a past bug left it blank —
-  `unlockDashboard()` must set `contentArea.style.display = ''`). Worth a quick regression check.
+  DeadPoolSurvivr (ticked Master), `1179` = Chile 22.
+- To test against a local workbook copy, route `**/GTStatsFINAL.xlsm*` to the file in Playwright.
 
 ## Data Flow
 - Pages load `gt_data.js`, which fetches the workbook at runtime (cache-busted with

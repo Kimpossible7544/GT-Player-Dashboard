@@ -1,7 +1,7 @@
 # Login log
 
-Every successful login is sent to a Google Sheet: time, player name, roster
-ID, access type (Player ID / Master ID / Master password / Alliance code),
+Every successful login on the landing page is sent to a Google Sheet: time,
+player name, roster ID, access type (Player ID / Master ID / Master password),
 page, and device. The site can only *read* the Excel workbook (Dropbox
 download link), so the log needs somewhere writable; this Google Sheet is the
 only piece outside Excel and you don't need to open it after setup.

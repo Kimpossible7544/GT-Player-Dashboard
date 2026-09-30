@@ -8,7 +8,7 @@
 <link rel="icon" type="image/x-icon" href="favicon.ico">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
-<script src="gt_log.js"></script>
+<script src="gt_auth.js"></script>
 <style>
 :root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--hi:#4ade80;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;--nav-h:60px;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -78,30 +78,11 @@ th.in-progress-col::before{content:'\25CF';color:var(--accent);margin-right:4px;
 .loading .spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:16px;}
 @keyframes spin{to{transform:rotate(360deg)}}
 .error-msg{text-align:center;padding:40px 20px;color:var(--red);font-size:0.95rem;}
-.login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
-.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;}
-.login-logo{font-size:1.4rem;font-weight:900;color:var(--accent);letter-spacing:3px;margin-bottom:6px;}
-.login-sub{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:28px;}
-.login-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:12px 16px;border-radius:8px;font-size:1.1rem;font-family:'Courier New',monospace;outline:none;text-align:center;letter-spacing:3px;margin-bottom:12px;transition:border-color 0.2s;}
-.login-input:focus{border-color:var(--hi);}
-.login-btn{width:100%;background:var(--hi);color:var(--bg);border:none;padding:12px;border-radius:8px;font-size:0.9rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
-.login-btn:hover{opacity:0.85;}
-.login-error{color:var(--red);font-size:0.8rem;margin-top:10px;min-height:18px;}
 .range-badge{display:inline-block;margin-top:8px;padding:4px 12px;border-radius:999px;font-size:0.72rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--hi);border:1px solid rgba(74,222,128,0.4);background:rgba(74,222,128,0.08);}
-@media(max-width:768px){.header h1{font-size:1.3rem;}th,td{padding:8px 10px;}.search-bar input{width:100%;}.login-box{padding:32px 24px;margin:20px;}}
-</style>
+@media(max-width:768px){.header h1{font-size:1.3rem;}th,td{padding:8px 10px;}.search-bar input{width:100%;}</style>
 </head>
 <body>
-<div class="login-wrap" id="loginWrap">
-  <div class="login-box">
-    <div class="login-logo">⚔ GT ALLIANCE</div>
-    <div class="login-sub">Rankings Since Aug 31</div>
-    <input class="login-input" id="loginInput" type="password" placeholder="Enter code" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()"/>
-    <button class="login-btn" onclick="doLogin()">Enter</button>
-    <div class="login-error" id="loginError"></div>
-  </div>
-</div>
-<div id="pageArea" style="display:none;">
+<div id="pageArea">
 <nav>
 <a class="nav-brand" href="index.html">
 <img src="icon.png" alt="GT Logo" onerror="this.style.display='none'"/>
@@ -147,29 +128,6 @@ var GOAL = 22000000;
 var NP_COLOR = '#ff7832';
 var SH_COLOR = '#00e5ff';
 var RANGE_START = new Date('August 31, 2026');
-var ACCESS_CODE = '2026GT';
-var AUTH_KEY = 'gtGoalsAuth';
-
-function doLogin(){
-  var inp = document.getElementById('loginInput');
-  var err = document.getElementById('loginError');
-  err.textContent = '';
-  if (inp.value.trim() === ACCESS_CODE){
-    sessionStorage.setItem(AUTH_KEY, '1');
-    gtLogLogin('Alliance code', '', 'Alliance code');
-    unlockPage();
-  } else {
-    err.textContent = 'Invalid code. Please try again.';
-    inp.value = '';
-    inp.focus();
-  }
-}
-
-function unlockPage(){
-  document.getElementById('loginWrap').style.display = 'none';
-  document.getElementById('pageArea').style.display = '';
-}
-
 // Keeps only weeks starting on/after RANGE_START and recomputes every stat
 // from those weeks so nothing from earlier in the season leaks in.
 function restrictToRange(data) {
@@ -439,9 +397,5 @@ async function init() {
 window.addEventListener('DOMContentLoaded', init);
 </script>
 </div>
-<script>
-if (sessionStorage.getItem(AUTH_KEY) === '1') unlockPage();
-else document.getElementById('loginInput').focus();
-</script>
 <footer style="text-align:center;padding:12px;font-size:0.65rem;opacity:0.7;color:#c084fc;">Made with Love by DeadPoolSurvivr</footer>
 </body></html>
