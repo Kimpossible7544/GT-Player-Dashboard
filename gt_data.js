@@ -242,14 +242,64 @@ async function fetchWithRetry(url, options = {}, retries = 3, baseDelay = 800) {
   throw lastErr;
 }
 
+const GT_DROPBOX_URL =
+  "https://dl.dropboxusercontent.com/scl/fi/wr3mw6b3avurhjeg759yy/GTStatsFINAL.xlsm" +
+  "?rlkey=l0vgltfg8plegl3ui34u5ux47&raw=1";
+
+// Roster IDs are compared as digit strings ("01,030" -> "1030").
+function gtNormalizeId(value) {
+  if (value === null || value === undefined || value === "") return "";
+  let text = String(value).trim().replace(/[\s,]/g, "");
+  if (!text || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) return "";
+  if (/e/i.test(text)) text = Number(text).toFixed(0);
+  const digits = text.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
+  return digits === "0" ? "" : digits;
+}
+
+// Column C of the "Master IDs" sheet: checkbox TRUE, or Yes / Y / X / 1.
+function gtIsMasterMark(value) {
+  if (value === true || value === 1) return true;
+  return ["true", "yes", "y", "x", "1", "\u2713", "\u2714"].includes(String(value ?? "").trim().toLowerCase());
+}
+
+// "Master IDs" sheet: A = roster ID, B = name, C = Master mark.
+function gtParseMasterIds(workbook) {
+  const masterIds = [];
+  if (!workbook.SheetNames.includes("Master IDs")) return masterIds;
+  const rows = XLSX.utils.sheet_to_json(workbook.Sheets["Master IDs"], { header: 1, defval: null });
+  rows.forEach((row) => {
+    const id = gtNormalizeId(row[0]);
+    if (id && gtIsMasterMark(row[2]) && !masterIds.includes(id)) masterIds.push(id);
+  });
+  return masterIds;
+}
+
+// Lightweight loader for the landing-page login: reads only the Roster and
+// Master IDs sheets. Returns { idToPlayer, masterIds }.
+async function loadGTLoginIds() {
+  const response = await fetchWithRetry(GT_DROPBOX_URL);
+  const buffer = await response.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", sheets: ["Roster", "Master IDs"] });
+  const idToPlayer = {};
+  if (workbook.SheetNames.includes("Roster")) {
+    const rows = XLSX.utils.sheet_to_json(workbook.Sheets["Roster"], { header: 1, defval: null });
+    [[0, 1], [4, 5], [8, 9], [12, 13]].forEach(([idCol, nameCol]) => {
+      for (let r = 1; r < rows.length; r++) {
+        const id = gtNormalizeId(rows[r][idCol]);
+        const name = rows[r][nameCol];
+        if (id && name) idToPlayer[id] = String(name).trim();
+      }
+    });
+  }
+  return { idToPlayer, masterIds: gtParseMasterIds(workbook) };
+}
+
 async function loadGTData() {
 
   // =========================================================
   // DROPBOX FILE LOCATION
   // =========================================================
-  const DROPBOX_URL =
-    "https://dl.dropboxusercontent.com/scl/fi/wr3mw6b3avurhjeg759yy/GTStatsFINAL.xlsm" +
-    "?rlkey=l0vgltfg8plegl3ui34u5ux47&raw=1";
+  const DROPBOX_URL = GT_DROPBOX_URL;
 
   // Previous team's workbook — used only to pull Arena/HQ power history for
   // players who were on BOTH teams so their growth spans both.
@@ -719,14 +769,7 @@ async function loadGTData() {
   const idToPlayer = {};
   const rosterRanks = {};
   const ROSTER_SHEET = "Roster";
-  const normalizeId = (value) => {
-    if (value === null || value === undefined || value === "") return "";
-    let text = String(value).trim().replace(/[\s,]/g, "");
-    if (!text || !/^[+-]?(?:\d+\.?\d*|\.\d+)(?:e[+-]?\d+)?$/i.test(text)) return "";
-    if (/e/i.test(text)) text = Number(text).toFixed(0);
-    const digits = text.replace(/\D/g, "").replace(/^0+(?=\d)/, "");
-    return digits === "0" ? "" : digits;
-  };
+  const normalizeId = gtNormalizeId;
   const gtIdToPlayer = {};
   const gtIdToAka = {};
 
@@ -774,23 +817,10 @@ async function loadGTData() {
   }
 
   // =========================================================
-  // MASTER IDS — "Master IDs" sheet: A = roster ID, B = name, C = Master mark.
-  // Rows whose column C is ticked (TRUE / Yes / Y / X / 1) get the full
-  // alliance view on the Dashboard.
+  // MASTER IDS — rows ticked in column C of the "Master IDs" sheet.
   // =========================================================
-  const isMasterMark = (value) => {
-    if (value === true || value === 1) return true;
-    return ["true", "yes", "y", "x", "1", "\u2713", "\u2714"].includes(String(value ?? "").trim().toLowerCase());
-  };
-  const masterIds = [];
-  if (workbook.SheetNames.includes("Master IDs")) {
-    const masterRows = XLSX.utils.sheet_to_json(workbook.Sheets["Master IDs"], { header: 1, defval: null });
-    masterRows.forEach((row) => {
-      const id = normalizeId(row[0]);
-      if (id && isMasterMark(row[2]) && !masterIds.includes(id)) masterIds.push(id);
-    });
-    console.log("[GT] Master IDs loaded:", masterIds.length);
-  }
+  const masterIds = gtParseMasterIds(workbook);
+  console.log("[GT] Master IDs loaded:", masterIds.length);
 
   // =========================================================
   // CROSS-TEAM ARENA/HQ POWER MERGE (WPX -> GT)

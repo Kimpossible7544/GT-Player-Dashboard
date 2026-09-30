@@ -9,7 +9,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
-<script src="gt_log.js"></script>
+<script src="gt_auth.js"></script>
 <style>
 :root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;}
 *{margin:0;padding:0;box-sizing:border-box;}
@@ -112,31 +112,11 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .wpx-delta-val{font-family:'Courier New',monospace;font-size:0.95rem;font-weight:900;}
 .wpx-note{font-size:0.65rem;color:var(--dim);margin-top:12px;font-style:italic;}
 /* Login screen */
-.login-wrap{position:fixed;top:0;left:0;right:0;bottom:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:999;}
-.login-box{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:40px 36px;width:100%;max-width:400px;text-align:center;}
-.login-logo{font-size:1.4rem;font-weight:900;color:var(--accent);letter-spacing:3px;margin-bottom:6px;}
-.login-sub{font-size:0.8rem;color:var(--dim);letter-spacing:1px;margin-bottom:28px;}
-.login-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:12px 16px;border-radius:8px;font-size:1.1rem;font-family:'Courier New',monospace;outline:none;text-align:center;letter-spacing:3px;margin-bottom:12px;transition:border-color 0.2s;}
-.login-input:focus{border-color:var(--accent);}
-.login-btn{width:100%;background:var(--accent);color:var(--bg);border:none;padding:12px;border-radius:8px;font-size:0.9rem;font-weight:900;letter-spacing:2px;text-transform:uppercase;cursor:pointer;transition:opacity 0.2s;}
-.login-btn:hover{opacity:0.85;}
-.login-error{color:var(--red);font-size:0.8rem;margin-top:10px;min-height:18px;}
 .logout-btn{background:none;border:1px solid var(--border);color:var(--dim);padding:6px 14px;border-radius:6px;font-size:0.75rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;margin-left:16px;transition:all 0.2s;}
 .logout-btn:hover{border-color:var(--red);color:var(--red);}
 </style>
 </head>
 <body>
-
-<!-- Login Screen -->
-<div class="login-wrap" id="loginWrap">
-  <div class="login-box">
-    <div class="login-logo">⚔ GT ALLIANCE</div>
-    <div class="login-sub">Player Dashboard</div>
-    <input class="login-input" id="loginInput" type="password" placeholder="Enter your ID" maxlength="20" onkeydown="if(event.key==='Enter')doLogin()"/>
-    <button class="login-btn" onclick="doLogin()">Enter</button>
-    <div class="login-error" id="loginError"></div>
-  </div>
-</div>
 
 <nav>
 <a class="nav-brand" href="index.html" style="display:flex;align-items:center;gap:10px;text-decoration:none;">
@@ -149,7 +129,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <a href="gt_power.html">Power</a>
 <a href="gt_projections.html">Projections</a>
 <a href="gt_recent.html" id="recentNavLink" style="display:none;">Since Aug 31</a>
-<button class="logout-btn" onclick="doLogout()">Logout</button>
+<button class="logout-btn" onclick="gtLogout()">Logout</button>
 </div>
 </nav>
 <div class="container">
@@ -212,9 +192,6 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 </div>
 </div>
 <script>
-var MASTER_PASSWORD = '2026GT';
-// Roster IDs that get the full alliance view (workbook "Master IDs" sheet).
-var MASTER_IDS = [];
 var players = {};
 var dailyData = null;
 var notPushingWeeks = new Set();
@@ -226,8 +203,9 @@ var DAILY_GOALS = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thurs
 var currentWeekLabel = null;
 var SH_COLOR = '#00e5ff';
 var SH_BG = 'rgba(0,229,255,0.15)';
-var isMaster = false;
-var lockedPlayer = null;
+// Set on the landing page login (gt_auth.js): master sees every player.
+var isMaster = !!(window.gtUser && gtUser.master);
+var lockedPlayer = isMaster || !window.gtUser ? null : gtUser.name;
 var idToPlayer = {}; // id -> player name
 var gtData = null;
 
@@ -263,52 +241,7 @@ function daysHitText(p, w) {
   return hit + '/' + counted;
 }
 
-function doLogin() {
-  var val = document.getElementById('loginInput').value.trim();
-  document.getElementById('loginError').textContent = '';
-
-  if (!val) return;
-
-  // If data not loaded yet, wait and retry
-  if (!gtData) {
-    document.getElementById('loginError').textContent = 'Still loading data, please try again in a moment.';
-    return;
-  }
-
-  // Master password
-  if (val === MASTER_PASSWORD) {
-    isMaster = true;
-    lockedPlayer = null;
-    gtLogLogin('Master password', '', 'Master password');
-    unlockDashboard();
-    return;
-  }
-
-  // Individual player login via roster ID
-  var playerId = idToPlayer[val] ? val : (/^\d+$/.test(val) && idToPlayer[Number(val)] ? String(Number(val)) : null);
-  var playerName = playerId ? idToPlayer[playerId] : null;
-  if (playerName && MASTER_IDS.indexOf(playerId) !== -1) {
-    isMaster = true;
-    lockedPlayer = null;
-    gtLogLogin(playerName, playerId, 'Master ID');
-    unlockDashboard();
-    return;
-  }
-  if (playerName && players[playerName]) {
-    isMaster = false;
-    lockedPlayer = playerName;
-    gtLogLogin(playerName, playerId, 'Player ID');
-    unlockDashboard();
-    return;
-  }
-
-  document.getElementById('loginError').textContent = 'Invalid ID. Please try again.';
-  document.getElementById('loginInput').value = '';
-  document.getElementById('loginInput').focus();
-}
-
 function unlockDashboard() {
-  document.getElementById('loginWrap').style.display = 'none';
   document.getElementById('contentArea').style.display = '';
   var sel = document.getElementById('playerSelect');
 
@@ -321,15 +254,6 @@ function unlockDashboard() {
     sel.style.display = 'none';
     loadPlayer(lockedPlayer);
   }
-}
-
-function doLogout() {
-  isMaster = false;
-  lockedPlayer = null;
-  document.getElementById('loginInput').value = '';
-  document.getElementById('loginError').textContent = '';
-  document.getElementById('loginWrap').style.display = 'flex';
-  document.getElementById('contentArea').style.display = 'none';
 }
 
 function renderGrowthCard(p) {
@@ -618,7 +542,6 @@ async function init() {
     DAILY_GOALS = data.DAILY_GOALS || DAILY_GOALS;
     currentWeekLabel = data.currentWeekLabel || null;
     idToPlayer = data.idToPlayer || {};
-    MASTER_IDS = data.masterIds || [];
 
     var sel = document.getElementById('playerSelect');
     sel.innerHTML = data.playerList.sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); }).map(function (name) {
@@ -626,7 +549,6 @@ async function init() {
     }).join('');
 
     document.getElementById('loadingArea').style.display = 'none';
-    document.getElementById('contentArea').style.display = '';
     document.getElementById('lastUpdated').textContent = 'Data loaded \u2014 ' + new Date().toLocaleString();
 
     // Check for ?player= param (deep link)
@@ -634,8 +556,14 @@ async function init() {
     var requestedPlayer = params.get('player');
     if (requestedPlayer && players[requestedPlayer]) sel.value = requestedPlayer;
 
-    // Focus login input
-    document.getElementById('loginInput').focus();
+    if (!isMaster && !players[lockedPlayer]) {
+      document.getElementById('loadingArea').style.display = '';
+      document.getElementById('loadingArea').innerHTML =
+        '<div class="error-msg">No dashboard data found for ' + lockedPlayer + ' yet.</div>';
+      sel.style.display = 'none';
+      return;
+    }
+    unlockDashboard();
 
   } catch (e) {
     document.getElementById('loadingArea').innerHTML =
