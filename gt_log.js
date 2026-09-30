@@ -1,5 +1,5 @@
-// Login log + master ID list, backed by the Google Apps Script web app in
-// login_log/Code.gs. Leave GT_LOG_URL empty to disable both.
+// Login log, backed by the Google Apps Script web app in login_log/Code.gs.
+// Leave GT_LOG_URL empty to disable it.
 var GT_LOG_URL = '';
 
 function gtLogLogin(name, id, access) {
@@ -24,11 +24,4 @@ function gtLogApi(params) {
       if (d.error) throw new Error(d.error);
       return d;
     });
-}
-
-function gtFetchMasterIds() {
-  if (!GT_LOG_URL) return Promise.resolve([]);
-  return gtLogApi({ action: 'masters' })
-    .then(function (d) { return d.masters || []; })
-    .catch(function () { return []; });
 }

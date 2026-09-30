@@ -213,9 +213,8 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 </div>
 <script>
 var MASTER_PASSWORD = '2026GT';
-// Roster IDs that get the full alliance view; managed on the login log page.
+// Roster IDs that get the full alliance view (workbook "Master IDs" sheet).
 var MASTER_IDS = [];
-var masterIdsLoaded = false;
 var players = {};
 var dailyData = null;
 var notPushingWeeks = new Set();
@@ -271,7 +270,7 @@ function doLogin() {
   if (!val) return;
 
   // If data not loaded yet, wait and retry
-  if (!gtData || !masterIdsLoaded) {
+  if (!gtData) {
     document.getElementById('loginError').textContent = 'Still loading data, please try again in a moment.';
     return;
   }
@@ -610,7 +609,6 @@ function renderDailyChart(playerName, day) {
 }
 
 async function init() {
-  gtFetchMasterIds().then(function (ids) { MASTER_IDS = ids; masterIdsLoaded = true; });
   try {
     var data = await loadGTData();
     gtData = data;
@@ -620,6 +618,7 @@ async function init() {
     DAILY_GOALS = data.DAILY_GOALS || DAILY_GOALS;
     currentWeekLabel = data.currentWeekLabel || null;
     idToPlayer = data.idToPlayer || {};
+    MASTER_IDS = data.masterIds || [];
 
     var sel = document.getElementById('playerSelect');
     sel.innerHTML = data.playerList.sort(function (a, b) { return a.localeCompare(b, undefined, { sensitivity: 'base' }); }).map(function (name) {

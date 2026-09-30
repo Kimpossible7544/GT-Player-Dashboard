@@ -22,7 +22,6 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px
 .btn:hover{opacity:0.85;}
 .btn.ghost{background:transparent;color:var(--dim);border:1px solid var(--border);}
 .btn.ghost:hover{color:var(--text);border-color:var(--dim);}
-.btn.danger{background:transparent;color:var(--red);border:1px solid rgba(255,50,100,0.4);padding:5px 10px;font-size:0.7rem;}
 .page{padding:24px 20px 40px;max-width:1200px;margin:0 auto;}
 h1{font-size:1.8rem;font-weight:900;color:var(--accent);letter-spacing:3px;text-transform:uppercase;}
 .sub{color:var(--dim);margin-top:4px;font-size:0.8rem;letter-spacing:1px;}
@@ -37,7 +36,6 @@ input.txt:focus{border-color:var(--accent);}
 .chip .cid{color:var(--dim);font-family:'Courier New',monospace;font-size:0.8rem;}
 .msg{font-size:0.8rem;margin-top:8px;min-height:16px;}
 .msg.err{color:var(--red);}
-.msg.ok{color:var(--accent);}
 .stats{display:flex;gap:24px;margin-bottom:12px;color:var(--dim);font-size:0.8rem;}
 .stats b{color:var(--text);font-size:1rem;}
 .table-wrap{overflow-x:auto;border-radius:10px;border:1px solid var(--border);}
@@ -83,13 +81,8 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 
   <div class="card">
     <h2>All-Players Access</h2>
-    <p class="hint">Roster IDs listed here see every player's data on the Dashboard, the same as the master password.</p>
-    <div class="row">
-      <input class="txt" id="grantInput" placeholder="Roster ID" maxlength="20" onkeydown="if(event.key==='Enter')grant()"/>
-      <button class="btn" onclick="grant()">Grant Access</button>
-    </div>
-    <div class="msg" id="grantMsg"></div>
-    <div class="chips" id="masterList"></div>
+    <p class="hint">These roster IDs see every player's data on the Dashboard, the same as the master password. To add or remove one, edit column A of the <b>Master IDs</b> sheet in the workbook.</p>
+    <div class="chips" id="masterList"><span style="color:var(--dim);font-size:0.8rem;">Loading workbook...</span></div>
   </div>
 
   <div class="card">
@@ -112,7 +105,7 @@ tr:hover td{background:rgba(255,255,255,0.02);}
 var KEY_STORE = 'gtAdminKey';
 var adminKey = sessionStorage.getItem(KEY_STORE) || '';
 var logins = [];
-var masters = [];
+var masterIds = [];
 var rosterIdToPlayer = {};
 
 function esc(s) {
@@ -121,16 +114,9 @@ function esc(s) {
   });
 }
 
-function normalizeRosterId(v) {
-  var digits = String(v || '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
-  return digits === '0' ? '' : digits;
-}
-
 function applyData(d) {
   logins = d.logins || [];
-  masters = d.masters || [];
   document.getElementById('lastUpdated').textContent = 'Updated \u2014 ' + new Date().toLocaleString();
-  renderMasters();
   renderLogins();
 }
 
@@ -175,43 +161,11 @@ function refresh() {
   });
 }
 
-function setGrantMsg(text, ok) {
-  var el = document.getElementById('grantMsg');
-  el.textContent = text;
-  el.className = 'msg ' + (ok ? 'ok' : 'err');
-}
-
-function grant() {
-  var inp = document.getElementById('grantInput');
-  var id = normalizeRosterId(inp.value);
-  if (!id) { setGrantMsg('Enter a numeric roster ID.', false); return; }
-  var hasRoster = Object.keys(rosterIdToPlayer).length > 0;
-  var name = rosterIdToPlayer[id] || '';
-  if (hasRoster && !name) { setGrantMsg('ID ' + id + ' is not on the roster.', false); return; }
-  gtLogApi({ action: 'grant', key: adminKey, id: id, name: name }).then(function (d) {
-    applyData(d);
-    inp.value = '';
-    setGrantMsg('Granted all-players access to ' + (name || id) + '.', true);
-  }).catch(function (e) { setGrantMsg(e.message, false); });
-}
-
-function revoke(id) {
-  var m = masters.filter(function (x) { return x.id === id; })[0];
-  var label = (m && (rosterIdToPlayer[id] || m.name)) || id;
-  if (!confirm('Remove all-players access for ' + label + '?')) return;
-  gtLogApi({ action: 'revoke', key: adminKey, id: id }).then(function (d) {
-    applyData(d);
-    setGrantMsg('Removed access for ' + label + '.', true);
-  }).catch(function (e) { setGrantMsg(e.message, false); });
-}
-
 function renderMasters() {
   var el = document.getElementById('masterList');
-  if (!masters.length) { el.innerHTML = '<span class="hint" style="color:var(--dim);font-size:0.8rem;">No IDs have all-players access yet.</span>'; return; }
-  el.innerHTML = masters.map(function (m) {
-    var name = rosterIdToPlayer[m.id] || m.name || 'Unknown';
-    return '<div class="chip"><span>' + esc(name) + '</span><span class="cid">' + esc(m.id) + '</span>' +
-      '<button class="btn danger" onclick="revoke(\'' + esc(m.id) + '\')">Remove</button></div>';
+  if (!masterIds.length) { el.innerHTML = '<span style="color:var(--dim);font-size:0.8rem;">No IDs on the Master IDs sheet.</span>'; return; }
+  el.innerHTML = masterIds.map(function (id) {
+    return '<div class="chip"><span>' + esc(rosterIdToPlayer[id] || 'Not on roster') + '</span><span class="cid">' + esc(id) + '</span></div>';
   }).join('');
 }
 
@@ -247,8 +201,11 @@ function renderLogins() {
 
 loadGTData().then(function (data) {
   rosterIdToPlayer = data.idToPlayer || {};
+  masterIds = data.masterIds || [];
   renderMasters();
-}).catch(function () {});
+}).catch(function (e) {
+  document.getElementById('masterList').textContent = 'Could not load workbook: ' + e.message;
+});
 
 if (adminKey) {
   gtLogApi({ action: 'admin', key: adminKey }).then(function (d) { showPage(); applyData(d); })

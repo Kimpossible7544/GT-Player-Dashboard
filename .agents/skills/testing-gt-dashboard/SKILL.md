@@ -76,10 +76,11 @@ The dashboard is gated by a login overlay (`doLogin()`):
 
 ## Login Log (gt_logins.html)
 - Hidden page linked from the faint "π" in the landing page's bottom-right corner.
-- Backed by the Google Apps Script in `login_log/Code.gs`; URL is `GT_LOG_URL` in `gt_log.js`.
-  Password (`ADMIN_PASSWORD`, `2026GT`) is checked by the script, not the page.
+- Logins are sent to the Google Apps Script in `login_log/Code.gs`; URL is `GT_LOG_URL` in
+  `gt_log.js`. The password (`ADMIN_PASSWORD`, `2026GT`) is checked by the script, not the page.
 - To test without the real script, point `GT_LOG_URL` at a local mock that implements
-  `GET ?action=masters|admin|grant|revoke&key=...` (JSON + `Access-Control-Allow-Origin: *`)
-  and `POST {action:'log',...}`.
-- Master IDs granted on this page make that roster ID log into the Dashboard with the full
-  alliance view (dropdown visible); logins show as "Master ID" in the log.
+  `GET ?action=admin|csv&key=...` (JSON/CSV + `Access-Control-Allow-Origin: *`) and
+  `POST {action:'log',...}`.
+- Master IDs come from column A of the workbook's "Master IDs" sheet (`data.masterIds`). Those
+  roster IDs log into the Dashboard with the full alliance view; logins show as "Master ID".
+  To test without editing the workbook, override `MASTER_IDS` in the console after data loads.
