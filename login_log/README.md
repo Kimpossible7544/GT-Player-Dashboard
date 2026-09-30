@@ -33,9 +33,17 @@ the bottom-right corner of the landing page) shows the same log. It opens with
 
 ## All-players access (Master IDs)
 
-Roster IDs in column A of a workbook sheet named **Master IDs** log into the
-Dashboard with the full alliance view (player dropdown), the same as the
-master password. A header row is fine; non-numeric cells are ignored.
+Add a workbook sheet named **Master IDs** listing every player:
+
+| A: ID | B: Player | C: Master |
+|-------|-----------|-----------|
+| 1030  | DeadPoolSurvivr | TRUE |
+| 1007  | SomePlayer | FALSE |
+
+Rows ticked in column C (a checkbox, or `TRUE` / `Yes` / `Y` / `X` / `1`) log
+into the Dashboard with the full alliance view (player dropdown), the same as
+the master password. Everyone else sees only their own data. A header row is
+fine; rows without a numeric ID in column A are ignored.
 
 If you edit `Code.gs` later, use **Deploy -> Manage deployments -> Edit ->
 New version** so the same URL keeps working.

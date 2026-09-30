@@ -81,6 +81,7 @@ The dashboard is gated by a login overlay (`doLogin()`):
 - To test without the real script, point `GT_LOG_URL` at a local mock that implements
   `GET ?action=admin|csv&key=...` (JSON/CSV + `Access-Control-Allow-Origin: *`) and
   `POST {action:'log',...}`.
-- Master IDs come from column A of the workbook's "Master IDs" sheet (`data.masterIds`). Those
-  roster IDs log into the Dashboard with the full alliance view; logins show as "Master ID".
+- Master IDs come from the workbook's "Master IDs" sheet (`data.masterIds`): column A = ID,
+  B = name, C = Master mark (TRUE/Yes/Y/X/1). Only marked rows log into the Dashboard with the
+  full alliance view; logins show as "Master ID".
   To test without editing the workbook, override `MASTER_IDS` in the console after data loads.
