@@ -14,9 +14,21 @@
   }
   window.gtUser = user;
 
+  // Roster IDs only get their own Dashboard; Master IDs get every page.
+  var page = location.pathname.split('/').pop() || 'index.html';
+  if (!user.master && page !== 'gt_dashboard.html'){
+    document.documentElement.style.display = 'none';
+    location.replace('gt_dashboard.html');
+    return;
+  }
+
   document.addEventListener('DOMContentLoaded', function(){
-    var el = document.getElementById('recentNavLink');
-    if (el) el.style.display = '';
+    var links = document.querySelectorAll('.nav-links a');
+    for (var i = 0; i < links.length; i++){
+      var href = links[i].getAttribute('href');
+      if (!user.master && href !== 'gt_dashboard.html') links[i].style.display = 'none';
+      else if (links[i].id === 'recentNavLink') links[i].style.display = '';
+    }
   });
 })();
 

@@ -27,8 +27,9 @@ data from a Dropbox-hosted Excel workbook (`GTStatsFINAL.xlsm`). All data parsin
 All logins happen on the landing page (`tryCode()` in `index.html`); every other page includes
 `gt_auth.js`, which redirects to `index.html` unless sessionStorage has `gtGoalsAuth='1'` and
 `gtUser = {name, id, master}`. `gtLogout()` clears both.
-- **Master password** `2026GT` or a ticked **Master ID** → Dashboard shows the player dropdown.
-- **Roster ID** → Dashboard locked to that player, dropdown HIDDEN (`?player=` deep links ignored).
+- **Master password** `2026GT` or a ticked **Master ID** → every page; Dashboard shows the player dropdown.
+- **Roster ID** → Dashboard only, locked to that player, dropdown HIDDEN (`?player=` deep links
+  ignored). Landing shows only the Dashboard button; other pages redirect to `gt_dashboard.html`.
   IDs come from the Roster sheet via `loadGTLoginIds()` (reads only Roster + Master IDs).
 - Invalid entry → "Invalid ID. Please try again." under the input.
 - To find a valid roster ID without asking the user, download the workbook and read the Roster
