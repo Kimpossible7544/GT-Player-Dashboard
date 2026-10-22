@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Team Stats</title>
+<script>document.write('<scr'+'ipt src="gt_auth.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#16130f;--panel:#221e19;--panel2:#2a251f;--line:#3a332a;--dash:#4a4136;--gold:#f2c230;--rust:#e0704a;--rust-dk:#6b2a1c;--text:#e8e0d0;--soft:#c9bfae;--dim:#a89f8e;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed','Arial Narrow',sans-serif;min-height:100vh;}
+.stencil{font-family:'Black Ops One',Impact,sans-serif;letter-spacing:0.04em;font-weight:400;}
+.typer{font-family:'Special Elite','Courier New',monospace;}
+.tape{height:10px;background:repeating-linear-gradient(-45deg,var(--gold) 0 14px,var(--bg) 14px 28px);}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;max-width:960px;margin:0 auto;padding:14px 16px 0;}
+.topbar a,.topbar button{font-family:'Special Elite','Courier New',monospace;font-size:14px;letter-spacing:0.12em;color:var(--dim);text-decoration:none;background:none;border:0;cursor:pointer;padding:10px 4px;}
+.topbar a:hover,.topbar button:hover{color:var(--gold);}
+.wrap{max-width:960px;margin:0 auto;padding:16px 16px 56px;display:flex;flex-direction:column;gap:28px;}
+header{display:flex;flex-direction:column;gap:4px;border-bottom:3px solid var(--line);padding-bottom:16px;}
+.kicker{font-size:14px;color:var(--dim);letter-spacing:0.18em;}
+h1{font-size:52px;line-height:1;}
+h1 span{color:var(--gold);}
+h2{font-size:30px;}
+.row{display:flex;flex-wrap:wrap;gap:16px;}
+.card{background:var(--panel);border:2px solid var(--line);}
+.season{flex:2 1 320px;min-width:0;padding:24px 28px;display:flex;flex-direction:column;gap:8px;}
+.bigrec{font-size:88px;line-height:0.95;}
+.bigrec .w{color:var(--gold);} .bigrec .l{color:var(--rust);} .bigrec .dash{color:var(--dim);}
+.soft{color:var(--soft);font-size:17px;} .soft strong{color:var(--text);}
+.form{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:4px;}
+.chip{width:34px;height:34px;display:inline-flex;align-items:center;justify-content:center;font-size:17px;}
+.cw{background:var(--gold);color:var(--bg);} .cl{background:var(--rust-dk);color:#f3ecdc;} .cq{background:var(--panel2);color:var(--dim);}
+.thisweek{flex:1 1 260px;min-width:0;padding:24px;display:flex;flex-direction:column;gap:10px;border:2px dashed var(--gold);}
+.pills{display:flex;gap:6px;flex-wrap:wrap;}
+.pill{display:inline-flex;flex-direction:column;align-items:center;min-width:44px;padding:4px 6px;border:1px solid var(--dash);}
+.pill b{font-family:'Black Ops One',Impact,sans-serif;font-weight:400;font-size:13px;}
+.pill span{font-size:15px;font-weight:700;}
+.btn{align-self:flex-start;min-height:44px;padding:8px 16px;background:transparent;color:var(--gold);border:2px solid var(--gold);font-family:'Black Ops One',Impact,sans-serif;font-size:15px;letter-spacing:0.04em;cursor:pointer;}
+.btn:hover{background:var(--gold);color:var(--bg);}
+.btn:focus-visible,.opp:focus-visible{outline:3px solid var(--gold);outline-offset:2px;}
+.listhead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;}
+.opps{display:flex;flex-direction:column;gap:10px;}
+.opp{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:16px;width:100%;min-height:64px;padding:12px 18px;background:var(--panel);border:2px solid var(--line);color:var(--text);text-align:left;cursor:pointer;font-family:inherit;}
+.opp:hover{border-color:var(--gold);background:var(--panel2);}
+.opp .name{font-size:22px;overflow-wrap:anywhere;}
+.opp .sub{font-size:16px;color:var(--dim);}
+.tally{display:flex;gap:6px;}
+.tally span{min-width:44px;padding:4px 8px;text-align:center;font-size:18px;font-family:'Black Ops One',Impact,sans-serif;}
+.zero{background:var(--panel2);color:var(--dim);}
+.dethead{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;flex-wrap:wrap;}
+.dethead h2{font-size:46px;line-height:1;overflow-wrap:anywhere;}
+.box{min-width:96px;padding:10px 14px;background:var(--panel);display:flex;flex-direction:column;align-items:center;}
+.box .n{font-size:48px;line-height:1;}
+.box .t{font-size:13px;color:var(--dim);letter-spacing:0.12em;}
+.meet{position:relative;overflow:hidden;padding:20px 22px;display:flex;flex-direction:column;gap:14px;}
+.stamp{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none;z-index:0;}
+.stamp span{line-height:1;padding:6px 36px;border:10px solid currentColor;opacity:0.2;transform:rotate(-14deg);white-space:nowrap;font-size:clamp(72px,16vw,170px);}
+.stamp span.long{font-size:clamp(44px,9vw,100px);}
+.meet > *:not(.stamp){position:relative;z-index:1;}
+.meethead{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;}
+.note{font-size:15px;color:var(--rust);background:#2e221c;padding:10px 12px;}
+.tbl{overflow-x:auto;}
+.grid{min-width:520px;display:flex;flex-direction:column;}
+.tr{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr) minmax(0,1fr) 70px;gap:10px;align-items:center;padding:9px 0;border-bottom:1px dashed var(--line);}
+.tr.th{padding:6px 0;border-bottom:2px solid var(--line);}
+.tr.th span{font-family:'Special Elite','Courier New',monospace;font-size:13px;color:var(--dim);}
+.num{font-size:19px;text-align:right;}
+.res{text-align:center;}
+.daycell{display:flex;flex-direction:column;line-height:1.15;}
+.daycell .d{font-size:16px;} .daycell .d em{font-style:normal;color:var(--gold);font-size:13px;}
+.daycell .th2{font-size:15px;color:var(--dim);}
+.status{display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px 0;text-align:center;}
+footer{font-size:13px;color:var(--dim);text-align:center;letter-spacing:0.12em;}
+@media(max-width:500px){h1{font-size:40px;}.bigrec{font-size:68px;}.dethead h2{font-size:34px;}}
+</style>
+</head>
+<body>
+<div class="tape"></div>
+<div class="topbar">
+  <a href="index.html">← HOME</a>
+  <button type="button" onclick="gtLogout()">LOG OUT</button>
+</div>
+<div class="wrap">
+  <header>
+    <div class="typer kicker">FIELD REPORT // ALLIANCE DUEL</div>
+    <h1 class="stencil">GT <span>TEAM STATS</span></h1>
+  </header>
+  <main id="app">
+    <div class="status"><div class="stencil" style="font-size:22px">LOADING INTEL…</div><div class="typer" style="color:var(--dim)">Pulling the weekly sheets from GTStatsFINAL</div></div>
+  </main>
+  <footer class="typer">DATA: GTStatsFINAL WEEKLY SHEETS · ROWS 110 / 114 / 115 · SATURDAY IN COLUMN Q</footer>
+</div>
+<div class="tape"></div>
+
+<script>
+// ===================================================================
+// GT Team Stats — reads the duel block from every weekly sheet
+//   A114 = opponent, row 110 = GT in-game total, row 115 = opponent total
+//   C..G = Mon..Fri, Q = Saturday (Q117 = W/L, Q110/Q115 = scores if caught)
+// ===================================================================
+var DAYS = [
+  { day: 'MON', theme: 'Mod Vehicle',      pts: 1, col: 'C' },
+  { day: 'TUE', theme: 'Shelter Upgrade',  pts: 2, col: 'D' },
+  { day: 'WED', theme: 'Age of Science',   pts: 2, col: 'E' },
+  { day: 'THU', theme: 'Hero Progression', pts: 2, col: 'F' },
+  { day: 'FRI', theme: 'Holistic Growth',  pts: 2, col: 'G' },
+  { day: 'SAT', theme: 'Enemy Buster',     pts: 4, col: 'Q' }
+];
+var WEEK_RE = /^[A-Z][a-z]+ \d{1,2} - [A-Z][a-z]+ \d{1,2}$/;
+
+function cellVal(ws, addr) { var c = ws[addr]; return c ? c.v : null; }
+function score(ws, addr) {
+  var v = cellVal(ws, addr);
+  if (typeof v === 'string') v = Number(v.replace(/[,\s]/g, ''));
+  return (typeof v === 'number' && isFinite(v) && v > 0) ? v : null;
+}
+function satMark(ws) {
+  var v = String(cellVal(ws, 'Q117') || '').trim().toUpperCase();
+  if (v === 'W' || v === 'WIN' || v === 'GT') return 'W';
+  if (v === 'L' || v === 'LOSS') return 'L';
+  return null;
+}
+function weekStart(title) {
+  var start = title.split(' - ')[0].trim(), now = new Date(), y = now.getFullYear();
+  var d = new Date(start + ', ' + y);
+  if (d - now > 180 * 864e5) d = new Date(start + ', ' + (y - 1));
+  return d;
+}
+function shortLabel(t) { return t.replace(/([A-Z][a-z]+)/g, function (m) { return m.slice(0, 3); }).replace(' - ', ' – '); }
+
+function weekComplete(title) { return typeof isWeekComplete === 'function' ? isWeekComplete(title) : true; }
+function weekStarted(title) { return typeof hasWeekStarted === 'function' ? hasWeekStarted(title) : true; }
+
+// Pure: workbook -> array of week objects, oldest first
+function buildWeeks(wb) {
+  var out = [];
+  wb.SheetNames.forEach(function (name) {
+    if (!WEEK_RE.test(name)) return;
+    var ws = wb.Sheets[name];
+    if (!ws || String(cellVal(ws, 'A113') || '').trim() !== 'Duel Opponent:') return;
+    var opp = String(cellVal(ws, 'A114') || '').trim();
+    if (!opp || !weekStarted(name)) return;
+    var days = [], gp = 0, op = 0, remaining = 0, dw = 0, dl = 0, missing = [];
+    for (var i = 0; i < 5; i++) {
+      var D = DAYS[i], g = score(ws, D.col + '110'), o = score(ws, D.col + '115');
+      if (g === null || o === null) { days.push(null); remaining += D.pts; missing.push(D.day); continue; }
+      var won = g > o;
+      if (won) { gp += D.pts; dw++; } else { op += D.pts; dl++; }
+      days.push({ g: g, o: o, won: won });
+    }
+    var S = DAYS[5], sat = null, sg = score(ws, 'Q110'), so = score(ws, 'Q115'), sm = satMark(ws);
+    if (sm) sat = { won: sm === 'W', g: sg, o: so };
+    else if (sg !== null && so !== null) sat = { won: sg > so, g: sg, o: so };
+    if (sat) { if (sat.won) gp += S.pts; else op += S.pts; }
+
+    var status, note = '';
+    if (sat && remaining === 0) status = gp > op ? 'WIN' : 'LOSS';
+    else if (!sat && Math.abs(gp - op) > remaining + S.pts) status = gp > op ? 'WIN' : 'LOSS';
+    else if (sat && Math.abs(gp - op) > remaining) status = gp > op ? 'WIN' : 'LOSS';
+    else if (!weekComplete(name) && remaining > 0) status = 'LIVE';
+    else if (remaining === 0) {
+      status = 'NEEDS SAT';
+      note = 'Weekdays ended ' + gp + '–' + op + ', so Enemy Buster decides this week. Type W or L in Q117 on the "' + name + '" sheet.';
+    } else {
+      status = 'INCOMPLETE';
+      note = 'Missing scores for ' + missing.join(', ') + ' on the "' + name + '" sheet (rows 110 / 115).';
+    }
+    out.push({ title: name, label: shortLabel(name), start: weekStart(name), opp: opp, days: days, sat: sat,
+      gp: gp, op: op, dw: dw, dl: dl, status: status, note: note });
+  });
+  out.sort(function (a, b) { return a.start - b.start; });
+  return out;
+}
+
+// -------------------------------------------------------------- rendering
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function fmt(n) { return n >= 1e9 ? (n / 1e9).toFixed(2) + 'B' : (n / 1e6).toFixed(1) + 'M'; }
+function settled(w) { return w.status === 'WIN' || w.status === 'LOSS'; }
+function statusColor(s) { return s === 'WIN' ? 'var(--gold)' : s === 'LOSS' ? 'var(--rust)' : 'var(--dim)'; }
+
+var WEEKS = [];
+
+function oppStats(name) {
+  var ms = WEEKS.filter(function (w) { return w.opp === name; }), w = 0, l = 0, extra = [];
+  ms.forEach(function (m) {
+    if (m.status === 'WIN') w++; else if (m.status === 'LOSS') l++;
+    else extra.push(m.status === 'LIVE' ? 'live now' : m.status.toLowerCase());
+  });
+  return { name: name, meets: ms, w: w, l: l, last: ms[ms.length - 1], extra: extra };
+}
+
+function renderHome() {
+  var done = WEEKS.filter(settled);
+  var w = done.filter(function (x) { return x.status === 'WIN'; }).length, l = done.length - w;
+  var daysW = 0, daysL = 0;
+  WEEKS.forEach(function (x) { if (x.status !== 'LIVE') { daysW += x.dw; daysL += x.dl; } });
+  var open = WEEKS.filter(function (x) { return x.status === 'NEEDS SAT' || x.status === 'INCOMPLETE'; }).length;
+  var past = WEEKS.filter(function (x) { return x.status !== 'LIVE'; }).slice(-5);
+  var live = WEEKS.filter(function (x) { return x.status === 'LIVE'; }).pop();
+  var lastPast = past.length ? past[past.length - 1] : null;
+  var span = WEEKS.length && lastPast ? WEEKS[0].label.split(' – ')[0] + ' – ' + lastPast.label.split(' – ')[1] : '';
+
+  var h = '<div style="display:flex;flex-direction:column;gap:28px">';
+  h += '<section class="row"><div class="card season">';
+  h += '<div class="typer kicker">SEASON RECORD · ' + esc(span.toUpperCase()) + '</div>';
+  h += '<div style="display:flex;align-items:baseline;gap:16px;flex-wrap:wrap"><div class="stencil bigrec"><span class="w">' + w + '</span><span class="dash"> – </span><span class="l">' + l + '</span></div>';
+  h += '<div class="soft" style="font-size:20px">' + (done.length ? Math.round(w / done.length * 100) : 0) + '% win rate</div></div>';
+  h += '<div class="soft">Duel days won: <strong>' + daysW + '–' + daysL + '</strong>' + (open ? ' · <span style="color:var(--rust)">' + open + (open === 1 ? ' week needs' : ' weeks need') + ' attention</span>' : '') + '</div>';
+  h += '<div class="form"><span class="typer kicker" style="letter-spacing:0.1em">LAST 5:</span>';
+  past.forEach(function (x) {
+    var r = x.status === 'WIN' ? 'W' : x.status === 'LOSS' ? 'L' : '?';
+    h += '<span class="stencil chip ' + (r === 'W' ? 'cw' : r === 'L' ? 'cl' : 'cq') + '" title="' + esc(x.label + ' vs ' + x.opp) + '">' + r + '</span>';
+  });
+  h += '</div></div>';
+
+  if (live) {
+    h += '<div class="card thisweek"><div class="typer kicker" style="color:var(--gold)">THIS WEEK · ' + esc(live.label.toUpperCase()) + '</div>';
+    h += '<div class="stencil" style="font-size:28px;overflow-wrap:anywhere">vs ' + esc(live.opp) + '</div>';
+    h += '<div class="stencil" style="font-size:40px;line-height:1">' + live.gp + '<span style="color:var(--dim);font-size:28px"> – </span>' + live.op + ' <span class="typer" style="font-size:15px;color:var(--dim)">PTS SO FAR</span></div>';
+    h += '<div class="pills">';
+    DAYS.slice(0, 5).forEach(function (D, i) {
+      var d = live.days[i], cls = d ? (d.won ? 'cw' : 'cl') : 'cq';
+      h += '<span class="pill ' + cls + '"><b>' + D.day + '</b><span>' + (d ? (d.won ? 'W' : 'L') : '—') + '</span></span>';
+    });
+    h += '</div><button class="btn" type="button" data-opp="' + esc(live.opp) + '">FULL BREAKDOWN</button></div>';
+  }
+  h += '</section>';
+
+  var order = [];
+  WEEKS.slice().reverse().forEach(function (x) { if (order.indexOf(x.opp) === -1) order.push(x.opp); });
+  h += '<section style="display:flex;flex-direction:column;gap:12px"><div class="listhead"><h2 class="stencil">OPPONENTS</h2><div class="typer kicker" style="letter-spacing:0.05em">Tap a name for the day-by-day</div></div><div class="opps">';
+  order.forEach(function (name) {
+    var s = oppStats(name);
+    var sub = (s.meets.length === 1 ? 'Met once' : 'Met ' + s.meets.length + 'x') + ' · last ' + s.last.label + (s.extra.length ? ' · ' + s.extra.join(', ') : '');
+    h += '<button class="opp" type="button" data-opp="' + esc(name) + '"><span style="display:flex;flex-direction:column;min-width:0"><span class="stencil name">' + esc(name) + '</span><span class="sub">' + esc(sub) + '</span></span>';
+    h += '<span class="tally"><span class="' + (s.w ? 'cw' : 'zero') + '">' + s.w + 'W</span><span class="' + (s.l ? 'cl' : 'zero') + '">' + s.l + 'L</span></span>';
+    h += '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#a89f8e" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>';
+  });
+  h += '</div></section></div>';
+  return h;
+}
+
+function dayRow(D, cells) {
+  return '<div class="tr"><span class="daycell"><span class="stencil d">' + D.day + ' <em>' + D.pts + 'PT</em></span><span class="th2">' + D.theme + '</span></span>' + cells + '</div>';
+}
+function scoreCells(g, o, won) {
+  var gs = won ? 'font-weight:700;color:var(--text)' : 'color:var(--soft)';
+  var os = won ? 'color:var(--soft)' : 'font-weight:700;color:var(--text)';
+  return '<span class="num" style="' + gs + '">' + (g === null ? 'no score' : fmt(g)) + '</span><span class="num" style="' + os + '">' + (o === null ? 'no score' : fmt(o)) + '</span>' +
+    '<span class="stencil res" style="font-size:22px;color:' + (won ? 'var(--gold)' : 'var(--rust)') + '">' + (won ? 'W' : 'L') + '</span>';
+}
+function emptyCells(label) {
+  return '<span class="num" style="color:var(--dim)">—</span><span class="num" style="color:var(--dim)">—</span><span class="stencil res" style="font-size:15px;color:var(--dim)">' + label + '</span>';
+}
+
+function renderOpp(name) {
+  var s = oppStats(name);
+  if (!s.meets.length) return renderHome();
+  var h = '<div style="display:flex;flex-direction:column;gap:22px">';
+  h += '<button class="btn" type="button" data-back="1">← ALL OPPONENTS</button>';
+  h += '<div class="dethead"><div style="display:flex;flex-direction:column;gap:4px;min-width:0"><div class="typer kicker">GT VS</div><h2 class="stencil">' + esc(name) + '</h2>';
+  h += '<div class="soft">' + (s.meets.length === 1 ? 'Met once' : 'Met ' + s.meets.length + 'x') + ' · last ' + esc(s.last.label) + '</div></div>';
+  h += '<div style="display:flex;gap:10px"><div class="box" style="border:2px solid var(--gold)"><span class="stencil n" style="color:var(--gold)">' + s.w + '</span><span class="typer t">WINS</span></div>';
+  h += '<div class="box" style="border:2px solid var(--rust)"><span class="stencil n" style="color:var(--rust)">' + s.l + '</span><span class="typer t">LOSSES</span></div></div></div>';
+
+  s.meets.slice().reverse().forEach(function (m) {
+    var col = statusColor(m.status);
+    h += '<section class="card meet"><div class="stamp" aria-hidden="true"><span class="stencil' + (m.status.length > 6 ? ' long' : '') + '" style="color:' + col + '">' + m.status + '</span></div>';
+    h += '<div class="meethead"><div style="display:flex;flex-direction:column"><span class="typer kicker" style="font-size:14px;letter-spacing:0.12em">WEEK OF</span><span class="stencil" style="font-size:24px">' + esc(m.label) + '</span></div>';
+    h += '<div style="display:flex;align-items:center;gap:14px"><span class="stencil" style="font-size:30px">' + m.gp + '<span style="color:var(--dim)"> – </span>' + m.op + ' <span class="typer" style="font-size:14px;color:var(--dim)">PTS</span></span>';
+    h += '<span class="stencil" style="font-size:18px;color:' + col + '">' + m.status + '</span></div></div>';
+    if (m.note) h += '<div class="typer note">' + esc(m.note) + '</div>';
+    h += '<div class="tbl"><div class="grid"><div class="tr th"><span>DAY</span><span style="text-align:right">GT</span><span style="text-align:right">THEM</span><span style="text-align:center">RESULT</span></div>';
+    for (var i = 0; i < 5; i++) {
+      var d = m.days[i];
+      h += dayRow(DAYS[i], d ? scoreCells(d.g, d.o, d.won) : emptyCells(m.status === 'LIVE' ? 'TBD' : 'N/T'));
+    }
+    if (m.sat) h += dayRow(DAYS[5], scoreCells(m.sat.g, m.sat.o, m.sat.won));
+    else if (m.status === 'NEEDS SAT') h += dayRow(DAYS[5], emptyCells('N/T'));
+    h += '</div></div></section>';
+  });
+  h += '</div>';
+  return h;
+}
+
+function route() {
+  var app = document.getElementById('app');
+  var m = location.hash.match(/^#opp=(.+)$/);
+  app.innerHTML = m ? renderOpp(decodeURIComponent(m[1])) : renderHome();
+}
+
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-opp],[data-back]');
+  if (!b) return;
+  if (b.hasAttribute('data-back')) { history.back(); return; }
+  location.hash = 'opp=' + encodeURIComponent(b.getAttribute('data-opp'));
+  window.scrollTo(0, 0);
+});
+window.addEventListener('hashchange', route);
+
+async function loadTeam() {
+  var resp = await fetchWithRetry(GT_DROPBOX_URL);
+  var buf = await resp.arrayBuffer();
+  var names = XLSX.read(buf, { type: 'array', bookSheets: true }).SheetNames.filter(function (n) { return WEEK_RE.test(n); });
+  return buildWeeks(XLSX.read(buf, { type: 'array', sheets: names }));
+}
+
+if (typeof fetchWithRetry === 'function') {
+  loadTeam().then(function (weeks) {
+    WEEKS = weeks;
+    if (!WEEKS.length) throw new Error('No weekly sheets with a duel opponent were found.');
+    route();
+  }).catch(function (err) {
+    document.getElementById('app').innerHTML = '<div class="status"><div class="stencil" style="font-size:24px;color:var(--rust)">COMMS DOWN</div><div class="typer" style="color:var(--soft);max-width:520px">' + esc(err.message) + '</div><button class="btn" type="button" onclick="location.reload()" style="align-self:center">TRY AGAIN</button></div>';
+  });
+}
+</script>
+</body>
+</html>
