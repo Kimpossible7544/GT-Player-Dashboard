@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Team Builder</title>
+<script>document.write('<scr'+'ipt src="gt_auth.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#0a0a0f;--panel:#111118;--panel2:#1a1a24;--accent:#00ffb4;--accent2:#00b4ff;--accent3:#b464ff;--gold:#ffc800;--hi:#00b4ff;--red:#ff3264;--text:#dcdce8;--dim:#6b6b88;--border:#2a2a3a;--nav-h:60px;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellipse at 20% 20%,rgba(255,200,0,0.04) 0%,transparent 60%),radial-gradient(ellipse at 80% 80%,rgba(0,180,255,0.04) 0%,transparent 60%);pointer-events:none;z-index:0;}
+nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px;height:var(--nav-h);background:var(--panel);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;}
+.nav-brand{display:flex;align-items:center;gap:10px;text-decoration:none;}
+.nav-brand img{height:36px;width:36px;object-fit:contain;border-radius:6px;}
+.nav-brand span{font-size:1.2rem;font-weight:800;color:var(--accent);letter-spacing:2px;}
+.nav-links a{color:var(--dim);text-decoration:none;margin-left:20px;font-size:0.85rem;font-weight:600;letter-spacing:1px;text-transform:uppercase;transition:color 0.2s;}
+.nav-links a:hover,.nav-links a.active{color:var(--accent);}
+.page-wrap{position:relative;z-index:1;padding:24px 20px 40px;max-width:1400px;margin:0 auto;}
+.header{margin-bottom:20px;}
+.header h1{font-size:1.8rem;font-weight:900;color:var(--hi);letter-spacing:3px;text-transform:uppercase;}
+.header p{color:var(--dim);margin-top:4px;font-size:0.8rem;letter-spacing:1px;}
+.layout{display:grid;grid-template-columns:360px 1fr;gap:20px;align-items:start;}
+@media(max-width:900px){.layout{grid-template-columns:1fr;}}
+.panel{background:var(--panel);border:1px solid var(--border);border-radius:12px;padding:16px;}
+.panel h2{font-size:0.72rem;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--dim);margin-bottom:12px;}
+.controls{display:flex;flex-direction:column;gap:12px;}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+label.lbl{font-size:0.8rem;color:var(--text);font-weight:600;}
+input[type=number],input[type=text]{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 10px;border-radius:8px;font-size:0.9rem;outline:none;font-family:inherit;}
+input[type=number]:focus,input[type=text]:focus{border-color:var(--hi);}
+#teamCount{width:80px;}
+#search{width:100%;}
+button{background:var(--panel2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:8px;font-size:0.78rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;font-family:inherit;}
+button:hover{border-color:var(--hi);color:var(--hi);}
+button.primary{background:var(--hi);color:#001018;border-color:var(--hi);width:100%;padding:12px;font-size:0.9rem;}
+button.primary:hover{filter:brightness(1.15);color:#001018;}
+.toggle{display:flex;gap:8px;align-items:center;font-size:0.8rem;color:var(--text);cursor:pointer;}
+.count-line{font-size:0.78rem;color:var(--dim);}
+.count-line b{color:var(--accent);}
+.player-list{max-height:60vh;overflow-y:auto;border:1px solid var(--border);border-radius:8px;margin-top:4px;}
+.p-item{display:flex;align-items:center;gap:10px;padding:7px 10px;border-bottom:1px solid var(--border);font-size:0.85rem;cursor:pointer;}
+.p-item:nth-child(even){background:var(--panel2);}
+.p-item:hover{background:rgba(0,180,255,0.06);}
+.p-item input[type=checkbox]{accent-color:var(--hi);width:16px;height:16px;}
+.p-name{flex:1;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.p-pow{font-family:'Courier New',monospace;color:var(--hi);font-size:0.8rem;}
+.p-item.nodata .p-pow{color:var(--red);}
+.p-item input.manual{width:76px;padding:4px 6px;font-size:0.78rem;}
+.warn{background:rgba(255,50,100,0.08);border:1px solid rgba(255,50,100,0.4);color:var(--red);border-radius:8px;padding:10px 12px;font-size:0.8rem;margin-bottom:14px;display:none;}
+.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px;}
+@media(max-width:700px){.stats{grid-template-columns:repeat(2,1fr);}}
+.stat{background:var(--panel);border-radius:10px;padding:12px;border-top:3px solid var(--hi);text-align:center;}
+.stat-label{font-size:0.62rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dim);margin-bottom:6px;}
+.stat-value{font-size:1.15rem;font-weight:900;color:var(--hi);font-family:'Courier New',monospace;}
+.teams{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:14px;}
+.team{background:var(--panel);border:1px solid var(--border);border-radius:12px;overflow:hidden;}
+.team-head{padding:12px 14px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:baseline;}
+.team-name{font-weight:900;letter-spacing:2px;text-transform:uppercase;color:var(--accent);}
+.team-total{font-family:'Courier New',monospace;color:var(--gold);font-weight:700;}
+.team-sub{padding:6px 14px;font-size:0.7rem;color:var(--dim);letter-spacing:1px;border-bottom:1px solid var(--border);}
+.team ol{list-style:none;}
+.team li{display:flex;justify-content:space-between;padding:6px 14px;font-size:0.84rem;border-bottom:1px solid rgba(42,42,58,0.5);}
+.team li:last-child{border-bottom:none;}
+.team li .pw{font-family:'Courier New',monospace;color:var(--hi);}
+.empty{color:var(--dim);font-style:italic;text-align:center;padding:40px 20px;}
+.loading{text-align:center;padding:40px 20px;color:var(--dim);}
+.spinner{display:inline-block;width:28px;height:28px;border:3px solid var(--border);border-top-color:var(--hi);border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px;}
+@keyframes spin{to{transform:rotate(360deg)}}
+.error-msg{color:var(--red);text-align:center;padding:30px;}
+.copied{color:var(--accent);font-size:0.75rem;margin-left:8px;}
+@media(max-width:768px){.header h1{font-size:1.3rem;}.nav-links a{margin-left:10px;font-size:0.7rem;}}
+</style>
+</head>
+<body>
+<nav>
+<a class="nav-brand" href="index.html">
+<img src="icon.png" alt="GT Logo" onerror="this.style.display='none'"/>
+<span>GT ALLIANCE</span>
+</a>
+<div class="nav-links">
+<a href="gt_standings.html">Standings</a>
+<a href="gt_dashboard.html">Dashboard</a>
+<a href="gt_power.html">Power</a>
+<a href="gt_teams.html" class="active">Teams</a>
+<a href="gt_projections.html">Projections</a>
+<a href="gt_recent.html" id="recentNavLink" style="display:none;">Since Aug 31</a>
+</div>
+</nav>
+
+<div class="page-wrap">
+<div class="header">
+<h1>Team Builder</h1>
+<p id="lastUpdated">Loading data...</p>
+</div>
+
+<div class="layout">
+  <!-- LEFT: controls + player picker -->
+  <div class="panel controls">
+    <h2>Setup</h2>
+    <div class="row">
+      <label class="lbl" for="teamCount">Number of teams</label>
+      <input type="number" id="teamCount" min="2" max="20" value="2">
+    </div>
+    <label class="toggle"><input type="checkbox" id="evenSizes"> Keep team sizes even (±1 player)</label>
+    <button class="primary" onclick="buildTeams()">Build Teams</button>
+
+    <h2 style="margin-top:8px;">Available Players</h2>
+    <input type="text" id="search" placeholder="Search players..." oninput="renderList()">
+    <div class="row">
+      <button onclick="setAll(true)">All</button>
+      <button onclick="setAll(false)">None</button>
+      <span class="count-line"><b id="selCount">0</b> selected · <span id="selPower">0.00 M</span></span>
+    </div>
+    <div class="player-list" id="playerList">
+      <div class="loading"><div class="spinner"></div><br>Loading roster...</div>
+    </div>
+    <p class="count-line">Red = no Arena Power on file. Type a value (in M) to include them, or leave blank to skip.</p>
+  </div>
+
+  <!-- RIGHT: results -->
+  <div>
+    <div class="warn" id="warn"></div>
+    <div class="stats" id="stats" style="display:none;">
+      <div class="stat"><div class="stat-label">Players</div><div class="stat-value" id="stPlayers">—</div></div>
+      <div class="stat"><div class="stat-label">Target / Team</div><div class="stat-value" id="stTarget">—</div></div>
+      <div class="stat"><div class="stat-label">Gap (High − Low)</div><div class="stat-value" id="stGap">—</div></div>
+      <div class="stat"><div class="stat-label">Gap %</div><div class="stat-value" id="stGapPct">—</div></div>
+    </div>
+    <div class="row" id="resultActions" style="display:none;margin-bottom:14px;">
+      <button onclick="buildTeams(true)">Reshuffle</button>
+      <button onclick="copyTeams()">Copy Teams as Text</button><span class="copied" id="copied"></span>
+    </div>
+    <div class="teams" id="teams"><div class="panel empty">Pick players and hit Build Teams.</div></div>
+  </div>
+</div>
+</div>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+// allPlayers: [{ name, arena (number in M or null) }]
+// selected:   Set of names that are checked
+// manual:     { name: number } typed-in power for players with no data
+var allPlayers = [];
+var selected = new Set();
+var manual = {};
+var lastTeams = null;
+
+function fmt(n) { return (n === null || n === undefined || isNaN(n)) ? '—' : n.toFixed(2) + ' M'; }
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+
+// Power used for balancing: sheet value first, typed-in value second.
+function powerOf(name) {
+  var p = allPlayers.find(function (x) { return x.name === name; });
+  if (p && p.arena !== null) return p.arena;
+  var m = manual[name];
+  return (typeof m === 'number' && !isNaN(m)) ? m : null;
+}
+
+// ============================================================
+// PLAYER PICKER
+// ============================================================
+function renderList() {
+  var q = document.getElementById('search').value.toLowerCase();
+  var html = allPlayers
+    .filter(function (p) { return p.name.toLowerCase().includes(q); })
+    .map(function (p) {
+      var checked = selected.has(p.name) ? 'checked' : '';
+      var e = esc(p.name);
+      var right = p.arena !== null
+        ? '<span class="p-pow">' + fmt(p.arena) + '</span>'
+        : '<input class="manual" type="number" step="0.01" min="0" placeholder="no data" ' +
+          'value="' + (manual[p.name] !== undefined ? manual[p.name] : '') + '" ' +
+          'onclick="event.stopPropagation()" oninput="setManual(this, \'' + e.replace(/'/g, "\\'") + '\')">';
+      return '<label class="p-item' + (p.arena === null ? ' nodata' : '') + '">' +
+        '<input type="checkbox" ' + checked + ' onchange="toggle(this, \'' + e.replace(/'/g, "\\'") + '\')">' +
+        '<span class="p-name" title="' + e + '">' + e + '</span>' + right + '</label>';
+    }).join('');
+  document.getElementById('playerList').innerHTML = html || '<div class="empty">No matches.</div>';
+  updateCounts();
+}
+
+function toggle(cb, name) { cb.checked ? selected.add(name) : selected.delete(name); updateCounts(); }
+
+function setManual(input, name) {
+  var v = parseFloat(input.value);
+  if (isNaN(v)) delete manual[name]; else manual[name] = v;
+  updateCounts();
+}
+
+function setAll(on) {
+  var q = document.getElementById('search').value.toLowerCase();
+  allPlayers.forEach(function (p) {
+    if (!p.name.toLowerCase().includes(q)) return; // respect search filter
+    on ? selected.add(p.name) : selected.delete(p.name);
+  });
+  renderList();
+}
+
+function updateCounts() {
+  var total = 0;
+  selected.forEach(function (n) { var v = powerOf(n); if (v !== null) total += v; });
+  document.getElementById('selCount').textContent = selected.size;
+  document.getElementById('selPower').textContent = fmt(total);
+}
+
+// ============================================================
+// BALANCING ALGORITHM
+// ============================================================
+// Step 1 (greedy): sort strongest -> weakest, drop each player onto the
+//   team with the lowest running total (respecting a size cap if "even" is on).
+// Step 2 (polish): repeatedly try moving or swapping players between the
+//   strongest and weakest teams; keep any change that shrinks the gap.
+// "shuffle" breaks ties between equal-power players randomly so Reshuffle
+//   can give a different (still balanced) result.
+function balance(players, n, even, shuffle) {
+  var list = players.slice();
+  if (shuffle) list.forEach(function (p) { p._r = Math.random(); });
+  list.sort(function (a, b) { return (b.power - a.power) || (shuffle ? a._r - b._r : 0); });
+
+  var teams = [];
+  for (var i = 0; i < n; i++) teams.push({ players: [], total: 0 });
+  // Even mode: every team gets `base` players, and `extra` teams get one more.
+  var base = Math.floor(list.length / n);
+  var extra = list.length % n;
+
+  list.forEach(function (p) {
+    var best = null;
+    teams.forEach(function (t) {
+      if (even) {
+        var len = t.players.length;
+        if (len > base) return;               // already at base+1
+        if (len === base && extra === 0) return; // no "+1" slots left
+      }
+      if (!best || t.total < best.total ||
+          (t.total === best.total && t.players.length < best.players.length)) best = t;
+    });
+    if (even && best.players.length === base) extra--; // used up a "+1" slot
+    best.players.push(p);
+    best.total += p.power;
+  });
+
+  // Polish pass: for every pair of teams (bigger total A, smaller total B),
+  // find the single move or 1-for-1 swap that brings A and B closest together.
+  // Narrowing any pair lowers the overall spread. Repeat until nothing helps.
+  var improved = true, guard = 0;
+  while (improved && guard++ < 2000) {
+    improved = false;
+    for (var x = 0; x < n; x++) for (var y = 0; y < n; y++) {
+      var A = teams[x], B = teams[y];
+      var gap = A.total - B.total;
+      if (gap <= 1e-9) continue;
+      var bestMove = null;
+
+      // Move one player A -> B (even mode: only if A has more players than B)
+      if (!even || A.players.length > B.players.length) {
+        A.players.forEach(function (p, i) {
+          if (p.power >= gap) return;
+          var g = Math.abs(gap - 2 * p.power);
+          if (!bestMove || g < bestMove.g) bestMove = { g: g, type: 'move', i: i };
+        });
+      }
+      // Swap one-for-one (A gives a stronger player, gets a weaker one)
+      A.players.forEach(function (p, i) {
+        B.players.forEach(function (q, j) {
+          var d = p.power - q.power;
+          if (d <= 0 || d >= gap) return;
+          var g = Math.abs(gap - 2 * d);
+          if (!bestMove || g < bestMove.g) bestMove = { g: g, type: 'swap', i: i, j: j };
+        });
+      });
+
+      if (bestMove && bestMove.g < gap - 1e-9) {
+        if (bestMove.type === 'move') {
+          var m = A.players.splice(bestMove.i, 1)[0];
+          B.players.push(m); A.total -= m.power; B.total += m.power;
+        } else {
+          var a = A.players[bestMove.i], b = B.players[bestMove.j];
+          A.players[bestMove.i] = b; B.players[bestMove.j] = a;
+          A.total += b.power - a.power; B.total += a.power - b.power;
+        }
+        improved = true;
+      }
+    }
+  }
+
+  teams.forEach(function (t) { t.players.sort(function (a, b) { return b.power - a.power; }); });
+  teams.sort(function (a, b) { return b.total - a.total; });
+  return teams;
+}
+
+// ============================================================
+// BUILD + RENDER
+// ============================================================
+function buildTeams(shuffle) {
+  var warn = document.getElementById('warn');
+  var n = parseInt(document.getElementById('teamCount').value, 10);
+  var even = document.getElementById('evenSizes').checked;
+  var msgs = [];
+
+  var usable = [], skipped = [];
+  selected.forEach(function (name) {
+    var v = powerOf(name);
+    if (v === null) skipped.push(name); else usable.push({ name: name, power: v });
+  });
+
+  if (skipped.length) msgs.push('Skipped (no Arena Power, nothing typed in): ' + skipped.map(esc).join(', '));
+  if (isNaN(n) || n < 2) msgs.push('Team count must be 2 or more.');
+  else if (usable.length < n) msgs.push('Need at least ' + n + ' players with power to make ' + n + ' teams. You have ' + usable.length + '.');
+
+  warn.innerHTML = msgs.join('<br>');
+  warn.style.display = msgs.length ? '' : 'none';
+  if (isNaN(n) || n < 2 || usable.length < n) return;
+
+  var teams = balance(usable, n, even, !!shuffle);
+  lastTeams = teams;
+
+  var totals = teams.map(function (t) { return t.total; });
+  var hi = Math.max.apply(null, totals), lo = Math.min.apply(null, totals);
+  var all = totals.reduce(function (s, v) { return s + v; }, 0);
+  var target = all / n;
+
+  document.getElementById('stPlayers').textContent = usable.length;
+  document.getElementById('stTarget').textContent = fmt(target);
+  document.getElementById('stGap').textContent = fmt(hi - lo);
+  document.getElementById('stGapPct').textContent = target ? ((hi - lo) / target * 100).toFixed(1) + '%' : '—';
+  document.getElementById('stats').style.display = '';
+  document.getElementById('resultActions').style.display = '';
+
+  document.getElementById('teams').innerHTML = teams.map(function (t, i) {
+    var diff = t.total - target;
+    return '<div class="team">' +
+      '<div class="team-head"><span class="team-name">Team ' + (i + 1) + '</span>' +
+      '<span class="team-total">' + fmt(t.total) + '</span></div>' +
+      '<div class="team-sub">' + t.players.length + ' players · ' +
+        (diff >= 0 ? '+' : '') + diff.toFixed(2) + ' M vs target</div>' +
+      '<ol>' + t.players.map(function (p) {
+        return '<li><span>' + esc(p.name) + '</span><span class="pw">' + fmt(p.power) + '</span></li>';
+      }).join('') + '</ol></div>';
+  }).join('');
+}
+
+function copyTeams() {
+  if (!lastTeams) return;
+  var txt = lastTeams.map(function (t, i) {
+    return 'Team ' + (i + 1) + ' (' + t.total.toFixed(2) + 'M): ' +
+      t.players.map(function (p) { return p.name; }).join(', ');
+  }).join('\n');
+  var done = function () {
+    var c = document.getElementById('copied'); c.textContent = 'Copied!';
+    setTimeout(function () { c.textContent = ''; }, 1800);
+  };
+  if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, function () { prompt('Copy:', txt); });
+  else prompt('Copy:', txt);
+}
+
+// ============================================================
+// LOAD
+// ============================================================
+async function init() {
+  try {
+    var data = await loadGTData();
+    allPlayers = Object.keys(data.players).map(function (name) {
+      var g = data.players[name].growth;
+      var a = (g && typeof g.currentArena === 'number') ? g.currentArena : null;
+      return { name: name, arena: a };
+    }).sort(function (a, b) {
+      // Players with power first (strongest to weakest), then no-data alphabetically
+      if (a.arena === null && b.arena === null) return a.name.localeCompare(b.name);
+      if (a.arena === null) return 1;
+      if (b.arena === null) return -1;
+      return b.arena - a.arena;
+    });
+    renderList();
+    document.getElementById('lastUpdated').textContent = 'Data loaded — ' + new Date().toLocaleString();
+  } catch (e) {
+    document.getElementById('playerList').innerHTML = '<div class="error-msg">Failed to load data: ' + esc(e.message) + '</div>';
+    document.getElementById('lastUpdated').textContent = 'Error loading data';
+  }
+}
+window.addEventListener('DOMContentLoaded', init);
+</script>
+<script>
+if (sessionStorage.getItem('gtGoalsAuth') === '1') {
+  var rl = document.getElementById('recentNavLink');
+  if (rl) rl.style.display = '';
+}
+</script>
+<footer style="text-align:center;padding:12px;font-size:0.65rem;opacity:0.7;color:#c084fc;">Made with Love by DeadPoolSurvivr</footer>
+</body></html>
