@@ -129,6 +129,12 @@ function fmtPower(n) {
   return n.toFixed(2) + ' M';
 }
 
+// Values are stored in millions; show as billions (G) with one decimal.
+function fmtPowerG(n) {
+  if (n === null || n === undefined) return '—';
+  return (n / 1000).toFixed(1) + ' G';
+}
+
 function deltaCell(n) {
   if (n === null || n === undefined) return '<td class="delta delta-neu">\u2014</td>';
   var cls = n > 0 ? 'delta-pos' : n < 0 ? 'delta-neg' : 'delta-neu';
@@ -206,7 +212,7 @@ function buildSummary() {
   var total = rows.reduce(function (s, r) { return s + r.arena; }, 0);
   var growth = rows.reduce(function (s, r) { return s + (r.overallDelta || 0); }, 0);
   document.getElementById('sumPlayers').textContent = rows.length;
-  document.getElementById('sumTotal').textContent = fmtPower(total);
+  document.getElementById('sumTotal').textContent = fmtPowerG(total);
   document.getElementById('sumAvg').textContent = fmtPower(total / rows.length);
   document.getElementById('sumGrowth').textContent = (growth > 0 ? '+' : '') + growth.toFixed(2) + ' M';
   document.getElementById('summary').style.display = '';
