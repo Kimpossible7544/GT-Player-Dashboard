@@ -105,9 +105,11 @@ function getDailyGoal(day, weekLabel, cutoffLabel) {
 // treated as a raw count and divided by 1,000,000 so every value is in millions.
 function parsePower(val) {
   if (!val && val !== 0) return null;
-  const str = String(val).replace(/Mil/gi, "").replace(/M/gi, "").replace(/\s/g, "").trim();
+  const isG = /\d\s*G\s*$/i.test(String(val));   // e.g. "1.0G" = billions
+  const str = String(val).replace(/Mil/gi, "").replace(/[MG]/gi, "").replace(/\s/g, "").trim();
   let num = parseFloat(str);
   if (isNaN(num)) return null;
+  if (isG) return num * 1000;
   if (Math.abs(num) >= 100000) num = num / 1000000;
   return num;
 }
