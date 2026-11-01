@@ -315,8 +315,7 @@ function buildWeekSections(players, weeks, daily, currentWeekLabel) {
         var v = pd[d][idx] || 0;
         if (!v) { html += '<td class="empty">\u2014</td>'; return; }
         var goal = getDailyGoal(d, label, currentWeekLabel);
-        // Saturday has no daily goal, so it's shown neutral.
-        var cls = (np || d === 'Saturday') ? 'day-score' : (v >= goal ? 'day-met' : 'day-miss');
+        var cls = np ? 'day-score' : (v >= goal ? 'day-met' : 'day-miss');
         html += '<td class="' + cls + '">' + v.toLocaleString() + '</td>';
       });
       var tCls = r.sh ? 'server-help' : (np ? '' : (r.score >= GOAL ? 'goal-met' : 'week-score'));

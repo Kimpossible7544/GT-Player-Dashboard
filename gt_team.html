@@ -339,8 +339,8 @@ function route() {
 
 var DAY_NAME = { C: 'Monday', D: 'Tuesday', E: 'Wednesday', F: 'Thursday', G: 'Friday', Q: 'Saturday' };
 function goalFor(col, title) {
-  // Saturday has no daily goal; weekdays use the same goals as the player pages.
-  if (col === 'Q' || typeof getDailyGoal !== 'function') return 0;
+  // Same goals as the player pages (Saturday = 10M, display only).
+  if (typeof getDailyGoal !== 'function') return 0;
   return getDailyGoal(DAY_NAME[col], title, currentWeek());
 }
 function currentWeek() {

@@ -89,8 +89,10 @@ function parseDateMMDDYYYY(dateStr) {
 }
 
 // Daily goals. Thursday is raised from 6M to 8M from the current week forward.
-const DAILY_GOALS_NEW = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 8000000, Friday: 3000000 };
-const DAILY_GOALS_OLD = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 6000000, Friday: 3000000 };
+// Saturday (Enemy Buster) goal is display-only: it colors met/missed but is never
+// counted in missed daily goals or days-hit, which only loop Mon–Fri.
+const DAILY_GOALS_NEW = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 8000000, Friday: 3000000, Saturday: 10000000 };
+const DAILY_GOALS_OLD = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 6000000, Friday: 3000000, Saturday: 10000000 };
 
 function getDailyGoal(day, weekLabel, cutoffLabel) {
   const cutoff = cutoffLabel ? parseWeekStartDate(cutoffLabel) : null;
