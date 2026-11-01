@@ -75,6 +75,20 @@ h2{font-size:30px;}
 .daycell{display:flex;flex-direction:column;line-height:1.15;}
 .daycell .d{font-size:16px;} .daycell .d em{font-style:normal;color:var(--gold);font-size:13px;}
 .daycell .th2{font-size:15px;color:var(--dim);}
+.tr.clk{cursor:pointer;}
+.tr.clk:hover{background:var(--panel2);}
+.tr.clk:focus-visible{outline:3px solid var(--gold);outline-offset:-3px;}
+.tr.clk .daycell .d::after{content:' \25BE';color:var(--dim);font-size:13px;}
+.tr.clk.open .daycell .d::after{content:' \25B4';}
+.roster{border-bottom:2px solid var(--line);background:var(--bg);padding:12px 14px;display:flex;flex-direction:column;gap:8px;}
+.roster .rhead{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:14px;color:var(--dim);}
+.rlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:2px 18px;}
+.rrow{display:grid;grid-template-columns:30px minmax(0,1fr) auto;gap:8px;align-items:baseline;padding:4px 0;border-bottom:1px dashed var(--line);font-size:16px;}
+.rrow .rk{color:var(--dim);font-family:'Special Elite','Courier New',monospace;font-size:13px;}
+.rrow .nm{overflow-wrap:anywhere;}
+.rrow .sc{font-family:'Courier New',monospace;font-weight:700;}
+.met{color:var(--gold);} .miss{color:var(--rust);} .neu{color:var(--text);} .exc{color:var(--dim);}
+.rnone{font-size:14px;color:var(--dim);}
 .status{display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px 0;text-align:center;}
 footer{font-size:13px;color:var(--dim);text-align:center;letter-spacing:0.12em;}
 @media(max-width:500px){h1{font-size:40px;}.bigrec{font-size:68px;}.dethead h2{font-size:34px;}}
@@ -126,6 +140,24 @@ function satMark(ws) {
   if (v === 'L' || v === 'LOSS') return 'L';
   return null;
 }
+// Every player row on a weekly sheet: row 2 down to the "Missed Goal:" row.
+// Returns { C: [{name, v, x}], D: [...], ... Q: [...] } in sheet order.
+function playerScores(ws) {
+  var out = {}, cols = DAYS.map(function (D) { return D.col; });
+  cols.forEach(function (c) { out[c] = []; });
+  for (var r = 2; r < 200; r++) {
+    var nm = String(cellVal(ws, 'A' + r) || '').trim();
+    if (/^(missed goal|in game total|total):$/i.test(nm)) break; // exact labels only: "Total chaos" is a player
+    if (!nm) continue;
+    cols.forEach(function (c) {
+      var raw = cellVal(ws, c + r);
+      var x = typeof raw === 'string' && raw.trim().toLowerCase() === 'x';
+      if (typeof raw === 'string' && !x) raw = Number(raw.replace(/[,\s]/g, ''));
+      out[c].push({ name: nm, v: (typeof raw === 'number' && isFinite(raw) && raw > 0) ? raw : 0, x: x });
+    });
+  }
+  return out;
+}
 function weekStart(title) {
   var start = title.split(' - ')[0].trim(), now = new Date(), y = now.getFullYear();
   var d = new Date(start + ', ' + y);
@@ -172,7 +204,7 @@ function buildWeeks(wb) {
       note = 'Missing scores for ' + missing.join(', ') + ' on the "' + name + '" sheet (rows 110 / 115).';
     }
     out.push({ title: name, label: shortLabel(name), start: weekStart(name), opp: opp, days: days, sat: sat,
-      gp: gp, op: op, dw: dw, dl: dl, status: status, note: note });
+      gp: gp, op: op, dw: dw, dl: dl, status: status, note: note, players: playerScores(ws) });
   });
   out.sort(function (a, b) { return a.start - b.start; });
   return out;
@@ -246,7 +278,15 @@ function renderHome() {
   return h;
 }
 
-function dayRow(D, cells) {
+// A day row is tappable when anyone on the team has a score (or an x) that day.
+function dayHasPlayers(wi, col) {
+  var w = WEEKS[wi];
+  return !!(w && w.players && w.players[col].some(function (p) { return p.v > 0 || p.x; }));
+}
+function dayRow(D, cells, wi) {
+  if (wi !== undefined && wi >= 0 && dayHasPlayers(wi, D.col)) {
+    return '<div class="tr clk" role="button" tabindex="0" aria-expanded="false" data-wk="' + wi + '" data-col="' + D.col + '"><span class="daycell"><span class="stencil d">' + D.day + ' <em>' + D.pts + 'PT</em></span><span class="th2">' + D.theme + '</span></span>' + cells + '</div>';
+  }
   return '<div class="tr"><span class="daycell"><span class="stencil d">' + D.day + ' <em>' + D.pts + 'PT</em></span><span class="th2">' + D.theme + '</span></span>' + cells + '</div>';
 }
 function scoreCells(g, o, won) {
@@ -276,13 +316,15 @@ function renderOpp(name) {
     h += '<div style="display:flex;align-items:center;gap:14px"><span class="stencil" style="font-size:30px">' + m.gp + '<span style="color:var(--dim)"> – </span>' + m.op + ' <span class="typer" style="font-size:14px;color:var(--dim)">PTS</span></span>';
     h += '<span class="stencil" style="font-size:18px;color:' + col + '">' + m.status + '</span></div></div>';
     if (m.note) h += '<div class="typer note">' + esc(m.note) + '</div>';
+    if (m.players) h += '<div class="typer kicker" style="font-size:13px;letter-spacing:0.08em">TAP A DAY FOR EVERY PLAYER\'S SCORE</div>';
     h += '<div class="tbl"><div class="grid"><div class="tr th"><span>DAY</span><span style="text-align:right">GT</span><span style="text-align:right">THEM</span><span style="text-align:center">RESULT</span></div>';
+    var wi = WEEKS.indexOf(m);
     for (var i = 0; i < 5; i++) {
       var d = m.days[i];
-      h += dayRow(DAYS[i], d ? scoreCells(d.g, d.o, d.won) : emptyCells(m.status === 'LIVE' ? 'TBD' : 'N/T'));
+      h += dayRow(DAYS[i], d ? scoreCells(d.g, d.o, d.won) : emptyCells(m.status === 'LIVE' ? 'TBD' : 'N/T'), wi);
     }
-    if (m.sat) h += dayRow(DAYS[5], scoreCells(m.sat.g, m.sat.o, m.sat.won));
-    else if (m.status === 'NEEDS SAT') h += dayRow(DAYS[5], emptyCells('N/T'));
+    if (m.sat) h += dayRow(DAYS[5], scoreCells(m.sat.g, m.sat.o, m.sat.won), wi);
+    else if (m.status === 'NEEDS SAT') h += dayRow(DAYS[5], emptyCells('N/T'), wi);
     h += '</div></div></section>';
   });
   h += '</div>';
@@ -295,7 +337,58 @@ function route() {
   app.innerHTML = m ? renderOpp(decodeURIComponent(m[1])) : renderHome();
 }
 
+var DAY_NAME = { C: 'Monday', D: 'Tuesday', E: 'Wednesday', F: 'Thursday', G: 'Friday', Q: 'Saturday' };
+function goalFor(col, title) {
+  // Saturday has no daily goal; weekdays use the same goals as the player pages.
+  if (col === 'Q' || typeof getDailyGoal !== 'function') return 0;
+  return getDailyGoal(DAY_NAME[col], title, currentWeek());
+}
+function currentWeek() {
+  var live = WEEKS.filter(function (w) { return w.status === 'LIVE'; }).pop();
+  return live ? live.title : (WEEKS.length ? WEEKS[WEEKS.length - 1].title : null);
+}
+function rosterPanel(wi, col) {
+  var w = WEEKS[wi], D = DAYS.filter(function (x) { return x.col === col; })[0];
+  var list = w.players[col];
+  var scored = list.filter(function (p) { return p.v > 0; }).sort(function (a, b) { return b.v - a.v; });
+  var excused = list.filter(function (p) { return !p.v && p.x; });
+  var none = list.filter(function (p) { return !p.v && !p.x; });
+  var goal = goalFor(col, w.title);
+  var total = scored.reduce(function (a, p) { return a + p.v; }, 0);
+  var met = goal ? scored.filter(function (p) { return p.v >= goal; }).length : 0;
+  var h = '<div class="roster" data-panel="' + wi + '-' + col + '">';
+  h += '<div class="rhead typer"><span>' + D.day + ' · ' + scored.length + ' SCORED · TOTAL ' + fmt(total) + '</span>';
+  h += '<span>' + (goal ? 'GOAL ' + fmt(goal) + ' · ' + met + ' MET / ' + (scored.length - met) + ' MISSED' : 'NO DAILY GOAL') + '</span></div>';
+  h += '<div class="rlist">';
+  scored.forEach(function (p, i) {
+    var cls = goal ? (p.v >= goal ? 'met' : 'miss') : 'neu';
+    h += '<div class="rrow"><span class="rk">' + (i + 1) + '</span><span class="nm">' + esc(p.name) + '</span><span class="sc ' + cls + '">' + p.v.toLocaleString() + '</span></div>';
+  });
+  excused.forEach(function (p) {
+    h += '<div class="rrow"><span class="rk">—</span><span class="nm exc">' + esc(p.name) + '</span><span class="sc exc">x</span></div>';
+  });
+  h += '</div>';
+  if (none.length) h += '<div class="rnone">No score (' + none.length + '): ' + none.map(function (p) { return esc(p.name); }).join(', ') + '</div>';
+  return h + '</div>';
+}
+function toggleDay(row) {
+  var key = row.getAttribute('data-wk') + '-' + row.getAttribute('data-col');
+  var next = row.nextElementSibling;
+  if (next && next.getAttribute('data-panel') === key) {
+    next.remove(); row.classList.remove('open'); row.setAttribute('aria-expanded', 'false'); return;
+  }
+  row.insertAdjacentHTML('afterend', rosterPanel(+row.getAttribute('data-wk'), row.getAttribute('data-col')));
+  row.classList.add('open'); row.setAttribute('aria-expanded', 'true');
+}
+document.addEventListener('keydown', function (e) {
+  if ((e.key === 'Enter' || e.key === ' ') && e.target.classList && e.target.classList.contains('clk')) {
+    e.preventDefault(); toggleDay(e.target);
+  }
+});
+
 document.addEventListener('click', function (e) {
+  var dr = e.target.closest('.tr.clk');
+  if (dr) { toggleDay(dr); return; }
   var b = e.target.closest('[data-opp],[data-back]');
   if (!b) return;
   if (b.hasAttribute('data-back')) { history.back(); return; }
