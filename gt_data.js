@@ -320,6 +320,13 @@ async function loadGTData() {
 
   const DAYS = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
+  // Saturday (Enemy Buster) lives in column Q of the weekly sheets and is only
+  // filled when the duel needs it. It is tracked alongside DAYS but kept out of
+  // it on purpose: no daily goal, so it never counts toward missed daily goals,
+  // days-hit, or the Mon–Fri averages. Pages show it only where a score exists.
+  const SAT = "Saturday";
+  const SAT_COL = 16; // column Q
+
   const WEEKLY_GOAL = 20000000;
 
   // =========================================================
@@ -600,15 +607,15 @@ async function loadGTData() {
 
   Object.keys(players).forEach(name => {
     dailyData.players[name] = {
-      Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], rank: [],
-      excused: { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [] }
+      Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [], rank: [],
+      excused: { Monday: [], Tuesday: [], Wednesday: [], Thursday: [], Friday: [], Saturday: [] }
     };
   });
 
   for (const weekLabel of weekLabels) {
     if (!workbook.SheetNames.includes(weekLabel)) {
       Object.keys(players).forEach(name => {
-        DAYS.forEach(day => {
+        DAYS.concat(SAT).forEach(day => {
           dailyData.players[name][day].push(0);
           dailyData.players[name].excused[day].push(false);
         });
@@ -640,11 +647,14 @@ async function loadGTData() {
         dayValues[day] = (typeof raw === 'number' ? raw : 0);
         dayValues.excused[day] = isExcusedCell(raw);
       });
+      const rawSat = row[SAT_COL];
+      dayValues[SAT] = (typeof rawSat === 'number' && rawSat > 0 ? rawSat : 0);
+      dayValues.excused[SAT] = isExcusedCell(rawSat);
       const existing = byPlayer[name];
       if (existing) {
         // Merge rather than overwrite: a real day's score lands on only one
         // of the two fragment rows, so keep whichever side has it.
-        DAYS.forEach(day => {
+        DAYS.concat(SAT).forEach(day => {
           existing[day] = dayValues[day] || existing[day];
           existing.excused[day] = existing.excused[day] || dayValues.excused[day];
         });
@@ -656,7 +666,7 @@ async function loadGTData() {
 
     Object.keys(players).forEach(name => {
       const pd = byPlayer[name];
-      DAYS.forEach(day => {
+      DAYS.concat(SAT).forEach(day => {
         dailyData.players[name][day].push(pd ? (pd[day] || 0) : 0);
         dailyData.players[name].excused[day].push(pd ? !!pd.excused[day] : false);
       });

@@ -269,7 +269,7 @@ function buildRows(players, weeks) {
 }
 
 var DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-var DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri' };
+var DAY_SHORT = { Monday:'Mon', Tuesday:'Tue', Wednesday:'Wed', Thursday:'Thu', Friday:'Fri', Saturday:'Sat' };
 
 // One ranked table per week, newest first, with the daily breakdown.
 function buildWeekSections(players, weeks, daily, currentWeekLabel) {
@@ -280,6 +280,12 @@ function buildWeekSections(players, weeks, daily, currentWeekLabel) {
     var idx = daily ? daily.weekOrder.indexOf(label) : -1;
     var np = notPushingWeeks.has(label);
     var live = label === currentWeekLabel;
+    // Saturday column only on weeks where someone actually has a Saturday score.
+    var hasSat = !!(daily && idx >= 0) && Object.keys(players).some(function (name) {
+      var spd = daily.players[name];
+      return !!(spd && spd.Saturday && spd.Saturday[idx] > 0);
+    });
+    var weekDays = hasSat ? DAYS.concat('Saturday') : DAYS;
     var rows = Object.keys(players).map(function (name) {
       var w = players[name].weeks.find(function (x) { return x.label === label; });
       return { name: name, score: (w && w.score) || 0, sh: !!(w && w.serverHelp) };
@@ -291,25 +297,26 @@ function buildWeekSections(players, weeks, daily, currentWeekLabel) {
     html += '<span class="tag">' + rows.length + ' players</span></div>';
     html += '<div class="table-wrap"><table id="' + tid + '" class="sortable"><thead><tr>';
     var cols = [{ label: 'Rank', cls: 'accent' }, { label: 'Player', cls: '' }];
-    DAYS.forEach(function (d) { cols.push({ label: DAY_SHORT[d], cls: '' }); });
+    weekDays.forEach(function (d) { cols.push({ label: DAY_SHORT[d], cls: '' }); });
     cols.push({ label: 'Weekly Total', cls: 'accent2' });
     html += cols.map(function (c, i) {
       return '<th class="' + c.cls + '" onclick="sortTable(\'' + tid + '\',' + i + ')">' + c.label + '</th>';
     }).join('') + '</tr></thead><tbody>';
-    if (!rows.length) html += '<tr><td colspan="8" class="empty" style="text-align:center">No scores yet</td></tr>';
+    if (!rows.length) html += '<tr><td colspan="' + cols.length + '" class="empty" style="text-align:center">No scores yet</td></tr>';
     rows.forEach(function (r, i) {
       var enc = encodeURIComponent(r.name);
       html += '<tr onclick="location.href=\'gt_dashboard.html?player=' + enc + '\'">';
       html += '<td class="' + rankClass(i + 1) + '">' + (i + 1) + '</td>';
       html += '<td class="player-name"><a href="gt_dashboard.html?player=' + enc + '">' + r.name + (r.sh ? '<span style="color:#ff3264;margin-left:2px;font-size:0.85em" title="Helped the server">&dagger;</span>' : '') + '</a></td>';
       var pd = daily && daily.players[r.name];
-      DAYS.forEach(function (d) {
+      weekDays.forEach(function (d) {
         if (!pd || idx < 0) { html += '<td class="empty">\u2014</td>'; return; }
         if (pd.excused && pd.excused[d] && pd.excused[d][idx]) { html += '<td class="day-excused" title="Excused">x</td>'; return; }
         var v = pd[d][idx] || 0;
         if (!v) { html += '<td class="empty">\u2014</td>'; return; }
         var goal = getDailyGoal(d, label, currentWeekLabel);
-        var cls = np ? 'day-score' : (v >= goal ? 'day-met' : 'day-miss');
+        // Saturday has no daily goal, so it's shown neutral.
+        var cls = (np || d === 'Saturday') ? 'day-score' : (v >= goal ? 'day-met' : 'day-miss');
         html += '<td class="' + cls + '">' + v.toLocaleString() + '</td>';
       });
       var tCls = r.sh ? 'server-help' : (np ? '' : (r.score >= GOAL ? 'goal-met' : 'week-score'));
