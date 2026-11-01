@@ -184,6 +184,11 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <table class="week-table"><thead><tr><th>Day</th><th>Average Score</th><th>Daily Goal</th></tr></thead>
 <tbody id="dailyAvgTableBody"></tbody></table>
 </div>
+<div class="chart-card full" id="satCard" style="margin-bottom:28px;display:none;">
+<div class="chart-title">Enemy Buster (Saturday) &mdash; tracked separately, not in daily or weekly goals</div>
+<table class="week-table"><thead><tr><th>Saturday Average</th><th>Saturdays Played</th><th>Hit 10M Goal</th><th>Best Saturday</th></tr></thead>
+<tbody id="satTableBody"></tbody></table>
+</div>
 <div class="chart-card" style="margin-bottom:28px;">
 <div class="chart-title">Weekly Breakdown</div>
 <table class="week-table"><thead><tr><th>Week</th><th>Score</th><th>Rank</th><th>Daily Goals</th><th>20M Goal</th></tr></thead>
@@ -201,7 +206,7 @@ var selectedDay = 'Monday';
 var scoreChart = null, rankChart = null, dailyChart = null;
 var NP_COLOR = '#ff7832';
 var NP_BG = 'rgba(255,120,50,0.15)';
-var DAILY_GOALS = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 8000000, Friday: 3000000 };
+var DAILY_GOALS = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 8000000, Friday: 3000000, Saturday: 10000000 };
 var currentWeekLabel = null;
 var SH_COLOR = '#00e5ff';
 var SH_BG = 'rgba(0,229,255,0.15)';
@@ -480,6 +485,27 @@ function loadPlayer(name) {
 
   renderDailyChart(name, selectedDay);
   renderDailyAverages(name);
+  renderSaturdayCard(name);
+}
+
+// Saturday stats live in their own card; only shown when the player has any.
+function renderSaturdayCard(name) {
+  var card = document.getElementById('satCard');
+  var pd = dailyData && dailyData.players[name];
+  var scores = pd ? (pd.Saturday || []) : [];
+  var played = scores.filter(function (s) { return s > 0; });
+  if (!played.length) { card.style.display = 'none'; return; }
+  card.style.display = '';
+  var goal = DAILY_GOALS.Saturday || 10000000;
+  var avg = played.reduce(function (a, b) { return a + b; }, 0) / played.length;
+  var hit = played.filter(function (s) { return s >= goal; }).length;
+  var best = Math.max.apply(null, played);
+  var bestWk = dailyData.weekOrder[scores.indexOf(best)] || '';
+  document.getElementById('satTableBody').innerHTML =
+    '<tr><td class="week-score">' + Math.round(avg).toLocaleString() + '</td>' +
+    '<td>' + played.length + '</td>' +
+    '<td class="' + (hit === played.length ? 'goal-yes' : 'goal-no') + '">' + hit + '/' + played.length + '</td>' +
+    '<td class="week-score">' + best.toLocaleString() + (bestWk ? ' <span style="color:var(--dim);font-size:0.75em">(' + bestWk + ')</span>' : '') + '</td></tr>';
 }
 
 function playerHasSaturday(name) {
@@ -507,7 +533,6 @@ function renderDailyChart(playerName, day) {
   var shWeeks = new Set();
   if (p) p.weeks.forEach(function (w) { if (w.serverHelp) shWeeks.add(w.label); });
   var dayOffsets = { Monday: 0, Tuesday: 1, Wednesday: 2, Thursday: 3, Friday: 4, Saturday: 5 };
-  var isSat = day === 'Saturday'; // no daily goal on Saturday
   var labels = recentOrder.map(function (w) {
     var startPart = w.replace(/ - .+/, '').trim();
     var dayDate = startPart;
@@ -525,8 +550,6 @@ function renderDailyChart(playerName, day) {
   var avg = scores.reduce(function (a, b) { return a + b; }, 0) / (scores.filter(function (s) { return s > 0; }).length || 1);
   var avgLine = scores.map(function () { return avg; });
   var goalData = recentOrder.map(function (wk) { return getDailyGoal(day, wk, currentWeekLabel); });
-  var satBg = function (s) { return s > 0 ? 'rgba(0,180,255,0.5)' : 'rgba(107,107,136,0.2)'; };
-  var satBorder = function (s) { return s > 0 ? '#00b4ff' : '#2a2a3a'; };
   var currentGoal = getDailyGoal(day, currentWeekLabel, currentWeekLabel);
 
   if (dailyChart) dailyChart.destroy();
@@ -535,11 +558,10 @@ function renderDailyChart(playerName, day) {
     data: {
       labels: labels,
       datasets: [
-        { label: day + ' Score', data: scores, backgroundColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_BG; if (notPushingWeeks.has(wk)) return NP_BG; if (isSat) return satBg(s); var g = getDailyGoal(day, wk, currentWeekLabel); return s >= g ? 'rgba(0,255,180,0.6)' : s > 0 ? 'rgba(0,180,255,0.5)' : 'rgba(107,107,136,0.2)'; }), borderColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_COLOR; if (notPushingWeeks.has(wk)) return NP_COLOR; if (isSat) return satBorder(s); var g = getDailyGoal(day, wk, currentWeekLabel); return s >= g ? '#00ffb4' : s > 0 ? '#00b4ff' : '#2a2a3a'; }), borderWidth: 1.5, borderRadius: 4 },
-        { label: 'Average', data: avgLine, type: 'line', borderColor: '#ffc800', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false }
-      ].concat(isSat ? [] : [
+        { label: day + ' Score', data: scores, backgroundColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_BG; if (notPushingWeeks.has(wk)) return NP_BG; var g = getDailyGoal(day, wk, currentWeekLabel); return s >= g ? 'rgba(0,255,180,0.6)' : s > 0 ? 'rgba(0,180,255,0.5)' : 'rgba(107,107,136,0.2)'; }), borderColor: scores.map(function (s, i) { var wk = recentOrder[i]; if (shWeeks.has(wk)) return SH_COLOR; if (notPushingWeeks.has(wk)) return NP_COLOR; var g = getDailyGoal(day, wk, currentWeekLabel); return s >= g ? '#00ffb4' : s > 0 ? '#00b4ff' : '#2a2a3a'; }), borderWidth: 1.5, borderRadius: 4 },
+        { label: 'Average', data: avgLine, type: 'line', borderColor: '#ffc800', borderWidth: 2, borderDash: [6, 4], pointRadius: 0, fill: false },
         { label: 'Goal (' + (currentGoal / 1000000) + 'M)', data: goalData, type: 'line', borderColor: '#b464ff', borderWidth: 2, borderDash: [3, 5], pointRadius: 0, fill: false }
-      ])
+      ]
     },
     options: {
       responsive: true, maintainAspectRatio: false,
@@ -602,9 +624,6 @@ function renderDailyAverages(playerName) {
     return;
   }
   var days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
-  var hasSat = playerHasSaturday(playerName);
-  if (hasSat) days.push('Saturday');
-  document.getElementById('dailyAvgTitle').textContent = hasSat ? 'Daily Averages (Mon\u2013Sat)' : 'Daily Averages (Mon\u2013Fri)';
   tbody.innerHTML = days.map(function(day) {
     var scores = dailyData.players[playerName][day] || [];
     var nonzero = scores.filter(function(s) { return s > 0; });
