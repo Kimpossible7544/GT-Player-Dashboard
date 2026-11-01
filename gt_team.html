@@ -186,7 +186,10 @@ function buildWeeks(wb) {
       if (won) { gp += D.pts; dw++; } else { op += D.pts; dl++; }
       days.push({ g: g, o: o, won: won });
     }
-    var S = DAYS[5], sat = null, sg = score(ws, 'Q110'), so = score(ws, 'Q115'), sm = satMark(ws);
+    // GT's Saturday score: Q110 if typed in, otherwise the sum of player scores in column Q.
+    var players = playerScores(ws);
+    var satSum = players.Q.reduce(function (a, p) { return a + p.v; }, 0) || null;
+    var S = DAYS[5], sat = null, sg = score(ws, 'Q110') || satSum, so = score(ws, 'Q115'), sm = satMark(ws);
     if (sm) sat = { won: sm === 'W', g: sg, o: so };
     else if (sg !== null && so !== null) sat = { won: sg > so, g: sg, o: so };
     if (sat) { if (sat.won) gp += S.pts; else op += S.pts; }
@@ -204,7 +207,7 @@ function buildWeeks(wb) {
       note = 'Missing scores for ' + missing.join(', ') + ' on the "' + name + '" sheet (rows 110 / 115).';
     }
     out.push({ title: name, label: shortLabel(name), start: weekStart(name), opp: opp, days: days, sat: sat,
-      gp: gp, op: op, dw: dw, dl: dl, status: status, note: note, players: playerScores(ws) });
+      gp: gp, op: op, dw: dw, dl: dl, status: status, note: note, players: players, satGT: sg });
   });
   out.sort(function (a, b) { return a.start - b.start; });
   return out;
@@ -289,6 +292,10 @@ function dayRow(D, cells, wi) {
   }
   return '<div class="tr"><span class="daycell"><span class="stencil d">' + D.day + ' <em>' + D.pts + 'PT</em></span><span class="th2">' + D.theme + '</span></span>' + cells + '</div>';
 }
+// Saturday with GT's total but no opponent score or W/L yet.
+function gtOnlyCells(g) {
+  return '<span class="num" style="font-weight:700;color:var(--text)">' + fmt(g) + '</span><span class="num" style="color:var(--dim)">—</span><span class="stencil res" style="font-size:15px;color:var(--dim)">N/T</span>';
+}
 function scoreCells(g, o, won) {
   var gs = won ? 'font-weight:700;color:var(--text)' : 'color:var(--soft)';
   var os = won ? 'color:var(--soft)' : 'font-weight:700;color:var(--text)';
@@ -324,6 +331,7 @@ function renderOpp(name) {
       h += dayRow(DAYS[i], d ? scoreCells(d.g, d.o, d.won) : emptyCells(m.status === 'LIVE' ? 'TBD' : 'N/T'), wi);
     }
     if (m.sat) h += dayRow(DAYS[5], scoreCells(m.sat.g, m.sat.o, m.sat.won), wi);
+    else if (m.satGT) h += dayRow(DAYS[5], gtOnlyCells(m.satGT), wi);
     else if (m.status === 'NEEDS SAT') h += dayRow(DAYS[5], emptyCells('N/T'), wi);
     h += '</div></div></section>';
   });
