@@ -153,9 +153,9 @@ function restrictToRange(data) {
         var tidx = daily ? daily.weekOrder.indexOf(w.label) : -1;
         if (tpd && tidx >= 0) {
           thisWeekMissed = { missed: 0, played: 0 };
-          DAYS.forEach(function (day) {
+          goalDays(w.label).forEach(function (day) {
             if (tpd.excused && tpd.excused[day] && tpd.excused[day][tidx]) return;
-            var ds = tpd[day][tidx];
+            var ds = (tpd[day] || [])[tidx];
             if (ds > 0) {
               thisWeekMissed.played++;
               if (ds < getDailyGoal(day, w.label, data.currentWeekLabel)) thisWeekMissed.missed++;
@@ -164,13 +164,13 @@ function restrictToRange(data) {
         }
       }
       if (!w.pushing || w.inProgress || s <= 0) return;
-      if (s < GOAL) missedWeekly++;
+      if (s < getWeeklyGoal(w.label, GOAL)) missedWeekly++;
       var pd = daily && daily.players[name];
       var idx = daily ? daily.weekOrder.indexOf(w.label) : -1;
       if (pd && idx >= 0) {
-        ['Monday','Tuesday','Wednesday','Thursday','Friday'].forEach(function (day) {
+        goalDays(w.label).forEach(function (day) {
           if (pd.excused && pd.excused[day] && pd.excused[day][idx]) return;
-          var ds = pd[day][idx];
+          var ds = (pd[day] || [])[idx];
           if (ds > 0 && ds < getDailyGoal(day, w.label, data.currentWeekLabel)) missedDaily++;
         });
       }
@@ -257,7 +257,7 @@ function buildRows(players, weeks) {
         html += '<td class="server-help' + ipCls + '" title="Helped the server this week">' + w.score.toLocaleString() + '<span class="sh-icon" style="color:#ff3264">&dagger;</span></td>';
       } else if (np) {
         html += '<td class="' + ipCls + '" style="color:' + NP_COLOR + ';font-family:Courier New,monospace">' + w.score.toLocaleString() + '</td>';
-      } else if (w.score >= GOAL) {
+      } else if (w.score >= getWeeklyGoal(w.label, GOAL)) {
         html += '<td class="goal-met' + ipCls + '">' + w.score.toLocaleString() + '</td>';
       } else {
         html += '<td class="week-score' + ipCls + '">' + w.score.toLocaleString() + '</td>';
@@ -318,7 +318,7 @@ function buildWeekSections(players, weeks, daily, currentWeekLabel) {
         var cls = np ? 'day-score' : (v >= goal ? 'day-met' : 'day-miss');
         html += '<td class="' + cls + '">' + v.toLocaleString() + '</td>';
       });
-      var tCls = r.sh ? 'server-help' : (np ? '' : (r.score >= GOAL ? 'goal-met' : 'week-score'));
+      var tCls = r.sh ? 'server-help' : (np ? '' : (r.score >= getWeeklyGoal(label, GOAL) ? 'goal-met' : 'week-score'));
       var tStyle = (np && !r.sh) ? ' style="color:' + NP_COLOR + ';font-family:Courier New,monospace"' : '';
       html += '<td class="' + tCls + '"' + tStyle + '>' + r.score.toLocaleString() + (r.sh ? '<span class="sh-icon" style="color:#ff3264">&dagger;</span>' : '') + '</td>';
       html += '</tr>';

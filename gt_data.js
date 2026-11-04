@@ -94,11 +94,38 @@ function parseDateMMDDYYYY(dateStr) {
 const DAILY_GOALS_NEW = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 8000000, Friday: 3000000, Saturday: 10000000 };
 const DAILY_GOALS_OLD = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 6000000, Friday: 3000000, Saturday: 10000000 };
 
+// Goals from the week of Nov 2, 2026 on (fixed date, not "current week"):
+// Mon-Fri 6M, Saturday (Enemy Buster) 10M, weekly 30M. Saturday counts toward
+// missed daily goals only when a score exists - a blank day is never a miss.
+// Weeks before Nov 2 keep the old rules above so history doesn't change.
+const GOALS_V2_START = new Date("November 2, 2026");
+const DAILY_GOALS_V2 = { Monday: 6000000, Tuesday: 6000000, Wednesday: 6000000, Thursday: 6000000, Friday: 6000000, Saturday: 10000000 };
+const WEEKLY_GOAL_V2 = 30000000;
+
+// True for weeks starting on/after Nov 2, 2026 (or when no week is given).
+function usesGoalsV2(weekLabel) {
+  if (!weekLabel) return true;
+  const start = parseWeekStartDate(weekLabel);
+  return !start || start >= GOALS_V2_START;
+}
+
 function getDailyGoal(day, weekLabel, cutoffLabel) {
+  if (usesGoalsV2(weekLabel)) return DAILY_GOALS_V2[day] || 0;
   const cutoff = cutoffLabel ? parseWeekStartDate(cutoffLabel) : null;
   const weekStart = weekLabel ? parseWeekStartDate(weekLabel) : null;
   const goals = (cutoff && weekStart && weekStart < cutoff) ? DAILY_GOALS_OLD : DAILY_GOALS_NEW;
   return goals[day] || 0;
+}
+
+// Weekly goal for a week. legacyGoal = what that page used before Nov 2.
+function getWeeklyGoal(weekLabel, legacyGoal) {
+  return usesGoalsV2(weekLabel) ? WEEKLY_GOAL_V2 : (legacyGoal || 20000000);
+}
+
+// Days that count toward missed daily goals: Mon-Fri, plus Saturday from Nov 2 on.
+function goalDays(weekLabel) {
+  const d = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+  return usesGoalsV2(weekLabel) ? d.concat("Saturday") : d;
 }
 
 // Parses a power value into a float expressed in MILLIONS.
@@ -324,8 +351,8 @@ async function loadGTData() {
 
   // Saturday (Enemy Buster) lives in column Q of the weekly sheets and is only
   // filled when the duel needs it. It is tracked alongside DAYS but kept out of
-  // it on purpose: no daily goal, so it never counts toward missed daily goals,
-  // days-hit, or the Mon–Fri averages. Pages show it only where a score exists.
+  // the Mon–Fri averages. Before Nov 2 it never counted toward goals; from Nov 2
+  // on it has a 10M goal (see goalDays) - a blank Saturday is never a miss.
   const SAT = "Saturday";
   const SAT_COL = 16; // column Q
 
@@ -715,14 +742,14 @@ async function loadGTData() {
       if (!week.pushing || week.inProgress) return;
       if (!week.score || week.score <= 0) return;
 
-      if (week.score < WEEKLY_GOAL) missedWeekly++;
+      if (week.score < getWeeklyGoal(week.label, WEEKLY_GOAL)) missedWeekly++;
 
       const pd      = dailyData.players[player.name];
       const weekIdx = dailyData.weekOrder.indexOf(week.label);
       if (pd && weekIdx >= 0) {
-        DAYS.forEach(day => {
+        goalDays(week.label).forEach(day => {
           if (pd.excused && pd.excused[day] && pd.excused[day][weekIdx]) return;
-          const dayScore = pd[day][weekIdx];
+          const dayScore = (pd[day] || [])[weekIdx];
           if (dayScore > 0 && dayScore < getDailyGoal(day, week.label, currentWeekLabel)) missedDaily++;
         });
       }
@@ -987,7 +1014,7 @@ async function loadGTData() {
     idToPlayer,
     masterIds,
     rosterRanks,
-    DAILY_GOALS: DAILY_GOALS_NEW,
-    WEEKLY_GOAL
+    DAILY_GOALS: DAILY_GOALS_V2,
+    WEEKLY_GOAL: WEEKLY_GOAL_V2
   };
 }

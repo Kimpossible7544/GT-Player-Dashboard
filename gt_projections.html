@@ -129,7 +129,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:0 24px
 </div>
 </div>
 <div class="chart-card" style="margin-bottom:24px;"><div class="chart-title">Week by Week Breakdown</div>
-<table class="proj-table"><thead><tr><th>Week</th><th>Score</th><th>20M Goal</th><th>vs Avg</th></tr></thead>
+<table class="proj-table"><thead><tr><th>Week</th><th>Score</th><th>Weekly Goal</th><th>vs Avg</th></tr></thead>
 <tbody id="weekTable"></tbody></table></div>
 <div class="section-title">Projected Team Leaderboard (Next Week)</div>
 <div class="leaderboard"><div class="lb-header">Player &middot; Projected Score &middot; Trend</div><div id="leaderboard"></div></div>
@@ -229,7 +229,7 @@ function loadPlayer(name) {
     var lastActual = actualData.filter(function (v) { return v; });
     if (lastActual.length) projData[actualData.length - 1] = lastActual[lastActual.length - 1];
   }
-  var goalData = allLabels.map(function () { return GOAL; });
+  var goalData = sortedWeeks.map(function (w) { return getWeeklyGoal(w.label, GOAL); }).concat(projScores.map(function () { return WEEKLY_GOAL_V2; }));
   var MAX_VISIBLE = 6;
 
   // Build per-chart min labels for initial 6-week view
@@ -289,7 +289,7 @@ function loadPlayer(name) {
       datasets: [
         { label: 'Actual Score', data: actualData, borderColor: '#00b4ff', backgroundColor: 'rgba(0,180,255,0.08)', borderWidth: 2.5, pointBackgroundColor: scorePointColors, pointRadius: 5, tension: 0.3, spanGaps: false },
         { label: 'Projected', data: projData, borderColor: '#b464ff', backgroundColor: 'rgba(180,100,255,0.08)', borderWidth: 2.5, borderDash: [8, 4], pointBackgroundColor: '#b464ff', pointStyle: 'star', pointRadius: 7, tension: 0.3, spanGaps: false },
-        { label: '20M Goal', data: goalData, borderColor: '#ff3264', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 }
+        { label: 'Weekly Goal', data: goalData, borderColor: '#ff3264', borderWidth: 1.5, borderDash: [4, 4], pointRadius: 0 }
       ]
     },
     options: cd
@@ -302,8 +302,8 @@ function loadPlayer(name) {
       datasets: [{
         label: 'Weekly Score',
         data: sortedWeeks.map(function (w) { return w.score || 0; }),
-        backgroundColor: sortedWeeks.map(function (w) { if (w.serverHelp) return SH_BG; if (w.pushing === false) return NP_BG; return w.score >= GOAL ? 'rgba(255,100,0,0.7)' : w.score > 0 ? 'rgba(0,180,255,0.7)' : 'rgba(42,42,58,0.5)'; }),
-        borderColor: sortedWeeks.map(function (w) { if (w.serverHelp) return SH_COLOR; if (w.pushing === false) return NP_COLOR; return w.score >= GOAL ? '#ff6400' : w.score > 0 ? '#00b4ff' : '#2a2a3a'; }),
+        backgroundColor: sortedWeeks.map(function (w) { if (w.serverHelp) return SH_BG; if (w.pushing === false) return NP_BG; return w.score >= getWeeklyGoal(w.label, GOAL) ? 'rgba(255,100,0,0.7)' : w.score > 0 ? 'rgba(0,180,255,0.7)' : 'rgba(42,42,58,0.5)'; }),
+        borderColor: sortedWeeks.map(function (w) { if (w.serverHelp) return SH_COLOR; if (w.pushing === false) return NP_COLOR; return w.score >= getWeeklyGoal(w.label, GOAL) ? '#ff6400' : w.score > 0 ? '#00b4ff' : '#2a2a3a'; }),
         borderWidth: 1, borderRadius: 4
       }]
     },
@@ -337,10 +337,10 @@ function loadPlayer(name) {
     if (w.inProgress) badges += ' <span class="in-progress-label">live</span>';
     if (sh) badges += ' <span class="server-help-label">server help</span>';
     var labelHtml = w.label + tag + badges;
-    return '<tr><td' + rowStyle + '>' + labelHtml + '</td><td class="actual-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="' + (w.score >= GOAL ? 'goal-yes' : w.score > 0 ? 'goal-no' : '') + '">' + (w.score >= GOAL ? '&#9733; YES' : w.score > 0 ? '&#10007; NO' : '-') + '</td><td>' + vsStr + '</td></tr>';
+    return '<tr><td' + rowStyle + '>' + labelHtml + '</td><td class="actual-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="' + (w.score >= getWeeklyGoal(w.label, GOAL) ? 'goal-yes' : (w.score > 0 && !w.inProgress) ? 'goal-no' : '') + '">' + (w.score >= getWeeklyGoal(w.label, GOAL) ? '&#9733; YES' : (w.score > 0 && !w.inProgress) ? '&#10007; NO' : '-') + '</td><td>' + vsStr + '</td></tr>';
   }).join('');
   var projRows = projScores.map(function (s, i) {
-    return '<tr class="proj-row"><td>' + (futureLabels[i] || 'Week +' + (i + 1)) + '</td><td class="proj-score">' + s.toLocaleString() + '</td><td class="goal-proj">' + (s >= GOAL ? '&#9733; LIKELY' : '? TBD') + '</td><td>-</td></tr>';
+    return '<tr class="proj-row"><td>' + (futureLabels[i] || 'Week +' + (i + 1)) + '</td><td class="proj-score">' + s.toLocaleString() + '</td><td class="goal-proj">' + (s >= WEEKLY_GOAL_V2 ? '&#9733; LIKELY' : '? TBD') + '</td><td>-</td></tr>';
   }).join('');
   wt.innerHTML = rows + projRows;
 }

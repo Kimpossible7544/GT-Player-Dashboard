@@ -171,7 +171,7 @@ function buildRows(players, weeks) {
         html += '<td class="server-help' + ipCls + '" title="Helped the server this week">' + w.score.toLocaleString() + '<span class="sh-icon" style="color:#ff3264">&dagger;</span></td>';
       } else if (np) {
         html += '<td class="' + ipCls + '" style="color:' + NP_COLOR + ';font-family:Courier New,monospace">' + w.score.toLocaleString() + '</td>';
-      } else if (w.score >= GOAL) {
+      } else if (w.score >= getWeeklyGoal(w.label, GOAL)) {
         html += '<td class="goal-met' + ipCls + '">' + w.score.toLocaleString() + '</td>';
       } else {
         html += '<td class="week-score' + ipCls + '">' + w.score.toLocaleString() + '</td>';

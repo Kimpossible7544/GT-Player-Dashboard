@@ -185,13 +185,13 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <tbody id="dailyAvgTableBody"></tbody></table>
 </div>
 <div class="chart-card full" id="satCard" style="margin-bottom:28px;display:none;">
-<div class="chart-title">Enemy Buster (Saturday) &mdash; tracked separately, not in daily or weekly goals</div>
+<div class="chart-title">Enemy Buster (Saturday) &mdash; 10M goal, counts toward daily &amp; weekly goals from Nov 2</div>
 <table class="week-table"><thead><tr><th>Saturday Average</th><th>Saturdays Played</th><th>Hit 10M Goal</th><th>Best Saturday</th></tr></thead>
 <tbody id="satTableBody"></tbody></table>
 </div>
 <div class="chart-card" style="margin-bottom:28px;">
 <div class="chart-title">Weekly Breakdown</div>
-<table class="week-table"><thead><tr><th>Week</th><th>Score</th><th>Rank</th><th>Daily Goals</th><th>20M Goal</th></tr></thead>
+<table class="week-table"><thead><tr><th>Week</th><th>Score</th><th>Rank</th><th>Daily Goals</th><th>Weekly Goal</th></tr></thead>
 <tbody id="weekTableBody"></tbody></table>
 </div>
 <div id="npFootnote" style="display:none;color:#ff7832;font-size:0.78rem;margin-top:8px;letter-spacing:0.5px;">* = Not pushing to win this week</div>
@@ -206,7 +206,7 @@ var selectedDay = 'Monday';
 var scoreChart = null, rankChart = null, dailyChart = null;
 var NP_COLOR = '#ff7832';
 var NP_BG = 'rgba(255,120,50,0.15)';
-var DAILY_GOALS = { Monday: 6000000, Tuesday: 3000000, Wednesday: 4000000, Thursday: 8000000, Friday: 3000000, Saturday: 10000000 };
+var DAILY_GOALS = { Monday: 6000000, Tuesday: 6000000, Wednesday: 6000000, Thursday: 6000000, Friday: 6000000, Saturday: 10000000 };
 var currentWeekLabel = null;
 var SH_COLOR = '#00e5ff';
 var SH_BG = 'rgba(0,229,255,0.15)';
@@ -237,12 +237,15 @@ function daysHitText(p, w) {
   if (idx < 0) return '-';
   var pd = dailyData.players[p.name];
   var hit = 0, counted = 0;
-  var days = ['Monday','Tuesday','Wednesday','Thursday','Friday'];
+  var v2 = usesGoalsV2(w.label);
+  var days = goalDays(w.label);
   days.forEach(function(day) {
     // days marked 'x' are excused — they count as neither hit nor miss
     if (pd.excused && pd.excused[day] && pd.excused[day][idx]) return;
-    counted++;
     var s = (pd[day] || [])[idx] || 0;
+    // from Nov 2: a day with no score (incl. no Enemy Buster) is not counted at all
+    if (v2 && !(s > 0)) return;
+    counted++;
     if (s >= getDailyGoal(day, w.label, currentWeekLabel)) hit++;
   });
   return hit + '/' + counted;
@@ -402,7 +405,7 @@ function loadPlayer(name) {
     '<div class="stat-card c4"><div class="stat-label">Weeks Played</div><div class="stat-value gold">' + p.weeks.filter(function (w) { return w.score > 0; }).length + '</div></div>' +
     '<div class="stat-card c5"><div class="stat-label">Missed Daily</div><div class="stat-value red">' + p.missedDaily + '</div></div>' +
     '<div class="stat-card c6"><div class="stat-label">Missed Weekly</div><div class="stat-value red">' + p.missedWeekly + '</div></div>' +
-    '<div class="stat-card c7"><div class="stat-label">20M Weeks</div><div class="stat-value accent">' + p.weeks.filter(function (w) { return w.score >= 20000000; }).length + '</div></div>';
+    '<div class="stat-card c7"><div class="stat-label">Goal Weeks</div><div class="stat-value accent">' + p.weeks.filter(function (w) { return w.score >= getWeeklyGoal(w.label, 20000000); }).length + '</div></div>';
 
   renderWpxStatsCard(p);
   renderGrowthCard(p);
@@ -411,7 +414,7 @@ function loadPlayer(name) {
   var labels = p.weeks.map(function (w) { if (w.serverHelp) return w.label + ' \u2020'; return w.pushing === false ? w.label + ' *' : w.label; });
   var scores = p.weeks.map(function (w) { return w.score; });
   var ranks = p.weeks.map(function (w) { return w.rank; });
-  var goal = p.weeks.map(function () { return 20000000; });
+  var goal = p.weeks.map(function (w) { return getWeeklyGoal(w.label, 20000000); });
   var pointColors = p.weeks.map(function (w) { if (w.serverHelp) return SH_COLOR; return w.pushing === false ? NP_COLOR : '#00b4ff'; });
   var rankPointColors = p.weeks.map(function (w) { if (w.serverHelp) return SH_COLOR; return w.pushing === false ? NP_COLOR : '#ffc800'; });
 
@@ -436,7 +439,7 @@ function loadPlayer(name) {
       labels: labels,
       datasets: [
         { label: 'Score', data: scores, borderColor: '#00b4ff', backgroundColor: 'rgba(0,180,255,0.08)', borderWidth: 2.5, pointBackgroundColor: pointColors, pointRadius: 5, tension: 0.3, segment: { borderColor: function(ctx) { var i = ctx.p0DataIndex; if ((p.weeks[i] && p.weeks[i].serverHelp) || (p.weeks[i+1] && p.weeks[i+1].serverHelp)) return SH_COLOR; return (p.weeks[i] && p.weeks[i].pushing === false) || (p.weeks[i+1] && p.weeks[i+1].pushing === false) ? NP_COLOR : '#00b4ff'; } } },
-        { label: '20M Goal', data: goal, borderColor: '#ff3264', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0 }
+        { label: 'Weekly Goal', data: goal, borderColor: '#ff3264', borderWidth: 1.5, borderDash: [6, 4], pointRadius: 0 }
       ]
     },
     options: {
@@ -465,7 +468,7 @@ function loadPlayer(name) {
     var badges = '';
     if (w.inProgress) badges += ' <span class="in-progress-label">live</span>';
     if (sh) badges += ' <span class="server-help-label">server help</span>';
-    return '<tr><td' + rowStyle + '>' + w.label + tag + badges + '</td><td class="week-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="rank-val"' + rowStyle + '>' + (w.rank || '-') + '</td><td class="days-hit">' + daysHitText(p, w) + '</td><td class="' + (w.score >= 20000000 ? 'goal-yes' : 'goal-no') + '">' + (w.score >= 20000000 ? '&#9733; YES' : '&#10007; NO') + '</td></tr>';
+    return '<tr><td' + rowStyle + '>' + w.label + tag + badges + '</td><td class="week-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="rank-val"' + rowStyle + '>' + (w.rank || '-') + '</td><td class="days-hit">' + daysHitText(p, w) + '</td>' + (function () { var g = getWeeklyGoal(w.label, 20000000); if (w.score >= g) return '<td class="goal-yes">&#9733; YES</td>'; if (w.inProgress || !w.score) return '<td>-</td>'; return '<td class="goal-no">&#10007; NO</td>'; })() + '</tr>';
   }).join('');
 
   var hasNP = p.weeks.some(function (w) { return w.pushing === false; });
