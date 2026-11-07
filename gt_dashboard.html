@@ -91,15 +91,11 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .gs-pos{color:var(--accent);}
 .gs-neg{color:var(--red);}
 .gs-neu{color:var(--dim);}
-.gh-toggle{display:block;width:100%;margin-top:12px;min-height:40px;padding:8px 12px;background:var(--panel2);border:1px solid var(--border);border-radius:8px;color:var(--dim);font-size:0.75rem;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;cursor:pointer;}
-.gh-toggle:hover,.gh-toggle:focus-visible{color:var(--text);border-color:var(--accent2);outline:none;}
-.gh-wrap{margin-top:10px;overflow-x:auto;}
-.gh-table{width:100%;border-collapse:collapse;font-size:0.8rem;}
-.gh-table th{font-size:0.62rem;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dim);text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
-.gh-table th:first-child,.gh-table td:first-child{text-align:left;}
-.gh-table td{font-family:'Courier New',monospace;font-weight:700;text-align:right;padding:6px 8px;border-bottom:1px solid var(--border);white-space:nowrap;}
-.gh-table td.gold{color:var(--gold);} .gh-table td.blue{color:var(--accent2);} .gh-table td.purple{color:var(--accent3);}
-.gh-team{font-size:0.6rem;letter-spacing:1px;color:var(--dim);margin-left:6px;}
+.gs-expand{display:block;width:100%;margin:2px 0;padding:6px 0;min-height:32px;background:none;border:1px dashed var(--border);border-radius:6px;color:var(--dim);font-size:0.7rem;font-weight:700;letter-spacing:1px;cursor:pointer;}
+.gs-expand:hover,.gs-expand:focus-visible{color:var(--text);border-color:var(--accent2);outline:none;}
+.gs-mids{border-left:2px solid var(--border);margin:2px 0 2px 4px;padding:2px 0 2px 8px;}
+.gs-mids .gs-row{margin-bottom:2px;}
+.gs-mids .gs-val{font-size:0.85rem;opacity:0.85;}
 /* WPX History card (legacy data, amber accent) */
 .wpx-history-card{background:var(--panel);border-radius:12px;padding:20px;border:1px solid var(--border);border-top:3px solid var(--gold);margin-bottom:28px;}
 .wpx-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
@@ -163,7 +159,6 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <div id="growthCard" class="growth-card" style="display:none;">
   <div class="chart-title">Growth Since Joining</div>
   <div class="growth-grid" id="growthGrid"></div>
-  <div id="growthHistory"></div>
 </div>
 <!-- WPX History (legacy, amber accent) -->
 <div id="wpxHistoryCard" class="wpx-history-card" style="display:none;">
@@ -302,64 +297,58 @@ function renderGrowthCard(p) {
   var nowDate = (g.currentDate && g.currentDate !== 'null' && g.currentDate !== 'undefined') ? g.currentDate : '';
   var nowLabel = 'Now' + (nowDate ? ' <span class="gs-join">(' + nowDate + ')</span>' : '');
 
+  // Every Arena Power import between Then and Now, oldest -> newest.
+  // First and last snapshots ARE Then and Now, so they're left out here.
+  var series = (g.arenaSeries || []).filter(function (x) { return x.arena !== null || x.hq !== null; });
+  var mids = series.length > 2 ? series.slice(1, -1) : [];
+  function midsBlock(key, color) {
+    if (!mids.length) return '<div class="gs-arrow">\u2193</div>';
+    var h = '<button type="button" class="gs-expand" aria-expanded="false" onclick="toggleGrowthMids()">\u2193 ' + mids.length + ' in between \u25BE</button>';
+    h += '<div class="gs-mids" hidden>';
+    mids.forEach(function (m) {
+      var v = key === 'level' ? (m.level !== null && m.level !== undefined ? m.level : '-') : fmtPower(m[key]);
+      var d = (m.date && m.date !== 'null') ? m.date : '-';
+      if (g.crossTeam && m.team) d += ' ' + m.team;
+      h += '<div class="gs-row"><span class="gs-sub">' + d + '</span><span class="gs-val ' + color + '">' + v + '</span></div>';
+    });
+    return h + '<div class="gs-arrow">\u2193</div></div>';
+  }
+
   grid.innerHTML =
     '<div class="growth-stat gs-level">' +
       '<div class="gs-label">Level' + dateBadge + '</div>' +
       '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val purple">' + (g.firstLevel || '-') + '</span></div>' +
-      '<div class="gs-arrow">\u2193</div>' +
+      midsBlock('level', 'purple') +
       '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val purple">' + (g.currentLevel || '-') + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + levelDeltaFmt.cls + '">' + levelDeltaFmt.text + '</span></div>' +
     '</div>' +
     '<div class="growth-stat gs-arena">' +
       '<div class="gs-label">Arena Power' + dateBadge + '</div>' +
       '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val gold">' + fmtPower(g.firstArena) + '</span></div>' +
-      '<div class="gs-arrow">\u2193</div>' +
+      midsBlock('arena', 'gold') +
       '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val gold">' + fmtPower(g.currentArena) + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + arenaDelta.cls + '">' + arenaDelta.text + '</span></div>' +
     '</div>' +
     '<div class="growth-stat gs-hq">' +
       '<div class="gs-label">HQ Power' + dateBadge + '</div>' +
       '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val blue">' + fmtPower(g.firstHQ) + '</span></div>' +
-      '<div class="gs-arrow">\u2193</div>' +
+      midsBlock('hq', 'blue') +
       '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val blue">' + fmtPower(g.currentHQ) + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + hqDelta.cls + '">' + hqDelta.text + '</span></div>' +
     '</div>';
 
-  renderGrowthHistory(g);
 }
 
-// Expandable list of every Arena Power snapshot (oldest -> newest in data,
-// shown newest first). Δ columns = change from the snapshot before it.
-function renderGrowthHistory(g) {
-  var box = document.getElementById('growthHistory');
-  var series = (g.arenaSeries || []).filter(function (s) { return s.arena !== null || s.hq !== null; });
-  if (series.length < 3) { box.innerHTML = ''; return; }   // only Then + Now: nothing extra to show
-  var rows = series.map(function (s, i) {
-    var prev = i > 0 ? series[i - 1] : null;
-    return {
-      s: s,
-      da: (prev && s.arena !== null && prev.arena !== null) ? Math.round((s.arena - prev.arena) * 100) / 100 : null,
-      dh: (prev && s.hq !== null && prev.hq !== null) ? Math.round((s.hq - prev.hq) * 100) / 100 : null
-    };
-  }).reverse();
-  var showTeam = !!g.crossTeam;
-  var h = '<button type="button" class="gh-toggle" aria-expanded="false" onclick="toggleGrowthHistory(this)">Show all ' + series.length + ' snapshots \u25BE</button>';
-  h += '<div class="gh-wrap" hidden><table class="gh-table"><thead><tr><th>Date</th><th>Lvl</th><th>Arena</th><th>\u0394</th><th>HQ</th><th>\u0394</th></tr></thead><tbody>';
-  rows.forEach(function (r) {
-    var da = fmtDelta(r.da), dh = fmtDelta(r.dh);
-    h += '<tr><td>' + (r.s.date && r.s.date !== 'null' ? r.s.date : '-') + (showTeam && r.s.team ? '<span class="gh-team">' + r.s.team + '</span>' : '') + '</td>' +
-      '<td class="purple">' + (r.s.level !== null && r.s.level !== undefined ? r.s.level : '-') + '</td>' +
-      '<td class="gold">' + fmtPower(r.s.arena) + '</td><td class="' + da.cls + '">' + da.text + '</td>' +
-      '<td class="blue">' + fmtPower(r.s.hq) + '</td><td class="' + dh.cls + '">' + dh.text + '</td></tr>';
+// One click opens/closes the in-between rows in all three boxes together
+function toggleGrowthMids() {
+  var card = document.getElementById('growthGrid');
+  var btns = card.querySelectorAll('.gs-expand');
+  var open = btns.length && btns[0].getAttribute('aria-expanded') !== 'true';
+  btns.forEach(function (b) {
+    b.setAttribute('aria-expanded', open ? 'true' : 'false');
+    b.innerHTML = b.innerHTML.replace(open ? '\u25BE' : '\u25B4', open ? '\u25B4' : '\u25BE');
+    b.nextElementSibling.hidden = !open;
   });
-  h += '</tbody></table></div>';
-  box.innerHTML = h;
-}
-function toggleGrowthHistory(btn) {
-  var wrap = btn.nextElementSibling, open = wrap.hidden;
-  wrap.hidden = !open;
-  btn.setAttribute('aria-expanded', open ? 'true' : 'false');
-  btn.innerHTML = btn.innerHTML.replace(open ? 'Show' : 'Hide', open ? 'Hide' : 'Show').replace(open ? '\u25BE' : '\u25B4', open ? '\u25B4' : '\u25BE');
 }
 
 // WPX career totals, below the GT stats. Deliberately separate: the GT cards and
