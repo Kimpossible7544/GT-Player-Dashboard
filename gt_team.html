@@ -171,8 +171,23 @@ function weekComplete(title) { return typeof isWeekComplete === 'function' ? isW
 function weekStarted(title) { return typeof hasWeekStarted === 'function' ? hasWeekStarted(title) : true; }
 
 // Pure: workbook -> array of week objects, oldest first
+// Week Settings sheet: col A = week label, col C = comma list of players who
+// went to another alliance to help that week. Only THOSE players' "x" days
+// show as "helping elsewhere"; any other "x" stays a plain excused x.
+function normKey(s) { return String(s || '').toLowerCase().replace(/[\u2013\u2014]/g, '-').replace(/\s+/g, ' ').trim(); }
+function readHelpers(wb) {
+  var map = {}, ws = wb.Sheets['Week Settings'];
+  if (!ws || typeof XLSX === 'undefined') return map;
+  XLSX.utils.sheet_to_json(ws, { header: 1, defval: null }).slice(1).forEach(function (row) {
+    var wk = normKey(row[0]), list = String(row[2] || '').trim();
+    if (!wk || !list) return;
+    map[wk] = map[wk] || {};
+    list.split(',').forEach(function (n) { if (n.trim()) map[wk][normKey(n)] = true; });
+  });
+  return map;
+}
 function buildWeeks(wb) {
-  var out = [];
+  var out = [], HELP = readHelpers(wb);
   wb.SheetNames.forEach(function (name) {
     if (!WEEK_RE.test(name)) return;
     var ws = wb.Sheets[name];
@@ -208,7 +223,7 @@ function buildWeeks(wb) {
       note = 'Missing scores for ' + missing.join(', ') + ' on the "' + name + '" sheet (rows 110 / 115).';
     }
     out.push({ title: name, label: shortLabel(name), start: weekStart(name), opp: opp, days: days, sat: sat,
-      gp: gp, op: op, dw: dw, dl: dl, status: status, note: note, players: players, satGT: sg });
+      gp: gp, op: op, dw: dw, dl: dl, status: status, note: note, players: players, satGT: sg, helpers: HELP[normKey(name)] || {} });
   });
   out.sort(function (a, b) { return a.start - b.start; });
   return out;
@@ -360,21 +375,27 @@ function rosterPanel(wi, col) {
   var w = WEEKS[wi], D = DAYS.filter(function (x) { return x.col === col; })[0];
   var list = w.players[col];
   var scored = list.filter(function (p) { return p.v > 0; }).sort(function (a, b) { return b.v - a.v; });
+  var helpSet = w.helpers || {};
   var excused = list.filter(function (p) { return !p.v && p.x; });
+  var helping = excused.filter(function (p) { return helpSet[normKey(p.name)]; });
+  var otherX = excused.filter(function (p) { return !helpSet[normKey(p.name)]; });
   var none = list.filter(function (p) { return !p.v && !p.x; });
   var goal = goalFor(col, w.title);
   var total = scored.reduce(function (a, p) { return a + p.v; }, 0);
   var met = goal ? scored.filter(function (p) { return p.v >= goal; }).length : 0;
   var h = '<div class="roster" data-panel="' + wi + '-' + col + '">';
-  h += '<div class="rhead typer"><span>' + D.day + ' · ' + scored.length + ' SCORED · TOTAL ' + fmt(total) + (excused.length ? ' · <span class="help">' + excused.length + ' HELPING OTHER ALLIANCES</span>' : '') + '</span>';
+  h += '<div class="rhead typer"><span>' + D.day + ' · ' + scored.length + ' SCORED · TOTAL ' + fmt(total) + (helping.length ? ' · <span class="help">' + helping.length + ' HELPING OTHER ALLIANCES</span>' : '') + '</span>';
   h += '<span>' + (goal ? 'GOAL ' + fmt(goal) + ' · ' + met + ' MET / ' + (scored.length - met) + ' MISSED' : 'NO DAILY GOAL') + '</span></div>';
   h += '<div class="rlist">';
   scored.forEach(function (p, i) {
     var cls = goal ? (p.v >= goal ? 'met' : 'miss') : 'neu';
     h += '<div class="rrow"><span class="rk">' + (i + 1) + '</span><span class="nm">' + esc(p.name) + '</span><span class="sc ' + cls + '">' + p.v.toLocaleString() + '</span></div>';
   });
-  excused.forEach(function (p) {
+  helping.forEach(function (p) {
     h += '<div class="rrow" title="Went to another alliance this day to help them win"><span class="rk help">↗</span><span class="nm">' + esc(p.name) + '</span><span class="sc help">HELPING ELSEWHERE</span></div>';
+  });
+  otherX.forEach(function (p) {
+    h += '<div class="rrow"><span class="rk">—</span><span class="nm exc">' + esc(p.name) + '</span><span class="sc exc">x</span></div>';
   });
   h += '</div>';
   if (none.length) h += '<div class="rnone">No score (' + none.length + '): ' + none.map(function (p) { return esc(p.name); }).join(', ') + '</div>';
@@ -410,7 +431,7 @@ async function loadTeam() {
   var resp = await fetchWithRetry(GT_DROPBOX_URL);
   var buf = await resp.arrayBuffer();
   var names = XLSX.read(buf, { type: 'array', bookSheets: true }).SheetNames.filter(function (n) { return WEEK_RE.test(n); });
-  return buildWeeks(XLSX.read(buf, { type: 'array', sheets: names }));
+  return buildWeeks(XLSX.read(buf, { type: 'array', sheets: names.concat(['Week Settings']) }));
 }
 
 if (typeof fetchWithRetry === 'function') {
