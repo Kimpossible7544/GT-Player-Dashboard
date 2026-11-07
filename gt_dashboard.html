@@ -96,6 +96,10 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 .gs-mids{border-left:2px solid var(--border);margin:2px 0 2px 4px;padding:2px 0 2px 8px;}
 .gs-mids .gs-row{margin-bottom:2px;}
 .gs-mids .gs-val{font-size:0.85rem;opacity:0.85;}
+/* WPX-era data inside the GT growth card: one color across Level/Arena/HQ */
+.gs-val.wpxc,.gs-sub.wpxc{color:#ff9f5a;}
+.gs-legend{font-size:0.65rem;letter-spacing:1px;color:var(--dim);margin:-6px 0 10px;}
+.gs-legend b{color:#ff9f5a;font-weight:700;}
 /* WPX History card (legacy data, amber accent) */
 .wpx-history-card{background:var(--panel);border-radius:12px;padding:20px;border:1px solid var(--border);border-top:3px solid var(--gold);margin-bottom:28px;}
 .wpx-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;margin-bottom:16px;}
@@ -158,6 +162,7 @@ nav{display:flex;align-items:center;justify-content:space-between;padding:16px 2
 <!-- Growth Since Joining -->
 <div id="growthCard" class="growth-card" style="display:none;">
   <div class="chart-title">Growth Since Joining</div>
+  <div class="gs-legend" id="growthLegend"></div>
   <div class="growth-grid" id="growthGrid"></div>
 </div>
 <!-- WPX History (legacy, amber accent) -->
@@ -301,6 +306,11 @@ function renderGrowthCard(p) {
   // First and last snapshots ARE Then and Now, so they're left out here.
   var series = (g.arenaSeries || []).filter(function (x) { return x.arena !== null || x.hq !== null; });
   var mids = series.length > 2 ? series.slice(1, -1) : [];
+  // Then comes from WPX for transfer players; Now is WPX only if they have no GT import yet
+  var thenW = !!g.crossTeam;
+  var nowW = !!(series.length && series[series.length - 1].team === 'WPX');
+  function tc(color) { return thenW ? 'wpxc' : color; }
+  function nc(color) { return nowW ? 'wpxc' : color; }
   function midsBlock(key, color) {
     if (!mids.length) return '<div class="gs-arrow">\u2193</div>';
     var h = '<button type="button" class="gs-expand" aria-expanded="false" onclick="toggleGrowthMids()">\u2193 ' + mids.length + ' in between \u25BE</button>';
@@ -309,31 +319,35 @@ function renderGrowthCard(p) {
       var v = key === 'level' ? (m.level !== null && m.level !== undefined ? m.level : '-') : fmtPower(m[key]);
       var d = (m.date && m.date !== 'null') ? m.date : '-';
       if (g.crossTeam && m.team) d += ' ' + m.team;
-      h += '<div class="gs-row"><span class="gs-sub">' + d + '</span><span class="gs-val ' + color + '">' + v + '</span></div>';
+      var isW = m.team === 'WPX';
+      h += '<div class="gs-row"><span class="gs-sub' + (isW ? ' wpxc' : '') + '">' + d + '</span><span class="gs-val ' + (isW ? 'wpxc' : color) + '">' + v + '</span></div>';
     });
     return h + '<div class="gs-arrow">\u2193</div></div>';
   }
 
+  var legend = document.getElementById('growthLegend');
+  if (legend) legend.innerHTML = g.crossTeam ? '<b>Orange</b> = WPX data' : '';
+
   grid.innerHTML =
     '<div class="growth-stat gs-level">' +
       '<div class="gs-label">Level' + dateBadge + '</div>' +
-      '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val purple">' + (g.firstLevel || '-') + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val ' + tc('purple') + '">' + (g.firstLevel || '-') + '</span></div>' +
       midsBlock('level', 'purple') +
-      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val purple">' + (g.currentLevel || '-') + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val ' + nc('purple') + '">' + (g.currentLevel || '-') + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + levelDeltaFmt.cls + '">' + levelDeltaFmt.text + '</span></div>' +
     '</div>' +
     '<div class="growth-stat gs-arena">' +
       '<div class="gs-label">Arena Power' + dateBadge + '</div>' +
-      '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val gold">' + fmtPower(g.firstArena) + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val ' + tc('gold') + '">' + fmtPower(g.firstArena) + '</span></div>' +
       midsBlock('arena', 'gold') +
-      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val gold">' + fmtPower(g.currentArena) + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val ' + nc('gold') + '">' + fmtPower(g.currentArena) + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + arenaDelta.cls + '">' + arenaDelta.text + '</span></div>' +
     '</div>' +
     '<div class="growth-stat gs-hq">' +
       '<div class="gs-label">HQ Power' + dateBadge + '</div>' +
-      '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val blue">' + fmtPower(g.firstHQ) + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val ' + tc('blue') + '">' + fmtPower(g.firstHQ) + '</span></div>' +
       midsBlock('hq', 'blue') +
-      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val blue">' + fmtPower(g.currentHQ) + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val ' + nc('blue') + '">' + fmtPower(g.currentHQ) + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + hqDelta.cls + '">' + hqDelta.text + '</span></div>' +
     '</div>';
 
