@@ -159,6 +159,18 @@ function fmtCellDate(v) {
 //   9=Level note
 //   History groups of 4 starting at col 10 (date,level,arena,HQ), oldest furthest right.
 function parseArenaRow(row) {
+  // History stops at the first cell that holds a NAME (text with letters
+  // that isn't a power like "96.00 M"). That's where a parked block starts,
+  // e.g. the one-time WPX snapshot ImportKimWPXArena parked on
+  // Kimpossible7544's row - it is not part of this row's history.
+  for (let c = 10; c < row.length; c++) {
+    const v = row[c];
+    if (typeof v === "string" && /[a-z]/i.test(v) && parsePower(v) === null) {
+      row = row.slice(0, c);
+      break;
+    }
+  }
+
   const currentArena = parsePower(row[3]);
   const currentHQ    = parsePower(row[4]);
   const currentLevel = row[2] || null;
@@ -182,7 +194,7 @@ function parseArenaRow(row) {
   }
   for (let c = 10; c < row.length; c += 4) {
     const v = row[c];
-    if (v !== null && v !== "") baselineDate = fmtCellDate(v);
+    if (v !== null && v !== "" && String(v).trim() !== "-") baselineDate = fmtCellDate(v);
   }
 
   // If no history yet, first = current
@@ -198,7 +210,7 @@ function parseArenaRow(row) {
     const rawLevel = row[c + 1];
     const arena = parsePower(row[c + 2]);
     const hq    = parsePower(row[c + 3]);
-    const hasDate = rawDate !== null && rawDate !== undefined && rawDate !== "";
+    const hasDate = rawDate !== null && rawDate !== undefined && rawDate !== "" && String(rawDate).trim() !== "-";
     if (!hasDate && arena === null && hq === null) continue;
     arenaSeries.push({
       date:  hasDate ? fmtCellDate(rawDate) : null,
@@ -980,8 +992,13 @@ async function loadGTData() {
           deltaArenaOverall: diff(currentArena, wpxG.firstArena),
           deltaHQOverall:    diff(currentHQ, wpxG.firstHQ),
           levelNote:         hasGtCurrent ? gtG.levelNote : wpxG.levelNote,
-          arenaSeries: (wpxG.arenaSeries || []).map(s => ({ ...s, team: "WPX" }))
-            .concat(hasGtCurrent ? (gtG.arenaSeries || []).map(s => ({ ...s, team: "GT" })) : []),
+          // GT rows can carry copies of WPX-era snapshots; keep the WPX one, drop the GT duplicate
+          arenaSeries: (function () {
+            const wpxS = (wpxG.arenaSeries || []).map(s => ({ ...s, team: "WPX" }));
+            const wpxDates = new Set(wpxS.map(s => s.date).filter(Boolean));
+            const gtS = hasGtCurrent ? (gtG.arenaSeries || []).filter(s => !s.date || !wpxDates.has(s.date)).map(s => ({ ...s, team: "GT" })) : [];
+            return wpxS.concat(gtS);
+          })(),
           crossTeam:         true
         };
         players[gtName].wpxHistory = wpxG;
