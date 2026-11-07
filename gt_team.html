@@ -88,6 +88,7 @@ h2{font-size:30px;}
 .rrow .nm{overflow-wrap:anywhere;}
 .rrow .sc{font-family:'Courier New',monospace;font-weight:700;}
 .met{color:var(--gold);} .miss{color:var(--rust);} .neu{color:var(--text);} .exc{color:var(--dim);}
+.help{color:#8cc4e8;} .sc.help{font-family:'Special Elite','Courier New',monospace;font-weight:400;font-size:13px;letter-spacing:0.08em;}
 .rnone{font-size:14px;color:var(--dim);}
 .status{display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px 0;text-align:center;}
 footer{font-size:13px;color:var(--dim);text-align:center;letter-spacing:0.12em;}
@@ -365,7 +366,7 @@ function rosterPanel(wi, col) {
   var total = scored.reduce(function (a, p) { return a + p.v; }, 0);
   var met = goal ? scored.filter(function (p) { return p.v >= goal; }).length : 0;
   var h = '<div class="roster" data-panel="' + wi + '-' + col + '">';
-  h += '<div class="rhead typer"><span>' + D.day + ' · ' + scored.length + ' SCORED · TOTAL ' + fmt(total) + '</span>';
+  h += '<div class="rhead typer"><span>' + D.day + ' · ' + scored.length + ' SCORED · TOTAL ' + fmt(total) + (excused.length ? ' · <span class="help">' + excused.length + ' HELPING OTHER ALLIANCES</span>' : '') + '</span>';
   h += '<span>' + (goal ? 'GOAL ' + fmt(goal) + ' · ' + met + ' MET / ' + (scored.length - met) + ' MISSED' : 'NO DAILY GOAL') + '</span></div>';
   h += '<div class="rlist">';
   scored.forEach(function (p, i) {
@@ -373,7 +374,7 @@ function rosterPanel(wi, col) {
     h += '<div class="rrow"><span class="rk">' + (i + 1) + '</span><span class="nm">' + esc(p.name) + '</span><span class="sc ' + cls + '">' + p.v.toLocaleString() + '</span></div>';
   });
   excused.forEach(function (p) {
-    h += '<div class="rrow"><span class="rk">—</span><span class="nm exc">' + esc(p.name) + '</span><span class="sc exc">x</span></div>';
+    h += '<div class="rrow" title="Went to another alliance this day to help them win"><span class="rk help">↗</span><span class="nm">' + esc(p.name) + '</span><span class="sc help">HELPING ELSEWHERE</span></div>';
   });
   h += '</div>';
   if (none.length) h += '<div class="rnone">No score (' + none.length + '): ' + none.map(function (p) { return esc(p.name); }).join(', ') + '</div>';
