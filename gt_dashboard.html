@@ -288,27 +288,30 @@ function renderGrowthCard(p) {
     : '';
 
   var thenLabel = 'Then' + (p.joinDate ? ' <span class="gs-join">(' + p.joinDate + ')</span>' : '');
+  // Date of the latest Arena Power import (Arena Power sheet col B)
+  var nowDate = (g.currentDate && g.currentDate !== 'null' && g.currentDate !== 'undefined') ? g.currentDate : '';
+  var nowLabel = 'Now' + (nowDate ? ' <span class="gs-join">(' + nowDate + ')</span>' : '');
 
   grid.innerHTML =
     '<div class="growth-stat gs-level">' +
       '<div class="gs-label">Level' + dateBadge + '</div>' +
       '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val purple">' + (g.firstLevel || '-') + '</span></div>' +
       '<div class="gs-arrow">\u2193</div>' +
-      '<div class="gs-row"><span class="gs-sub">Now</span><span class="gs-val purple">' + (g.currentLevel || '-') + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val purple">' + (g.currentLevel || '-') + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + levelDeltaFmt.cls + '">' + levelDeltaFmt.text + '</span></div>' +
     '</div>' +
     '<div class="growth-stat gs-arena">' +
       '<div class="gs-label">Arena Power' + dateBadge + '</div>' +
       '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val gold">' + fmtPower(g.firstArena) + '</span></div>' +
       '<div class="gs-arrow">\u2193</div>' +
-      '<div class="gs-row"><span class="gs-sub">Now</span><span class="gs-val gold">' + fmtPower(g.currentArena) + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val gold">' + fmtPower(g.currentArena) + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + arenaDelta.cls + '">' + arenaDelta.text + '</span></div>' +
     '</div>' +
     '<div class="growth-stat gs-hq">' +
       '<div class="gs-label">HQ Power' + dateBadge + '</div>' +
       '<div class="gs-row"><span class="gs-sub">' + thenLabel + '</span><span class="gs-val blue">' + fmtPower(g.firstHQ) + '</span></div>' +
       '<div class="gs-arrow">\u2193</div>' +
-      '<div class="gs-row"><span class="gs-sub">Now</span><span class="gs-val blue">' + fmtPower(g.currentHQ) + '</span></div>' +
+      '<div class="gs-row"><span class="gs-sub">' + nowLabel + '</span><span class="gs-val blue">' + fmtPower(g.currentHQ) + '</span></div>' +
       '<div class="gs-delta"><span class="gs-delta-label">\u0394</span><span class="gs-delta-val ' + hqDelta.cls + '">' + hqDelta.text + '</span></div>' +
     '</div>';
 }

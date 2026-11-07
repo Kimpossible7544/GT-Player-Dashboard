@@ -970,6 +970,7 @@ async function loadGTData() {
           currentLevel,
           currentArena,
           currentHQ,
+          currentDate:  hasGtCurrent ? gtG.currentDate : wpxG.currentDate,
           firstLevel:   wpxG.firstLevel,
           firstArena:   wpxG.firstArena,
           firstHQ:      wpxG.firstHQ,
