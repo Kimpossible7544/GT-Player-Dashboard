@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GT — Tyrant Watch</title>
+<script>document.write('<scr'+'ipt src="gt_auth.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<link rel="apple-touch-icon" sizes="180x180" href="apple-touch-icon.png">
+<link rel="icon" type="image/x-icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Black+Ops+One&family=Special+Elite&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>document.write('<scr'+'ipt src="gt_data.js?v='+Date.now()+'"></scr'+'ipt>');</script>
+<style>
+:root{--bg:#16130f;--panel:#221e19;--panel2:#2a251f;--line:#3a332a;--dash:#4a4136;--gold:#f2c230;--rust:#e0704a;--rust-dk:#6b2a1c;--text:#e8e0d0;--soft:#c9bfae;--dim:#a89f8e;
+  --v-not:#d9432b;--v-likely:#e0884a;--v-watch:#f2c230;--v-ok:#7fae5c;--v-na:#6d655a;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:'Barlow Condensed','Arial Narrow',sans-serif;min-height:100vh;}
+.stencil{font-family:'Black Ops One',Impact,sans-serif;letter-spacing:0.04em;font-weight:400;}
+.typer{font-family:'Special Elite','Courier New',monospace;}
+.tape{height:10px;background:repeating-linear-gradient(-45deg,var(--gold) 0 14px,var(--bg) 14px 28px);}
+.topbar{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;max-width:1000px;margin:0 auto;padding:14px 16px 0;}
+.topbar a,.topbar button{font-family:'Special Elite','Courier New',monospace;font-size:14px;letter-spacing:0.12em;color:var(--dim);text-decoration:none;background:none;border:0;cursor:pointer;padding:10px 4px;}
+.topbar a:hover,.topbar button:hover{color:var(--gold);}
+.wrap{max-width:1000px;margin:0 auto;padding:16px 16px 56px;display:flex;flex-direction:column;gap:32px;}
+header{display:flex;flex-direction:column;gap:4px;border-bottom:3px solid var(--line);padding-bottom:16px;}
+.kicker{font-size:14px;color:var(--dim);letter-spacing:0.18em;}
+h1{font-size:52px;line-height:1;}
+h1 span{color:var(--gold);}
+h2{font-size:30px;line-height:1.05;}
+.sub{font-size:17px;color:var(--soft);}
+.sub strong{color:var(--text);}
+section{display:flex;flex-direction:column;gap:14px;}
+.sechead{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap;}
+
+/* summary */
+.tally{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+.tbox{background:var(--panel);border:2px solid var(--line);border-top:6px solid var(--c);padding:14px 14px 12px;display:flex;flex-direction:column;gap:2px;min-width:0;}
+.tbox .n{font-size:54px;line-height:1;color:var(--c);}
+.tbox .t{font-size:13px;color:var(--dim);letter-spacing:0.1em;}
+.meta{font-size:14px;color:var(--dim);}
+
+/* offender cards */
+.list{display:flex;flex-direction:column;gap:10px;}
+.card{background:var(--panel);border:2px solid var(--line);border-left:8px solid var(--c);}
+.card > button{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 18px;align-items:center;width:100%;padding:14px 18px;background:none;border:0;color:var(--text);text-align:left;cursor:pointer;font-family:inherit;}
+.card > button:hover{background:var(--panel2);}
+.card > button:focus-visible{outline:3px solid var(--gold);outline-offset:-3px;}
+.who{display:flex;flex-direction:column;gap:6px;min-width:0;}
+.who .nm{font-size:26px;line-height:1;overflow-wrap:anywhere;}
+.badge{align-self:flex-start;font-family:'Black Ops One',Impact,sans-serif;font-size:12px;letter-spacing:0.06em;padding:3px 8px;background:var(--c);color:#16130f;}
+.facts{font-size:16px;color:var(--soft);}
+.facts b{color:var(--text);}
+.big{text-align:right;display:flex;flex-direction:column;align-items:flex-end;}
+.big .n{font-size:44px;line-height:1;color:var(--c);}
+.big .t{font-size:12px;color:var(--dim);letter-spacing:0.12em;}
+.strip{grid-column:1 / -1;display:flex;gap:4px;flex-wrap:wrap;align-items:center;}
+.sq{width:26px;height:26px;display:inline-flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;color:#16130f;}
+.sq.e0{background:var(--v-ok);} .sq.e1{background:var(--v-watch);} .sq.e2{background:var(--v-likely);} .sq.e3{background:var(--v-not);color:#fff;}
+.sq.ns{background:transparent;border:1px dashed var(--dash);color:var(--dim);font-weight:400;}
+.strip .lbl{font-size:13px;color:var(--dim);margin-right:4px;font-family:'Special Elite','Courier New',monospace;}
+.detail{border-top:1px dashed var(--line);padding:10px 18px 14px;overflow-x:auto;}
+.rt{width:100%;min-width:440px;border-collapse:collapse;font-size:16px;}
+.rt th{font-family:'Special Elite','Courier New',monospace;font-size:13px;color:var(--dim);font-weight:400;text-align:right;padding:6px 8px;border-bottom:2px solid var(--line);}
+.rt th:first-child,.rt td:first-child{text-align:left;}
+.rt td{padding:6px 8px;text-align:right;border-bottom:1px dashed var(--line);font-variant-numeric:tabular-nums;}
+.rt td.x0{color:var(--v-ok);} .rt td.x1{color:var(--v-watch);} .rt td.x2{color:var(--v-likely);} .rt td.x3{color:var(--v-not);font-weight:700;}
+.empty{padding:18px;background:var(--panel);border:2px dashed var(--line);color:var(--soft);font-size:17px;}
+
+/* chart */
+.chartcard{background:var(--panel);border:2px solid var(--line);padding:14px 12px 10px;}
+.chartcard svg{width:100%;height:auto;display:block;}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:14px;color:var(--soft);padding:6px 6px 0;}
+.legend span{display:inline-flex;align-items:center;gap:6px;}
+.legend i{width:12px;height:12px;border-radius:50%;display:inline-block;}
+.legend i.ln{width:22px;height:0;border-radius:0;border-top:3px solid var(--gold);}
+
+/* collapsed lists */
+details{background:var(--panel);border:2px solid var(--line);}
+summary{cursor:pointer;padding:14px 18px;font-size:20px;list-style:none;display:flex;justify-content:space-between;gap:10px;}
+summary::-webkit-details-marker{display:none;}
+summary::after{content:'\25BE';color:var(--dim);}
+details[open] summary::after{content:'\25B4';}
+summary:focus-visible{outline:3px solid var(--gold);outline-offset:-3px;}
+.names{display:flex;flex-wrap:wrap;gap:6px 8px;padding:0 18px 16px;}
+.names span{font-size:16px;padding:3px 9px;background:var(--panel2);border:1px solid var(--line);}
+
+.how{background:var(--panel);border:2px dashed var(--gold);padding:18px 20px;display:flex;flex-direction:column;gap:10px;font-size:17px;color:var(--soft);line-height:1.4;}
+.how strong{color:var(--text);}
+.how ul{padding-left:20px;display:flex;flex-direction:column;gap:2px;}
+.status{display:flex;flex-direction:column;align-items:center;gap:14px;padding:60px 0;text-align:center;}
+.btn{min-height:44px;padding:8px 16px;background:transparent;color:var(--gold);border:2px solid var(--gold);font-family:'Black Ops One',Impact,sans-serif;font-size:15px;cursor:pointer;}
+footer{font-size:13px;color:var(--dim);text-align:center;letter-spacing:0.12em;}
+@media(max-width:640px){
+  h1{font-size:40px;}
+  .tally{grid-template-columns:repeat(2,minmax(0,1fr));}
+  .tbox .n{font-size:42px;}
+  .card > button{padding:12px 14px;}
+  .who .nm{font-size:22px;}
+  .card > button{grid-template-columns:minmax(0,1fr);}
+  .big{flex-direction:row;align-items:baseline;gap:8px;text-align:left;justify-content:flex-start;}
+  .big .n{font-size:32px;}
+  .detail{padding:8px 10px 12px;}
+  .rt{min-width:0;font-size:15px;}
+  .rt th{font-size:11px;padding:6px 4px;} .rt td{padding:6px 4px;}
+  .sq{width:22px;height:22px;font-size:11px;}
+}
+</style>
+</head>
+<body>
+<div class="tape"></div>
+<div class="topbar">
+  <a href="index.html">← HOME</a>
+  <button type="button" onclick="gtLogout()">LOG OUT</button>
+</div>
+<div class="wrap">
+  <header>
+    <div class="typer kicker">FIELD REPORT // TYRANT COMPLIANCE · MASTER ONLY</div>
+    <h1 class="stencil">GT <span>TYRANT WATCH</span></h1>
+  </header>
+  <main id="app" style="display:flex;flex-direction:column;gap:32px;">
+    <div class="status"><div class="stencil" style="font-size:22px">LOADING INTEL…</div><div class="typer" style="color:var(--dim)">Pulling TyrantSpam from GTStatsFINAL</div></div>
+  </main>
+  <footer class="typer">DATA: GTStatsFINAL · TYRANTSPAM SHEET · REBUILT BY BuildTyrantSpamReport</footer>
+</div>
+<div class="tape"></div>
+
+<script>
+// ===================================================================
+// GT Tyrant Watch — reads the TyrantSpam sheet built by the
+// BuildTyrantSpamReport macro (v3, power-adjusted).
+//   B1:B3 calibration, B4 round minutes, B5 minutes per send,
+//   B6/B7/B8 = WATCH / LIKELY / NOT STOPPING lines, B9 = min rounds
+//   Row 12 = headers, rows 13+ = players (worst first)
+//   A Verdict, B Name, C ID, D Arena Power, E Rounds, F Avg Damage,
+//   G Rule-Follower Est, H Avg Extra, I Max Extra, J Rounds 5+, K Last
+//   M onward = damage per round (header like "11/08 R1")
+// ===================================================================
+var HDR_ROW = 12;
+var ROUND_RE = /^\d{1,2}\/\d{1,2} R\d+$/;
+
+function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
+function num(v) { return (typeof v === 'number' && isFinite(v)) ? v : null; }
+function bil(n) { return n == null ? '—' : (n / 1e9).toFixed(1) + 'B'; }
+function one(n) { return n == null ? '—' : n.toFixed(1); }
+
+function vKey(v) {
+  v = String(v || '').toUpperCase();
+  if (v === 'NOT STOPPING') return 'not';
+  if (v.indexOf('LIKELY') === 0) return 'likely';
+  if (v === 'WATCH') return 'watch';
+  if (v.indexOf('FOLLOWING') === 0) return 'ok';
+  return 'na';
+}
+var V_COLOR = { not: 'var(--v-not)', likely: 'var(--v-likely)', watch: 'var(--v-watch)', ok: 'var(--v-ok)', na: 'var(--v-na)' };
+var V_HEX = { not: '#d9432b', likely: '#e0884a', watch: '#f2c230', ok: '#7fae5c', na: '#6d655a' };
+
+function parseSheet(ws) {
+  var rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: null, raw: true });
+  var set = function (r) { return num((rows[r] || [])[1]); };
+  var cfg = {
+    refDmg: set(0), refSends: set(1), refAP: set(2),
+    watch: set(5) || 2, likely: set(6) || 5, not: set(7) || 10, minRounds: set(8) || 3,
+    built: String(((rows[7] || [])[3]) || '').replace(/\s+\|.*$/, '').replace(/^Last built:\s*/i, '')
+  };
+  cfg.perSendPer1 = (cfg.refDmg && cfg.refSends && cfg.refAP) ? cfg.refDmg / cfg.refSends / cfg.refAP : null;
+
+  var hdr = rows[HDR_ROW - 1] || [];
+  var rounds = [];
+  for (var c = 12; c < hdr.length; c++) {
+    var h = hdr[c] == null ? '' : String(hdr[c]).trim();
+    if (ROUND_RE.test(h)) rounds.push({ col: c, label: h });
+  }
+
+  var players = [];
+  for (var r = HDR_ROW; r < rows.length; r++) {
+    var row = rows[r] || [];
+    if (!row[1]) continue;
+    var p = {
+      verdict: String(row[0] || ''), key: vKey(row[0]), name: String(row[1]), id: row[2],
+      ap: num(row[3]), played: num(row[4]) || 0, avgD: num(row[5]), rf: num(row[6]),
+      avgX: num(row[7]), maxX: num(row[8]), over: num(row[9]) || 0, lastX: num(row[10]), rounds: []
+    };
+    var perSend = (p.ap && cfg.perSendPer1) ? p.ap * cfg.perSendPer1 : null;
+    rounds.forEach(function (rd) {
+      var d = num(row[rd.col]);
+      var x = (d != null && perSend && p.rf != null) ? Math.max(0, (d - p.rf) / perSend) : null;
+      p.rounds.push({ label: rd.label, dmg: d, extra: x });
+    });
+    players.push(p);
+  }
+  return { cfg: cfg, rounds: rounds, players: players };
+}
+
+function band(x, cfg) {
+  if (x == null) return -1;
+  if (x >= cfg.not) return 3;
+  if (x >= cfg.likely) return 2;
+  if (x >= cfg.watch) return 1;
+  return 0;
+}
+
+function strip(p, cfg) {
+  var h = '<div class="strip"><span class="lbl">ROUNDS</span>';
+  p.rounds.forEach(function (rd) {
+    if (rd.dmg == null) {
+      h += '<span class="sq ns" title="' + esc(rd.label) + ': no show">–</span>';
+    } else {
+      var b = band(rd.extra, cfg);
+      var t = rd.label + ': ' + bil(rd.dmg) + (rd.extra != null ? ' · +' + rd.extra.toFixed(1) + ' extra sends' : '');
+      h += '<span class="sq e' + Math.max(b, 0) + '" title="' + esc(t) + '">' + (rd.extra != null ? Math.round(rd.extra) : '') + '</span>';
+    }
+  });
+  return h + '</div>';
+}
+
+function detailTable(p, cfg) {
+  var h = '<div class="detail"><table class="rt"><thead><tr><th>Round</th><th>Damage</th><th>Rule-follower est.</th><th>Extra sends</th></tr></thead><tbody>';
+  p.rounds.slice().reverse().forEach(function (rd) {
+    var b = band(rd.extra, cfg);
+    h += '<tr><td>' + esc(rd.label) + '</td><td>' + (rd.dmg == null ? '<span style="color:var(--dim)">no show</span>' : bil(rd.dmg)) + '</td><td>' +
+      (rd.dmg == null ? '—' : bil(p.rf)) + '</td><td class="x' + Math.max(b, 0) + '">' + (rd.extra == null ? '—' : '+' + rd.extra.toFixed(1)) + '</td></tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+function card(p, i, cfg) {
+  var c = V_COLOR[p.key];
+  return '<div class="card" style="--c:' + c + '">' +
+    '<button type="button" aria-expanded="false" data-card="' + i + '">' +
+      '<div class="who"><span class="badge">' + esc(p.verdict) + '</span><span class="nm stencil">' + esc(p.name) + '</span>' +
+      '<span class="facts"><b>' + p.over + ' of ' + p.played + '</b> rounds with ' + cfg.likely + '+ extra sends · worst round <b>+' + one(p.maxX) + '</b> · Arena Power <b>' + (p.ap == null ? '—' : p.ap.toFixed(1) + 'M') + '</b></span></div>' +
+      '<div class="big"><span class="n stencil">+' + one(p.avgX) + '</span><span class="t">EXTRA SENDS / ROUND</span></div>' +
+      strip(p, cfg) +
+    '</button></div>';
+}
+
+function scatter(players, cfg) {
+  var pts = players.filter(function (p) { return p.ap && p.avgD != null && p.rf != null; });
+  if (!pts.length) return '';
+  var W = 900, H = 470, L = 64, R = 20, T = 20, B = 52;
+  var maxX = Math.max.apply(null, pts.map(function (p) { return p.ap; })) * 1.05;
+  var maxY = Math.max.apply(null, pts.map(function (p) { return Math.max(p.avgD, p.rf); })) / 1e9 * 1.08;
+  var sx = function (v) { return L + (v / maxX) * (W - L - R); };
+  var sy = function (v) { return H - B - (v / maxY) * (H - T - B); };
+  var g = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Average Tyrant damage versus Arena Power, with the rule-follower line">';
+  // grid + axes
+  var yStep = maxY > 80 ? 20 : 10, xStep = maxX > 600 ? 200 : 100;
+  for (var y = 0; y <= maxY; y += yStep) {
+    g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + sy(y) + '" y2="' + sy(y) + '" stroke="#3a332a" stroke-dasharray="3 5"/>' +
+         '<text x="' + (L - 8) + '" y="' + (sy(y) + 5) + '" fill="#a89f8e" font-size="14" text-anchor="end" font-family="Barlow Condensed,sans-serif">' + y + 'B</text>';
+  }
+  for (var x = 0; x <= maxX; x += xStep) {
+    g += '<text x="' + sx(x) + '" y="' + (H - B + 22) + '" fill="#a89f8e" font-size="14" text-anchor="middle" font-family="Barlow Condensed,sans-serif">' + x + 'M</text>';
+  }
+  g += '<text x="' + ((L + W - R) / 2) + '" y="' + (H - 8) + '" fill="#c9bfae" font-size="15" text-anchor="middle" font-family="Special Elite,monospace">ARENA POWER</text>';
+  g += '<text transform="translate(16 ' + ((T + H - B) / 2) + ') rotate(-90)" fill="#c9bfae" font-size="15" text-anchor="middle" font-family="Special Elite,monospace">AVG DAMAGE / ROUND</text>';
+  // threshold
+  g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + sy(23.9) + '" y2="' + sy(23.9) + '" stroke="#a89f8e" stroke-width="1.5" stroke-dasharray="8 6"/>' +
+       '<text x="' + (W - R - 4) + '" y="' + (sy(23.9) - 6) + '" fill="#a89f8e" font-size="13" text-anchor="end" font-family="Special Elite,monospace">23.9B THRESHOLD</text>';
+  // rule-follower line (sorted by power)
+  var line = pts.slice().sort(function (a, b) { return a.ap - b.ap; });
+  g += '<polyline fill="none" stroke="#f2c230" stroke-width="3" points="' + line.map(function (p) { return sx(p.ap).toFixed(1) + ',' + sy(p.rf / 1e9).toFixed(1); }).join(' ') + '"/>';
+  // dots: draw "ok" first so offenders sit on top
+  var order = { ok: 0, na: 0, watch: 1, likely: 2, not: 3 };
+  var labels = [];
+  pts.slice().sort(function (a, b) { return order[a.key] - order[b.key]; }).forEach(function (p) {
+    var cx = sx(p.ap), cy = sy(p.avgD / 1e9), big = p.key === 'not' || p.key === 'likely';
+    g += '<line x1="' + cx + '" x2="' + cx + '" y1="' + sy(p.rf / 1e9) + '" y2="' + cy + '" stroke="' + V_HEX[p.key] + '" stroke-opacity="' + (big ? 0.55 : 0.18) + '" stroke-width="1.5"/>';
+    g += '<circle cx="' + cx.toFixed(1) + '" cy="' + cy.toFixed(1) + '" r="' + (big ? 7 : 5) + '" fill="' + V_HEX[p.key] + '" stroke="#16130f" stroke-width="1.5"><title>' +
+      esc(p.name + ' — ' + p.verdict + '\nAvg damage ' + bil(p.avgD) + ' vs rule-follower ' + bil(p.rf) + '\n+' + one(p.avgX) + ' extra sends / round') + '</title></circle>';
+    if (p.key === 'not') labels.push({ cx: cx, cy: cy, name: p.name });
+  });
+  // labels for NOT STOPPING dots, nudged so they don't overlap
+  var placed = [];
+  labels.sort(function (a, b) { return a.cy - b.cy; }).forEach(function (lb) {
+    var w = lb.name.length * 7.6 + 4, cands = [[10, 5, 0], [-10, 5, 1], [10, -12, 0], [-10, -12, 1], [10, 22, 0], [-10, 22, 1]];
+    for (var k = 0; k < cands.length; k++) {
+      var c = cands[k], x0 = c[2] ? lb.cx + c[0] - w : lb.cx + c[0], y0 = lb.cy + c[1] - 13;
+      var hit = placed.some(function (r) { return x0 < r.x + r.w && x0 + w > r.x && y0 < r.y + 16 && y0 + 16 > r.y; });
+      if (!hit || k === cands.length - 1) {
+        placed.push({ x: x0, y: y0, w: w });
+        g += '<text x="' + (lb.cx + c[0]) + '" y="' + (lb.cy + c[1]) + '" text-anchor="' + (c[2] ? 'end' : 'start') + '" fill="#e8e0d0" font-size="14" font-family="Barlow Condensed,sans-serif" font-weight="700" paint-order="stroke" stroke="#221e19" stroke-width="4">' + esc(lb.name) + '</text>';
+        break;
+      }
+    }
+  });
+  return g + '</svg>';
+}
+
+function render(data) {
+  var cfg = data.cfg, P = data.players;
+  var by = { not: [], likely: [], watch: [], ok: [], na: [] };
+  P.forEach(function (p) { by[p.key].push(p); });
+  var repeat = by.not.concat(by.likely);
+  window.__cards = repeat.concat(by.watch);
+
+  var h = '';
+  h += '<section><div class="tally">' +
+    tbox('NOT STOPPING', by.not.length, 'not') + tbox('LIKELY NOT STOPPING', by.likely.length, 'likely') +
+    tbox('WATCH', by.watch.length, 'watch') + tbox('FOLLOWING RULE / OFFLINE', by.ok.length, 'ok') +
+    '</div><div class="meta typer">' + data.rounds.length + ' ROUNDS TRACKED · ' + P.length + ' PLAYERS' + (cfg.built ? ' · SHEET BUILT ' + esc(cfg.built.toUpperCase()) : '') + '</div></section>';
+
+  h += '<section><div class="sechead"><div><h2 class="stencil">REPEAT OVER-SENDERS</h2>' +
+    '<div class="sub">Averaging <strong>' + cfg.likely + '+ extra sends per round</strong> across their history. Worst first. Tap a name for round-by-round.</div></div></div>';
+  h += repeat.length ? '<div class="list">' + repeat.map(function (p, i) { return card(p, i, cfg); }).join('') + '</div>'
+                     : '<div class="empty">Nobody is averaging ' + cfg.likely + '+ extra sends right now. Clean sheet.</div>';
+  h += '</section>';
+
+  if (by.watch.length) {
+    h += '<section><div class="sechead"><div><h2 class="stencil">WATCH LIST</h2>' +
+      '<div class="sub">Averaging <strong>' + cfg.watch + '–' + cfg.likely + ' extra sends</strong>. Could be strength or sloppiness. Not a verdict yet.</div></div></div>' +
+      '<div class="list">' + by.watch.map(function (p, i) { return card(p, repeat.length + i, cfg); }).join('') + '</div></section>';
+  }
+
+  h += '<section><div class="sechead"><div><h2 class="stencil">THE LINE</h2>' +
+    '<div class="sub">Gold line = what a player of that Arena Power <strong>should</strong> finish with if they follow the rule. The higher a dot floats above it, the more tanks they kept sending.</div></div></div>' +
+    '<div class="chartcard">' + scatter(P, cfg) +
+    '<div class="legend"><span><i class="ln"></i>Rule-follower estimate</span><span><i style="background:' + V_HEX.not + '"></i>Not stopping</span><span><i style="background:' + V_HEX.likely + '"></i>Likely not stopping</span><span><i style="background:' + V_HEX.watch + '"></i>Watch</span><span><i style="background:' + V_HEX.ok + '"></i>Following rule / offline</span></div>' +
+    '</div></section>';
+
+  h += '<section>';
+  h += namesBlock('FOLLOWING RULE / OFFLINE', by.ok);
+  if (by.na.length) h += namesBlock('NO VERDICT (not enough rounds or no Arena Power)', by.na, true);
+  h += '</section>';
+
+  h += '<section class="how"><h2 class="stencil" style="color:var(--gold)">HOW THE CALL IS MADE</h2>' +
+    '<div>Each player gets their own baseline. Per-tank damage is calibrated from a verified full-pace run and scaled to that player\'s <strong>Arena Power</strong>, so big hitters aren\'t flagged just for hitting big.</div>' +
+    '<div>The <strong>rule-follower estimate</strong> is what they should finish with if they go full pace to 23.9B, then drop to one tank every 3 minutes for the rest of the 15-minute round. Anything above that is converted into <strong>extra sends</strong>.</div>' +
+    '<ul><li>Under ' + cfg.watch + ' extra sends on average: <strong>Following Rule / Offline</strong></li><li>' + cfg.watch + '+: <strong>Watch</strong></li><li>' + cfg.likely + '+: <strong>Likely Not Stopping</strong></li><li>' + cfg.not + '+: <strong>Not Stopping</strong></li></ul>' +
+    '<div>Verdicts use the <strong>average across every round</strong>, never a single spike, and need at least ' + cfg.minRounds + ' rounds. Caveat: heroes and gear can make someone hit harder than their Arena Power suggests, so use this to decide who to watch, not as proof by itself.</div></section>';
+
+  document.getElementById('app').innerHTML = h;
+}
+
+function tbox(label, n, key) {
+  return '<div class="tbox" style="--c:' + V_COLOR[key] + '"><span class="n stencil">' + n + '</span><span class="t">' + label + '</span></div>';
+}
+function namesBlock(title, list, dim) {
+  return '<details><summary class="stencil"><span>' + esc(title) + ' <span style="color:var(--dim)">(' + list.length + ')</span></span></summary>' +
+    '<div class="names">' + list.map(function (p) { return '<span' + (dim ? ' style="color:var(--dim)"' : '') + '>' + esc(p.name) + '</span>'; }).join('') + '</div></details>';
+}
+
+document.addEventListener('click', function (e) {
+  var b = e.target.closest('[data-card]');
+  if (!b) return;
+  var wrap = b.parentNode, open = wrap.querySelector('.detail');
+  if (open) { open.remove(); b.setAttribute('aria-expanded', 'false'); return; }
+  var p = window.__cards[+b.getAttribute('data-card')];
+  wrap.insertAdjacentHTML('beforeend', detailTable(p, window.__cfg));
+  b.setAttribute('aria-expanded', 'true');
+});
+
+async function loadTyrant() {
+  var resp = await fetchWithRetry(GT_DROPBOX_URL);
+  var buf = await resp.arrayBuffer();
+  var wb = XLSX.read(buf, { type: 'array', sheets: ['TyrantSpam'] });
+  var ws = wb.Sheets['TyrantSpam'];
+  if (!ws) throw new Error('No TyrantSpam sheet found in GTStatsFINAL. Run BuildTyrantSpamReport, save, and reload.');
+  return parseSheet(ws);
+}
+
+if (typeof fetchWithRetry === 'function') {
+  loadTyrant().then(function (data) {
+    if (!data.players.length) throw new Error('TyrantSpam has no player rows yet.');
+    window.__cfg = data.cfg;
+    render(data);
+  }).catch(function (err) {
+    document.getElementById('app').innerHTML = '<div class="status"><div class="stencil" style="font-size:24px;color:var(--rust)">COMMS DOWN</div><div class="typer" style="color:var(--soft);max-width:520px">' + esc(err.message) + '</div><button class="btn" type="button" onclick="location.reload()">TRY AGAIN</button></div>';
+  });
+}
+</script>
+</body>
+</html>
