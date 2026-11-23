@@ -457,7 +457,7 @@ function loadPlayer(name) {
     '<div class="stat-card c4"><div class="stat-label">Weeks Played</div><div class="stat-value gold">' + p.weeks.filter(function (w) { return w.score > 0; }).length + '</div></div>' +
     '<div class="stat-card c5"><div class="stat-label">Missed Daily</div><div class="stat-value red">' + p.missedDaily + '</div></div>' +
     '<div class="stat-card c6"><div class="stat-label">Missed Weekly</div><div class="stat-value red">' + p.missedWeekly + '</div></div>' +
-    '<div class="stat-card c7"><div class="stat-label">Goal Weeks</div><div class="stat-value accent">' + p.weeks.filter(function (w) { return w.score >= getWeeklyGoal(w.label, 20000000); }).length + '</div></div>';
+    '<div class="stat-card c7"><div class="stat-label">Goal Weeks</div><div class="stat-value accent">' + p.weeks.filter(function (w) { return weeklyGoalScore(w) >= getWeeklyGoal(w.label, 20000000); }).length + '</div></div>';
 
   renderWpxStatsCard(p);
   renderGrowthCard(p);
@@ -520,7 +520,7 @@ function loadPlayer(name) {
     var badges = '';
     if (w.inProgress) badges += ' <span class="in-progress-label">live</span>';
     if (sh) badges += ' <span class="server-help-label">server help</span>';
-    return '<tr><td' + rowStyle + '>' + w.label + tag + badges + '</td><td class="week-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="rank-val"' + rowStyle + '>' + (w.rank || '-') + '</td><td class="days-hit">' + daysHitText(p, w) + '</td>' + (function () { var g = getWeeklyGoal(w.label, 20000000); if (w.score >= g) return '<td class="goal-yes">&#9733; YES</td>'; if (w.inProgress || !w.score) return '<td>-</td>'; return '<td class="goal-no">&#10007; NO</td>'; })() + '</tr>';
+    return '<tr><td' + rowStyle + '>' + w.label + tag + badges + '</td><td class="week-score"' + rowStyle + '>' + (w.score ? w.score.toLocaleString() : '-') + '</td><td class="rank-val"' + rowStyle + '>' + (w.rank || '-') + '</td><td class="days-hit">' + daysHitText(p, w) + '</td>' + (function () { var g = getWeeklyGoal(w.label, 20000000); if (weeklyGoalScore(w) >= g) return '<td class="goal-yes">&#9733; YES</td>'; if (w.inProgress || !w.score) return '<td>-</td>'; return '<td class="goal-no">&#10007; NO</td>'; })() + '</tr>';
   }).join('');
 
   var hasNP = p.weeks.some(function (w) { return w.pushing === false; });

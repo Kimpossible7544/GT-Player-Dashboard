@@ -122,6 +122,13 @@ function getWeeklyGoal(weekLabel, legacyGoal) {
   return usesGoalsV2(weekLabel) ? WEEKLY_GOAL_V2 : (legacyGoal || 20000000);
 }
 
+// Score used for the weekly goal check. Weekly totals (week.score) are Mon-Fri
+// only; from Nov 2 on, the weekly goal counts as met if Mon-Sat reaches it, so
+// goalScore = Mon-Fri total + Saturday (Enemy Buster). Set in fetchGTData.
+function weeklyGoalScore(w) {
+  return (w && w.goalScore != null) ? w.goalScore : ((w && w.score) || 0);
+}
+
 // Days that count toward missed daily goals: Mon-Fri, plus Saturday from Nov 2 on.
 function goalDays(weekLabel) {
   const d = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -733,6 +740,14 @@ async function loadGTData() {
       }
     }
 
+    // Attach Mon-Sat goal score (Saturday only counts from Nov 2 on).
+    const gpd = dailyData.players[player.name];
+    player.weeks.forEach(week => {
+      const wi  = dailyData.weekOrder.indexOf(week.label);
+      const sat = (usesGoalsV2(week.label) && gpd && wi >= 0) ? (gpd[SAT][wi] || 0) : 0;
+      week.goalScore = (week.score || 0) + sat;
+    });
+
     let totalScore = 0;
     let pushingTotal = 0;
     let weeksWithScore = 0;
@@ -754,7 +769,7 @@ async function loadGTData() {
       if (!week.pushing || week.inProgress) return;
       if (!week.score || week.score <= 0) return;
 
-      if (week.score < getWeeklyGoal(week.label, WEEKLY_GOAL)) missedWeekly++;
+      if (weeklyGoalScore(week) < getWeeklyGoal(week.label, WEEKLY_GOAL)) missedWeekly++;
 
       const pd      = dailyData.players[player.name];
       const weekIdx = dailyData.weekOrder.indexOf(week.label);
